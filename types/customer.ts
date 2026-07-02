@@ -1,0 +1,111 @@
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+  role: string;
+}
+
+export interface CustomerProfile {
+  id: string;
+  phone: string;
+  name?: string | null;
+  email?: string | null;
+  addresses?: Address[];
+}
+
+export interface Address {
+  id: string;
+  label: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  pincode: string;
+  isDefault?: boolean;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  iconUrl?: string | null;
+  children?: Category[];
+}
+
+export interface Shop {
+  id: string;
+  shopName: string;
+  slug: string;
+  logoUrl?: string | null;
+  bannerUrl?: string | null;
+  rating?: number | null;
+  minOrderValue?: number | null;
+  isOpen?: boolean;
+  address?: string | null;
+  area?: { id: string; name: string };
+}
+
+export interface ProductImage {
+  id: string;
+  url: string;
+  isPrimary?: boolean;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  brand?: string | null;
+  description?: string | null;
+  sellingPrice: number | string;
+  mrp?: number | string | null;
+  weight?: string | null;
+  images?: ProductImage[];
+  inventory?: { stock: number } | null;
+  category?: Category | null;
+  vendor?: { id: string; shopName: string; slug?: string };
+  reviews?: { rating: number; comment?: string | null }[];
+}
+
+export interface HomeFeed {
+  banners: { id: string; imageUrl: string; title?: string | null }[];
+  microBanners: { id: string; imageUrl: string; title?: string | null }[];
+  categories: Category[];
+  nearbyShops: Shop[];
+  trendingProducts: Product[];
+  offers: { id: string; title: string; description?: string | null }[];
+  bestSellers: Product[];
+  recentlyAdded: Product[];
+  flashSale: { id: string; title: string }[];
+}
+
+export interface CartItem {
+  id: string;
+  productId: string;
+  vendorId: string;
+  quantity: number;
+  product: Product;
+  vendor?: { id: string; shopName: string; minOrderValue?: number | null };
+}
+
+export interface CartResponse {
+  items: CartItem[];
+  byVendor: {
+    vendorId: string;
+    vendor: { id: string; shopName: string; minOrderValue?: number | null };
+    items: CartItem[];
+  }[];
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  grandTotal: number | string;
+  createdAt: string;
+  vendor?: { shopName: string };
+  items?: { name: string; quantity: number; total: number | string }[];
+}
+
+export interface SearchResults {
+  products: Product[];
+  shops: Shop[];
+  categories: Category[];
+}
