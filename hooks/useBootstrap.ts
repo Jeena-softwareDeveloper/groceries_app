@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import { clearTokens, REFRESH_KEY, saveTokens, TOKEN_KEY } from '@/api/client';
 import { getMe } from '@/api/auth';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -34,12 +34,12 @@ export function useBootstrap() {
       try {
         const [accessToken, refreshToken, districtId, districtName, areaId, areaName] =
           await Promise.all([
-            SecureStore.getItemAsync(TOKEN_KEY),
-            SecureStore.getItemAsync(REFRESH_KEY),
-            SecureStore.getItemAsync(LOCATION_KEYS.districtId),
-            SecureStore.getItemAsync(LOCATION_KEYS.districtName),
-            SecureStore.getItemAsync(LOCATION_KEYS.areaId),
-            SecureStore.getItemAsync(LOCATION_KEYS.areaName),
+            getItemAsync(TOKEN_KEY),
+            getItemAsync(REFRESH_KEY),
+            getItemAsync(LOCATION_KEYS.districtId),
+            getItemAsync(LOCATION_KEYS.districtName),
+            getItemAsync(LOCATION_KEYS.areaId),
+            getItemAsync(LOCATION_KEYS.areaName),
           ]);
 
         if (!mounted) return;
@@ -88,21 +88,21 @@ export async function persistLocation(data: {
   areaName: string;
 }) {
   await Promise.all([
-    SecureStore.setItemAsync(LOCATION_KEYS.districtId, data.districtId),
-    SecureStore.setItemAsync(LOCATION_KEYS.districtName, data.districtName),
-    SecureStore.setItemAsync(LOCATION_KEYS.areaId, data.areaId),
-    SecureStore.setItemAsync(LOCATION_KEYS.areaName, data.areaName),
+    setItemAsync(LOCATION_KEYS.districtId, data.districtId),
+    setItemAsync(LOCATION_KEYS.districtName, data.districtName),
+    setItemAsync(LOCATION_KEYS.areaId, data.areaId),
+    setItemAsync(LOCATION_KEYS.areaName, data.areaName),
   ]);
 }
 
 export async function wipeLocation() {
   await Promise.all(
-    Object.values(LOCATION_KEYS).map((key) => SecureStore.deleteItemAsync(key)),
+    Object.values(LOCATION_KEYS).map((key) => deleteItemAsync(key)),
   );
 }
 
 export async function wipeAuth() {
-  const refreshToken = await SecureStore.getItemAsync(REFRESH_KEY);
+  const refreshToken = await getItemAsync(REFRESH_KEY);
   await clearTokens();
   return refreshToken;
 }

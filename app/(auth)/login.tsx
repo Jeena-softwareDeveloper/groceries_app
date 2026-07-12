@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { requestOtp, verifyOtp, getMe } from '@/api/auth';
 import { Button } from '@/components/Button';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { persistAuth } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hero: { marginBottom: spacing.xl },
-  brand: { fontSize: 32, fontWeight: '800', color: colors.primary },
+  brand: { fontSize: 32, fontFamily: fonts.bold, color: colors.primary },
   subtitle: { fontSize: 16, color: colors.textMuted, marginTop: spacing.sm },
   card: {
     backgroundColor: colors.surface,
@@ -136,8 +136,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     gap: spacing.md,
   },
-  label: { fontSize: 15, fontWeight: '600', color: colors.text },
-  hint: { fontSize: 13, color: colors.primary, fontWeight: '500' },
+  label: { fontSize: 15, fontFamily: fonts.medium, color: colors.text },
+  hint: { fontSize: 13, color: colors.primary, fontFamily: fonts.medium },
   input: {
     backgroundColor: colors.white,
     borderWidth: 1,

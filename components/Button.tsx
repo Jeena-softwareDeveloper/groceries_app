@@ -7,7 +7,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.9 },
   disabled: { opacity: 0.5 },
-  text: { fontSize: 16, fontWeight: '600' },
+  text: { fontSize: 16, fontFamily: fonts.medium },
 });
 
 const variantStyles: Record<Variant, ViewStyle> = {

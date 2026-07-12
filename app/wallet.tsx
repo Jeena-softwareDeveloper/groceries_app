@@ -3,7 +3,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchWallet } from '@/api/customer';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WalletScreen() {
   const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: fetchWallet });
@@ -43,8 +43,8 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   label: { color: '#dcfce7', fontSize: 14 },
-  balance: { color: '#fff', fontSize: 36, fontWeight: '800', marginTop: spacing.sm },
-  section: { paddingHorizontal: spacing.md, fontWeight: '700', color: colors.text },
+  balance: { color: '#fff', fontSize: 36, fontFamily: fonts.bold, marginTop: spacing.sm },
+  section: { paddingHorizontal: spacing.md, fontFamily: fonts.bold, color: colors.text },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.lg },
   tx: {
     flexDirection: 'row',
@@ -56,8 +56,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  txType: { color: colors.text, fontWeight: '500' },
-  txAmount: { fontWeight: '700' },
+  txType: { color: colors.text, fontFamily: fonts.medium },
+  txAmount: { fontFamily: fonts.bold },
   credit: { color: colors.primary },
   debit: { color: colors.error },
 });

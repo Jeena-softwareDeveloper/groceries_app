@@ -21,7 +21,7 @@ import {
 } from '@/api/customer';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppDispatch } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
 import type { Address } from '@/types/customer';
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scroll: { padding: spacing.md, paddingBottom: spacing.xl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.text },
+  emptyTitle: { fontSize: 20, fontFamily: fonts.bold, color: colors.text },
   emptyDesc: { fontSize: 15, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' },
   vendorBlock: {
     backgroundColor: colors.surface,
@@ -251,15 +251,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  vendorName: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  vendorName: { fontSize: 16, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.md },
   itemRow: { marginBottom: spacing.md, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemInfo: { marginBottom: spacing.sm },
-  itemName: { fontSize: 15, fontWeight: '600', color: colors.text },
+  itemName: { fontSize: 15, fontFamily: fonts.medium, color: colors.text },
   itemPrice: { fontSize: 14, color: colors.primary, marginTop: 4 },
   qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   qtyBtn: { minHeight: 36, paddingVertical: 4, paddingHorizontal: spacing.md, flex: 0 },
   qtyBtnText: { fontSize: 18 },
-  qty: { fontSize: 16, fontWeight: '600', minWidth: 24, textAlign: 'center' },
+  qty: { fontSize: 16, fontFamily: fonts.medium, minWidth: 24, textAlign: 'center' },
   removeBtn: { alignSelf: 'flex-start', marginTop: spacing.xs, minHeight: 32, paddingVertical: 4 },
   summary: {
     flexDirection: 'row',
@@ -270,9 +270,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   summaryLabel: { fontSize: 16, color: colors.textMuted },
-  summaryValue: { fontSize: 18, fontWeight: '700', color: colors.text },
+  summaryValue: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
   checkout: { marginTop: spacing.md },
-  checkoutTitle: { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
+  checkoutTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.md },
   addressCard: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  addrLabel: { fontWeight: '700', fontSize: 15, color: colors.text },
+  addrLabel: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
   addrLine: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
   input: {
     backgroundColor: colors.white,

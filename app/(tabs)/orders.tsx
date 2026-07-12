@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchOrders } from '@/api/customer';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 const STATUS_COLORS: Record<string, string> = {
   PLACED: '#3b82f6',
@@ -92,10 +92,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  orderNo: { fontSize: 14, fontWeight: '700', color: colors.text, flex: 1 },
+  orderNo: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, flex: 1 },
   badge: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full },
-  badgeText: { color: colors.white, fontSize: 11, fontWeight: '600' },
+  badgeText: { color: colors.white, fontSize: 11, fontFamily: fonts.medium },
   shop: { fontSize: 15, color: colors.textMuted, marginTop: spacing.sm },
-  total: { fontSize: 18, fontWeight: '700', color: colors.primary, marginTop: spacing.sm },
+  total: { fontSize: 18, fontFamily: fonts.bold, color: colors.primary, marginTop: spacing.sm },
   date: { fontSize: 13, color: colors.textMuted, marginTop: 4 },
 });

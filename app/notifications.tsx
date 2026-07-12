@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchNotifications, markNotificationRead } from '@/api/customer';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function NotificationsScreen() {
   const queryClient = useQueryClient();
@@ -53,6 +53,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   unread: { borderColor: colors.primary, backgroundColor: '#f0fdf4' },
-  title: { fontWeight: '700', color: colors.text },
+  title: { fontFamily: fonts.bold, color: colors.text },
   body: { color: colors.textMuted, marginTop: 4, fontSize: 14 },
 });

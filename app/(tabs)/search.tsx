@@ -15,7 +15,7 @@ import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
 import { CategoryCard } from '@/components/CategoryCard';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
 
 export default function SearchScreen() {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   results: { padding: spacing.md, paddingBottom: spacing.xl },
   section: {
     fontSize: 17,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.text,
     marginBottom: spacing.md,
     marginTop: spacing.sm,

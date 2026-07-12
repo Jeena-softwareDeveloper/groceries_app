@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { fetchShop, fetchShopProducts } from '@/api/customer';
 import { ProductCard } from '@/components/ProductCard';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function ShopScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -106,12 +106,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   headerInfo: { flex: 1 },
-  name: { fontSize: 22, fontWeight: '800', color: colors.text },
+  name: { fontSize: 22, fontFamily: fonts.bold, color: colors.text },
   address: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
-  rating: { fontSize: 14, color: colors.primary, fontWeight: '600', marginTop: 4 },
+  rating: { fontSize: 14, color: colors.primary, fontFamily: fonts.medium, marginTop: 4 },
   section: {
     fontSize: 18,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.text,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,

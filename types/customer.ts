@@ -74,6 +74,21 @@ export interface HomeFeed {
   bestSellers: Product[];
   recentlyAdded: Product[];
   flashSale: { id: string; title: string }[];
+  layout?: {
+    heroBanner?: { trustBadge?: string; title?: string; subtitle?: string; buttonText?: string; imageUrl?: string };
+    freeDelivery?: { title?: string; subtitle?: string };
+    bulkOrders?: { title?: string; subtitle?: string; buttonText?: string };
+    features?: Array<{ icon: any; text: string }>;
+    whyShopWithUs?: Array<{ icon: any; title: string; subtitle: string }>;
+    referEarn?: { title?: string; subtitle?: string; buttonText?: string };
+    popularSearches?: string[];
+    footer?: {
+      title?: string;
+      subtitle?: string;
+      stats?: Array<{ icon: any; number: string; label: string }>;
+      download?: { title?: string; subtitle?: string };
+    };
+  } | null;
 }
 
 export interface CartItem {

@@ -4,7 +4,7 @@ import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchWishlist, removeFromWishlist } from '@/api/customer';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WishlistScreen() {
   const router = useRouter();
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   thumb: { width: 56, height: 56, borderRadius: radius.md, backgroundColor: colors.border },
   placeholder: {},
   info: { flex: 1, marginLeft: spacing.md },
-  name: { fontWeight: '600', color: colors.text },
-  price: { color: colors.primary, marginTop: 4, fontWeight: '700' },
-  remove: { color: colors.error, fontSize: 13, fontWeight: '600' },
+  name: { fontFamily: fonts.medium, color: colors.text },
+  price: { color: colors.primary, marginTop: 4, fontFamily: fonts.bold },
+  remove: { color: colors.error, fontSize: 13, fontFamily: fonts.medium },
 });

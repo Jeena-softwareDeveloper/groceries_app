@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, radius, spacing, fonts } from '@/constants/theme';
 import type { Product } from '@/types/customer';
 
 interface ProductCardProps {
@@ -31,7 +32,7 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
         )}
         {discount ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>{discount}% off</Text>
+            <Text style={styles.badgeText}>{discount}% OFF</Text>
           </View>
         ) : null}
       </View>
@@ -43,32 +44,42 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
           {product.vendor.shopName}
         </Text>
       ) : null}
-      <View style={styles.priceRow}>
-        <Text style={styles.price}>{formatPrice(price)}</Text>
-        {mrp && mrp > price ? <Text style={styles.mrp}>{formatPrice(mrp)}</Text> : null}
+      
+      <View style={styles.bottomRow}>
+        <View style={styles.priceCol}>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatPrice(price)}</Text>
+            {mrp && mrp > price ? <Text style={styles.mrp}>{formatPrice(mrp)}</Text> : null}
+          </View>
+        </View>
+        {onAddToCart ? (
+          <Pressable style={styles.addBtn} onPress={onAddToCart}>
+            <Ionicons name="add" size={18} color={colors.white} />
+          </Pressable>
+        ) : null}
       </View>
-      {onAddToCart ? (
-        <Pressable style={styles.addBtn} onPress={onAddToCart}>
-          <Text style={styles.addBtnText}>Add</Text>
-        </Pressable>
-      ) : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 160,
+    width: 140,
     backgroundColor: colors.white,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#f3f4f6',
     padding: spacing.sm,
     marginRight: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   compact: { width: '100%', marginRight: 0, marginBottom: spacing.md },
   imageWrap: { position: 'relative', marginBottom: spacing.sm },
-  image: { width: '100%', height: 120, borderRadius: radius.md, backgroundColor: colors.surface },
+  image: { width: '100%', height: 100, borderRadius: radius.md, backgroundColor: colors.surface },
   placeholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderText: { color: colors.textMuted, fontSize: 12 },
   badge: {
@@ -76,23 +87,24 @@ const styles = StyleSheet.create({
     top: spacing.xs,
     left: spacing.xs,
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: radius.sm,
+    borderRadius: radius.full,
   },
-  badgeText: { color: colors.white, fontSize: 10, fontWeight: '600' },
-  name: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 2 },
-  vendor: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.xs },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  price: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  mrp: { fontSize: 12, color: colors.textMuted, textDecorationLine: 'line-through' },
+  badgeText: { color: colors.white, fontSize: 10, fontFamily: fonts.bold },
+  name: { fontSize: 13, fontFamily: fonts.medium, color: colors.text, marginBottom: 2, height: 36 },
+  vendor: { fontSize: 11, color: colors.textMuted, marginBottom: spacing.sm },
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  priceCol: { flex: 1 },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  price: { fontSize: 14, fontFamily: fonts.bold, color: colors.primaryDark },
+  mrp: { fontSize: 11, color: colors.textMuted, textDecorationLine: 'line-through' },
   addBtn: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
+    backgroundColor: colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary,
+    justifyContent: 'center',
   },
-  addBtnText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
 });

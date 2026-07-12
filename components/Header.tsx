@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
 
 interface HeaderProps {
@@ -73,9 +73,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
   },
   topRow: {
     flexDirection: 'row',
@@ -83,7 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  logo: { fontSize: 22, fontWeight: '800', color: colors.primary },
+  logo: { fontSize: 22, fontFamily: fonts.bold, color: colors.primary },
   actions: { flexDirection: 'row', gap: spacing.xs },
   iconBtn: {
     width: 40,
@@ -105,15 +103,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
-  badgeText: { color: colors.white, fontSize: 10, fontWeight: '700' },
+  badgeText: { color: colors.white, fontSize: 10, fontFamily: fonts.bold },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.lg,
+    paddingTop: spacing.xs,
   },
-  locationText: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.text },
+  locationText: { flex: 1, fontSize: 13, fontFamily: fonts.medium, color: colors.text },
 });

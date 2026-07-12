@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { addToCart, addToWishlist, fetchProduct } from '@/api/customer';
 import { Button } from '@/components/Button';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppDispatch } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
 import { fetchCart } from '@/api/customer';
@@ -129,14 +129,14 @@ const styles = StyleSheet.create({
   imagePlaceholder: { alignItems: 'center', justifyContent: 'center' },
   placeholderText: { color: colors.textMuted },
   body: { padding: spacing.lg },
-  brand: { fontSize: 13, color: colors.textMuted, fontWeight: '600', textTransform: 'uppercase' },
-  name: { fontSize: 24, fontWeight: '800', color: colors.text, marginTop: spacing.xs },
+  brand: { fontSize: 13, color: colors.textMuted, fontFamily: fonts.medium, textTransform: 'uppercase' },
+  name: { fontSize: 24, fontFamily: fonts.bold, color: colors.text, marginTop: spacing.xs },
   vendor: { fontSize: 14, color: colors.primary, marginTop: spacing.sm },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
-  price: { fontSize: 28, fontWeight: '800', color: colors.primary },
+  price: { fontSize: 28, fontFamily: fonts.bold, color: colors.primary },
   mrp: { fontSize: 16, color: colors.textMuted, textDecorationLine: 'line-through' },
   meta: { fontSize: 14, color: colors.textMuted, marginTop: spacing.sm },
-  stock: { fontSize: 14, fontWeight: '600', marginTop: spacing.sm },
+  stock: { fontSize: 14, fontFamily: fonts.medium, marginTop: spacing.sm },
   inStock: { color: colors.primary },
   outStock: { color: colors.error },
   description: {

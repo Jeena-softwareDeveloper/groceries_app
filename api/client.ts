@@ -1,9 +1,9 @@
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import type { ApiResponse } from '@shared/types';
 
 export const API_BASE =
-  process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
 
 export const TOKEN_KEY = 'accessToken';
 export const REFRESH_KEY = 'refreshToken';
@@ -15,7 +15,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
-  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const token = await getItemAsync(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -31,11 +31,11 @@ export async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Pro
 }
 
 export async function saveTokens(accessToken: string, refreshToken: string) {
-  await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
-  await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
+  await setItemAsync(TOKEN_KEY, accessToken);
+  await setItemAsync(REFRESH_KEY, refreshToken);
 }
 
 export async function clearTokens() {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_KEY);
+  await deleteItemAsync(TOKEN_KEY);
+  await deleteItemAsync(REFRESH_KEY);
 }

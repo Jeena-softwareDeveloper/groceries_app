@@ -2,14 +2,26 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Provider } from 'react-redux';
+import {
+  Roboto_400Regular,
+  Roboto_500Medium,
+  Roboto_700Bold,
+  useFonts,
+} from '@expo-google-fonts/roboto';
 import { fetchCart } from '@/api/customer';
 import { colors } from '@/constants/theme';
 import { useBootstrap } from '@/hooks/useBootstrap';
 import { store } from '@/store';
 import { setItemCount } from '@/store/cartSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+
+// Apply Roboto globally as default font
+const defaultFontFamily = 'Roboto_400Regular';
+(Text as unknown as { defaultProps?: { style?: TextStyle } }).defaultProps = {
+  style: { fontFamily: defaultFontFamily },
+};
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: 1, staleTime: 30_000 },
@@ -29,11 +41,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     const inAuth = segments[0] === '(auth)';
     const onLocation = segments[0] === 'location';
 
-    if (!accessToken && !inAuth) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
+    // If logged in and on auth screen, redirect out
     if (accessToken && inAuth) {
       if (!districtId) {
         router.replace('/location');
@@ -43,9 +51,12 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // If logged in but no location selected
     if (accessToken && !districtId && !onLocation && !inAuth) {
       router.replace('/location');
     }
+
+    // Guest users can browse — no forced login redirect here
   }, [ready, accessToken, districtId, segments, router]);
 
   if (!ready) {
@@ -83,7 +94,7 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="location" options={{ presentation: 'modal', headerShown: true, title: 'Choose location' }} />
+        <Stack.Screen name="location" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="shop/[id]" options={{ headerShown: true, title: 'Shop' }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: true, title: 'Product' }} />
         <Stack.Screen name="wishlist" options={{ headerShown: false }} />
@@ -98,6 +109,20 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Roboto_400Regular,
+    Roboto_500Medium,
+    Roboto_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>

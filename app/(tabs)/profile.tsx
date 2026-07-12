@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { logout as apiLogout } from '@/api/auth';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { wipeAuth } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearAuth } from '@/store/authSlice';
@@ -82,8 +82,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  label: { fontSize: 13, color: colors.textMuted, fontWeight: '500' },
-  value: { fontSize: 17, fontWeight: '600', color: colors.text, marginTop: 4 },
+  label: { fontSize: 13, color: colors.textMuted, fontFamily: fonts.medium },
+  value: { fontSize: 17, fontFamily: fonts.medium, color: colors.text, marginTop: 4 },
 });
 
 function MenuLink({ label, onPress, last }: { label: string; onPress: () => void; last?: boolean }) {
@@ -98,6 +98,6 @@ function MenuLink({ label, onPress, last }: { label: string; onPress: () => void
 const menuStyles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md },
   border: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  label: { fontSize: 16, fontWeight: '600', color: colors.text },
+  label: { fontSize: 16, fontFamily: fonts.medium, color: colors.text },
   chevron: { fontSize: 20, color: colors.textMuted },
 });

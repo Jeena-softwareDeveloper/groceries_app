@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { createSupportTicket } from '@/api/customer';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
-import { colors, radius, spacing } from '@/constants/theme';
+import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function SupportScreen() {
   const [subject, setSubject] = useState('');
@@ -50,7 +50,7 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   form: { padding: spacing.md },
-  label: { fontWeight: '600', color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
+  label: { fontFamily: fonts.medium, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
   input: {
     backgroundColor: colors.surface,
     borderWidth: 1,

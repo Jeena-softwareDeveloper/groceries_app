@@ -10,6 +10,25 @@ export const colors = {
   white: '#ffffff',
 };
 
+export const fonts = {
+  regular: 'Roboto_400Regular',
+  medium: 'Roboto_500Medium',
+  bold: 'Roboto_700Bold',
+};
+
+export const typography = {
+  h1: { fontSize: 24, fontFamily: fonts.bold, lineHeight: 30 },
+  h2: { fontSize: 20, fontFamily: fonts.bold, lineHeight: 28 },
+  h3: { fontSize: 18, fontFamily: fonts.bold, lineHeight: 24 },
+  h4: { fontSize: 16, fontFamily: fonts.bold, lineHeight: 22 },
+  body1: { fontSize: 16, fontFamily: fonts.regular, lineHeight: 24 },
+  body2: { fontSize: 14, fontFamily: fonts.regular, lineHeight: 20 },
+  subtitle1: { fontSize: 14, fontFamily: fonts.medium, lineHeight: 20 },
+  subtitle2: { fontSize: 13, fontFamily: fonts.medium, lineHeight: 18 },
+  caption: { fontSize: 12, fontFamily: fonts.regular, lineHeight: 16 },
+  button: { fontSize: 14, fontFamily: fonts.bold },
+};
+
 export const radius = {
   sm: 12,
   md: 16,
