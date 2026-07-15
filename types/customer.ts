@@ -6,11 +6,14 @@ export interface AuthTokens {
 
 export interface CustomerProfile {
   id: string;
+  role?: 'CUSTOMER' | 'VENDOR';
+  vendorId?: string;
   phone: string;
   name?: string | null;
   email?: string | null;
   addresses?: Address[];
 }
+
 
 export interface Address {
   id: string;

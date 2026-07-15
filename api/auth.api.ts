@@ -14,4 +14,11 @@ export const authApi = {
 
   logout: (refreshToken: string) =>
     unwrap<{ message: string }>(api.post(ENDPOINTS.AUTH.LOGOUT, { refreshToken })),
+
+  switchToVendor: () =>
+    unwrap<AuthTokens>(api.post(ENDPOINTS.AUTH.SWITCH_TO_VENDOR, {})),
+
+  switchToCustomer: () =>
+    unwrap<AuthTokens>(api.post(ENDPOINTS.AUTH.SWITCH_TO_CUSTOMER, {})),
 };
+

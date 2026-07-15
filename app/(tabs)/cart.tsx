@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { cartApi, orderApi, customerApi } from '@/api';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
+import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppDispatch } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
@@ -28,12 +29,14 @@ export default function CartScreen() {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [showCheckout, setShowCheckout] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [addressForm, setAddressForm] = useState({
     label: 'Home',
     line1: '',
     city: '',
     pincode: '',
   });
+
 
   const cartQuery = useQuery({
     queryKey: ['cart'],
@@ -68,11 +71,9 @@ export default function CartScreen() {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       setShowCheckout(false);
-      Alert.alert('Order placed', 'Your order has been placed successfully.', [
-        { text: 'View orders', onPress: () => router.push('/(tabs)/orders') },
-        { text: 'OK' },
-      ]);
+      setIsSuccess(true);
     },
+
     onError: (e) => Alert.alert('Checkout failed', e instanceof Error ? e.message : 'Try again'),
   });
 
@@ -90,6 +91,20 @@ export default function CartScreen() {
       (s, i) => s + Number(i.product.sellingPrice) * i.quantity,
       0,
     ) ?? 0;
+
+  if (isSuccess) {
+    return (
+      <SuccessState
+        title="Order Placed!"
+        message="Your order has been placed successfully."
+        buttonText="View Orders"
+        onButtonPress={() => {
+          setIsSuccess(false);
+          router.push('/(tabs)/orders');
+        }}
+      />
+    );
+  }
 
   if (cartQuery.isLoading) {
     return (

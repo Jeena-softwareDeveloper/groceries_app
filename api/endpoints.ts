@@ -4,6 +4,8 @@ export const ENDPOINTS = {
     OTP_VERIFY: '/auth/customer/otp/verify',
     ME: '/auth/me',
     LOGOUT: '/auth/logout',
+    SWITCH_TO_VENDOR: '/auth/switch-to-vendor',
+    SWITCH_TO_CUSTOMER: '/auth/switch-to-customer',
   },
   CUSTOMER: {
     HOME_FEED: '/customer/home/feed',
@@ -42,5 +44,38 @@ export const ENDPOINTS = {
     REVIEWS: '/customer/reviews',
     DISTRICTS: '/customer/districts',
     AREAS: '/customer/areas',
+    VENDOR_REQUEST: {
+      BASE: '/customer/vendor-request',
+      SUBMIT: '/customer/vendor-request/submit',
+    },
+  },
+  VENDOR: {
+    DASHBOARD: '/vendor/dashboard',
+    PROFILE: '/vendor/profile',
+    CATEGORIES: '/vendor/categories',
+    PRODUCTS: {
+      BASE: '/vendor/products',
+      BY_ID: (id: string) => `/vendor/products/${id}`,
+      SUBMIT_APPROVAL: (id: string) => `/vendor/products/${id}/submit-approval`,
+      PUBLISH: (id: string) => `/vendor/products/${id}/publish`,
+      UNPUBLISH: (id: string) => `/vendor/products/${id}/unpublish`,
+    },
+    INVENTORY: {
+      BASE: '/vendor/inventory',
+      BY_PRODUCT: (productId: string) => `/vendor/inventory/${productId}`,
+    },
+    ORDERS: {
+      BASE: '/vendor/orders',
+      UPDATE_STATUS: (id: string) => `/vendor/orders/${id}`,
+    },
+    CUSTOMERS: '/vendor/customers',
+    FINANCE: '/vendor/finance',
+    NOTIFICATIONS: {
+      BASE: '/vendor/notifications',
+      READ: (id: string) => `/vendor/notifications/${id}/read`,
+      READ_ALL: '/vendor/notifications/read-all',
+    },
+    OFFERS: '/vendor/offers',
   },
 } as const;
+

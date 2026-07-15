@@ -4,30 +4,46 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
+import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function SupportScreen() {
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
 
   async function handleSubmit() {
     if (!subject.trim() || !message.trim()) return;
     setLoading(true);
     try {
       await customerApi.createSupportTicket(subject.trim(), message.trim());
-      Alert.alert('Ticket submitted', 'Our team will get back to you soon.');
+      setIsSuccess(true);
       setSubject('');
       setMessage('');
     } catch (e) {
+
       Alert.alert('Error', e instanceof Error ? e.message : 'Could not submit ticket');
     } finally {
       setLoading(false);
     }
   }
 
+  if (isSuccess) {
+    return (
+      <SuccessState
+        title="Ticket Submitted!"
+        message="Our team will get back to you soon."
+        buttonText="Back to Support"
+        onButtonPress={() => setIsSuccess(false)}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+
       <Header title="Help & Support" showBack />
       <View style={styles.form}>
         <Text style={styles.label}>Subject</Text>

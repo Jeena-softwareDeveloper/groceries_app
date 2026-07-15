@@ -32,7 +32,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const segments = useSegments();
   const { ready } = useBootstrap();
-  const { accessToken } = useAppSelector((s) => s.auth);
+  const { accessToken, user } = useAppSelector((s) => s.auth);
   const { districtId } = useAppSelector((s) => s.location);
 
   useEffect(() => {
@@ -45,6 +45,8 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     if (accessToken && inAuth) {
       if (!districtId) {
         router.replace('/location');
+      } else if (user?.role === 'VENDOR') {
+        router.replace('/(vendor)');
       } else {
         router.replace('/(tabs)');
       }
@@ -94,6 +96,7 @@ function RootNavigator() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(vendor)" />
         <Stack.Screen name="location" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="shop/[id]" options={{ headerShown: true, title: 'Shop' }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: true, title: 'Product' }} />
