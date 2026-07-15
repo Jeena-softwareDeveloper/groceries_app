@@ -10,7 +10,7 @@ import {
   Roboto_700Bold,
   useFonts,
 } from '@expo-google-fonts/roboto';
-import { fetchCart } from '@/api/customer';
+import { cartApi } from '@/api';
 import { colors } from '@/constants/theme';
 import { useBootstrap } from '@/hooks/useBootstrap';
 import { store } from '@/store';
@@ -74,7 +74,7 @@ function CartBadgeSync() {  const dispatch = useAppDispatch();
   const { accessToken } = useAppSelector((s) => s.auth);
   const { data } = useQuery({
     queryKey: ['cart'],
-    queryFn: fetchCart,
+    queryFn: cartApi.fetchCart,
     enabled: !!accessToken,
   });
 

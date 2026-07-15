@@ -9,12 +9,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { addToCart, addToWishlist, fetchProduct } from '@/api/customer';
+import { cartApi, customerApi, productApi } from '@/api';
 import { Button } from '@/components/Button';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppDispatch } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
-import { fetchCart } from '@/api/customer';
+
 
 export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,15 +24,15 @@ export default function ProductScreen() {
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
-    queryFn: () => fetchProduct(id!),
+    queryFn: () => productApi.fetchProduct(id!),
     enabled: !!id,
   });
 
   const addMutation = useMutation({
-    mutationFn: () => addToCart(id!, 1),
+    mutationFn: () => cartApi.addToCart(id!, 1),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
-      const cart = await fetchCart();
+      const cart = await cartApi.fetchCart();
       dispatch(setItemCount(cart.items.reduce((s, i) => s + i.quantity, 0)));
       Alert.alert('Added to cart', 'Item added successfully.', [
         { text: 'Continue shopping' },
@@ -108,7 +108,7 @@ export default function ProductScreen() {
           variant="secondary"
           onPress={async () => {
             try {
-              await addToWishlist(id!);
+              await customerApi.addToWishlist(id!);
               Alert.alert('Wishlist', 'Added to wishlist');
             } catch (e) {
               Alert.alert('Error', e instanceof Error ? e.message : 'Could not add');

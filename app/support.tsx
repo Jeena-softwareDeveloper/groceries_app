@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { createSupportTicket } from '@/api/customer';
+import { customerApi } from '@/api';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -15,7 +15,7 @@ export default function SupportScreen() {
     if (!subject.trim() || !message.trim()) return;
     setLoading(true);
     try {
-      await createSupportTicket(subject.trim(), message.trim());
+      await customerApi.createSupportTicket(subject.trim(), message.trim());
       Alert.alert('Ticket submitted', 'Our team will get back to you soon.');
       setSubject('');
       setMessage('');

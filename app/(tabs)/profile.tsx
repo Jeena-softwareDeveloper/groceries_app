@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { logout as apiLogout } from '@/api/auth';
+import { authApi } from '@/api';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -17,7 +17,7 @@ export default function ProfileScreen() {
 
   async function handleLogout() {
     try {
-      if (refreshToken) await apiLogout(refreshToken);
+      if (refreshToken) await authApi.logout(refreshToken);
     } catch {
       // ignore logout API errors
     }

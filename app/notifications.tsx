@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchNotifications, markNotificationRead } from '@/api/customer';
+import { notificationApi } from '@/api';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function NotificationsScreen() {
   const queryClient = useQueryClient();
-  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: fetchNotifications });
+  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.fetchNotifications });
 
   const readMutation = useMutation({
-    mutationFn: markNotificationRead,
+    mutationFn: notificationApi.markNotificationRead,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 

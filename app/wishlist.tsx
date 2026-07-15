@@ -2,17 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchWishlist, removeFromWishlist } from '@/api/customer';
+import { customerApi } from '@/api';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WishlistScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: fetchWishlist });
+  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: customerApi.fetchWishlist });
 
   const removeMutation = useMutation({
-    mutationFn: removeFromWishlist,
+    mutationFn: customerApi.removeFromWishlist,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['wishlist'] }),
   });
 

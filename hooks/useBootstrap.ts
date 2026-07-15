@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import { clearTokens, REFRESH_KEY, saveTokens, TOKEN_KEY } from '@/api/client';
-import { getMe } from '@/api/auth';
+import { authApi } from '@/api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   clearAuth,
@@ -47,7 +47,7 @@ export function useBootstrap() {
         if (accessToken && refreshToken) {
           dispatch(setTokens({ accessToken, refreshToken }));
           try {
-            const user = await getMe();
+            const user = await authApi.getMe();
             dispatch(setUser(user));
           } catch {
             await clearTokens();

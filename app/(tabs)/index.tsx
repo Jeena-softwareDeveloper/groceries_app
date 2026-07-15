@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { fetchHomeFeed } from '@/api/customer';
+import { customerApi } from '@/api';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
@@ -39,7 +39,7 @@ export default function HomeScreen() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['homeFeed', districtId, areaId],
-    queryFn: () => fetchHomeFeed(districtId!, areaId ?? undefined),
+    queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined),
     enabled: !!districtId,
   });
 

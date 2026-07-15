@@ -3,13 +3,13 @@ import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import type { ApiResponse } from '@shared/types';
 
 export const API_BASE =
-  process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:4000/api/v1';
 
 export const TOKEN_KEY = 'accessToken';
 export const REFRESH_KEY = 'refreshToken';
 
 export const api = axios.create({
-  baseURL: `${API_BASE}/api/v1`,
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

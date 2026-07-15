@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchOrders } from '@/api/customer';
+import { orderApi } from '@/api';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
@@ -26,7 +26,7 @@ export default function OrdersScreen() {
   const router = useRouter();
   const { data, isLoading, error } = useQuery({
     queryKey: ['orders'],
-    queryFn: () => fetchOrders(1),
+    queryFn: () => orderApi.fetchOrders(1),
   });
 
   return (

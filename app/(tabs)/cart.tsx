@@ -11,14 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  checkout,
-  createAddress,
-  fetchAddresses,
-  fetchCart,
-  removeFromCart,
-  updateCartItem,
-} from '@/api/customer';
+import { cartApi, orderApi, customerApi } from '@/api';
 import { Button } from '@/components/Button';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -44,12 +37,12 @@ export default function CartScreen() {
 
   const cartQuery = useQuery({
     queryKey: ['cart'],
-    queryFn: fetchCart,
+    queryFn: cartApi.fetchCart,
   });
 
   const addressesQuery = useQuery({
     queryKey: ['addresses'],
-    queryFn: fetchAddresses,
+    queryFn: customerApi.fetchAddresses,
     enabled: showCheckout,
   });
 
@@ -60,17 +53,17 @@ export default function CartScreen() {
 
   const updateMutation = useMutation({
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
-      updateCartItem(productId, quantity),
+      cartApi.updateCartItem(productId, quantity),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
   });
 
   const removeMutation = useMutation({
-    mutationFn: (productId: string) => removeFromCart(productId),
+    mutationFn: (productId: string) => cartApi.removeFromCart(productId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
   });
 
   const checkoutMutation = useMutation({
-    mutationFn: (addressId: string) => checkout(addressId, 'COD'),
+    mutationFn: (addressId: string) => orderApi.checkout(addressId, 'COD'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
@@ -84,7 +77,7 @@ export default function CartScreen() {
   });
 
   const createAddressMutation = useMutation({
-    mutationFn: () => createAddress(addressForm),
+    mutationFn: () => customerApi.createAddress(addressForm),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] });
       setAddressForm({ label: 'Home', line1: '', city: '', pincode: '' });

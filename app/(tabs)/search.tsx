@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { searchProducts } from '@/api/customer';
+import { productApi } from '@/api';
 import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
@@ -32,7 +32,7 @@ export default function SearchScreen() {
 
   const { data, isFetching } = useQuery({
     queryKey: ['search', debounced, districtId],
-    queryFn: () => searchProducts(debounced, districtId ?? undefined),
+    queryFn: () => productApi.searchProducts(debounced, districtId ?? undefined),
     enabled: debounced.trim().length >= 2,
   });
 

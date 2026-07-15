@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Area, District } from '@shared/types';
-import { fetchAreas, fetchDistricts } from '@/api/auth';
+import { customerApi } from '@/api';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistLocation } from '@/hooks/useBootstrap';
 import { useAppDispatch } from '@/store/hooks';
@@ -32,10 +32,10 @@ export default function LocationScreen() {
   const [showDistrictModal, setShowDistrictModal] = useState(false);
   const [showAreaModal, setShowAreaModal] = useState(false);
 
-  const districtsQuery = useQuery({ queryKey: ['districts'], queryFn: fetchDistricts });
+  const districtsQuery = useQuery({ queryKey: ['districts'], queryFn: customerApi.fetchDistricts });
   const areasQuery = useQuery({
     queryKey: ['areas', selectedDistrict?.id],
-    queryFn: () => fetchAreas(selectedDistrict!.id),
+    queryFn: () => customerApi.fetchAreas(selectedDistrict!.id),
     enabled: !!selectedDistrict,
   });
 

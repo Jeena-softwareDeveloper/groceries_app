@@ -1,22 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { fetchOrder } from '@/api/customer';
+import { orderApi } from '@/api';
 import { Button } from '@/components/Button';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
-import { api, unwrap } from '@/api/client';
+
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: order, isLoading } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => fetchOrder(id!),
+    queryFn: () => orderApi.fetchOrder(id!),
     enabled: !!id,
   });
 
   async function cancel() {
-    await unwrap(api.post(`/customer/orders/${id}/cancel`, { reason: 'Customer cancelled' }));
+    await orderApi.cancelOrder(id, 'Customer cancelled');
     router.back();
   }
 

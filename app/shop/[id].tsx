@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { fetchShop, fetchShopProducts } from '@/api/customer';
+import { customerApi, productApi } from '@/api';
 import { ProductCard } from '@/components/ProductCard';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
@@ -18,13 +18,13 @@ export default function ShopScreen() {
 
   const shopQuery = useQuery({
     queryKey: ['shop', id],
-    queryFn: () => fetchShop(id!),
+    queryFn: () => customerApi.fetchShop(id!),
     enabled: !!id,
   });
 
   const productsQuery = useQuery({
     queryKey: ['shopProducts', id],
-    queryFn: () => fetchShopProducts(id!),
+    queryFn: () => productApi.fetchShopProducts(id!),
     enabled: !!id,
   });
 

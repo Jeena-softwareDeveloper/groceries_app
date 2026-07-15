@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchWallet } from '@/api/customer';
+import { walletApi } from '@/api';
 import { Header } from '@/components/Header';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WalletScreen() {
-  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: fetchWallet });
+  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: walletApi.fetchWallet });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
