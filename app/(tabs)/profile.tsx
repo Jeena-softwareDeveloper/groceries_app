@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { authApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistAuth, wipeAuth } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -56,14 +56,14 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header showCart />
+      <InnerHeader title="Profile" />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!isLoggedIn ? (
           <View style={styles.guestCard}>
             <View style={styles.guestIconCircle}>
               <Feather name="user-check" size={28} color={colors.primary} />
             </View>
-            <Text style={styles.guestTitle}>Welcome to DistrictMart</Text>
+            <Text style={styles.guestTitle}>Welcome to All Time Market</Text>
             <Text style={styles.guestSub}>
               Log in to access your wishlist, wallet, orders, and manage your store.
             </Text>
@@ -85,7 +85,7 @@ export default function ProfileScreen() {
               <View style={styles.profileMeta}>
                 <View style={styles.topTitleRow}>
                   <Text style={styles.userName} numberOfLines={1}>
-                    {user?.name ?? 'DistrictMart User'}
+                    {user?.name ?? 'All Time Market User'}
                   </Text>
                   <View style={styles.openPill}>
                     <Text style={styles.openPillText}>Active</Text>
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
                     <Text style={styles.verifiedText}>Verified Customer</Text>
                   </View>
                 </View>
-                <Text style={styles.ratingSub}>⭐ 4.8 • DistrictMart Member</Text>
+                <Text style={styles.ratingSub}>⭐ 4.8 • All Time Market Member</Text>
               </View>
             </View>
 
@@ -175,7 +175,7 @@ export default function ProfileScreen() {
               <MenuItem
                 icon="briefcase"
                 title="Join as Vendor"
-                subtitle="Start selling products on DistrictMart"
+                subtitle="Start selling products on All Time Market"
                 onPress={() => router.push('/vendor-request')}
                 last
               />

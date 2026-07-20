@@ -5,7 +5,7 @@ import { store } from '../store';
 import { clearAuth } from '../store/authSlice';
 
 export const API_BASE =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:4000/api/v1';
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:4000';
 
 export const TOKEN_KEY = 'accessToken';
 export const REFRESH_KEY = 'refreshToken';
@@ -17,6 +17,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use(async (config) => {
+  config.url = `/api/v1${config.url}`;
   const token = await getItemAsync(TOKEN_KEY);
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;

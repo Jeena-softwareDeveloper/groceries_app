@@ -2,6 +2,41 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors , fonts} from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Animated } from 'react-native';
+import { useEffect, useRef } from 'react';
+
+const FloatingTabIcon = () => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1.1, duration: 1500, useNativeDriver: true }),
+        Animated.timing(scale, { toValue: 1, duration: 1500, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View style={{
+      top: -15, // Floating up
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 5,
+      transform: [{ scale }]
+    }}>
+      <Ionicons name="grid" size={26} color={colors.white} />
+    </Animated.View>
+  );
+};
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -43,12 +78,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="categories"
+        options={{
+          title: 'Categories',
+          tabBarIcon: ({ focused }) => <FloatingTabIcon />,
+          tabBarLabel: () => null, // Hide label for center button
+        }}
+      />
+      <Tabs.Screen
         name="cart"
         options={{
-          title: 'Cart',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cart-outline" size={size} color={color} />
-          ),
+          href: null, // Hide from tab bar
         }}
       />
       <Tabs.Screen

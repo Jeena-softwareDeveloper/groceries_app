@@ -56,9 +56,18 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     // If logged in but no location selected
     if (accessToken && !districtId && !onLocation && !inAuth) {
       router.replace('/location');
+      return;
     }
 
-    // Guest users can browse — no forced login redirect here
+    // If NOT logged in, enforce redirect to auth (unless already on location or auth)
+    if (!accessToken && !inAuth && !onLocation) {
+      // Per requirements, even Home is protected. Unauthenticated users must go to Location then Login.
+      if (!districtId) {
+        router.replace('/location');
+      } else {
+        router.replace('/(auth)/login');
+      }
+    }
   }, [ready, accessToken, districtId, segments, router]);
 
   if (!ready) {

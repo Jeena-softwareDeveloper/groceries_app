@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { cartApi, orderApi, customerApi } from '@/api';
 import { Button } from '@/components/Button';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppDispatch } from '@/store/hooks';
@@ -109,7 +109,7 @@ export default function CartScreen() {
   if (cartQuery.isLoading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header showCart={false} />
+        <InnerHeader title="My Cart" showCart={false} />
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} size="large" />
         </View>
@@ -120,7 +120,7 @@ export default function CartScreen() {
   if (!groups.length) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <Header showCart={false} />
+        <InnerHeader title="My Cart" showCart={false} />
         <View style={styles.centered}>
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
           <Text style={styles.emptyDesc}>Browse shops and add items to get started.</Text>
@@ -132,7 +132,7 @@ export default function CartScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header showCart={false} />
+      <InnerHeader title="My Cart" showCart={false} />
       <ScrollView contentContainerStyle={styles.scroll}>
         {groups.map((group) => (
           <View key={group.vendorId} style={styles.vendorBlock}>

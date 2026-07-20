@@ -96,7 +96,7 @@ export default function VendorRequestStatusScreen() {
             </View>
             <Text style={styles.heroTitle}>Become a Vendor</Text>
             <Text style={styles.heroSubtitle}>
-              Join DistrictMart as a vendor and reach thousands of customers in your area. Sell your products online with ease.
+              Join All Time Market as a vendor and reach thousands of customers in your area. Sell your products online with ease.
             </Text>
           </View>
 

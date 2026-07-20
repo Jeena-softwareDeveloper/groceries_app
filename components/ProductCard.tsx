@@ -30,31 +30,27 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
             <Text style={styles.placeholderText}>No image</Text>
           </View>
         )}
-        {discount ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{discount}% OFF</Text>
-          </View>
-        ) : null}
+        <Pressable style={styles.heartBtn}>
+          <Ionicons name="heart-outline" size={14} color="#6b7280" />
+        </Pressable>
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {product.name}
       </Text>
-      {product.vendor?.shopName ? (
-        <Text style={styles.vendor} numberOfLines={1}>
-          {product.vendor.shopName}
-        </Text>
-      ) : null}
+      <Text style={styles.unit} numberOfLines={1}>
+        {product.unit || '1 pc'}
+      </Text>
+      
+      <Text style={styles.price}>{formatPrice(price)}</Text>
+      <Text style={styles.mrp}>{mrp && mrp > price ? formatPrice(mrp) : ' '}</Text>
       
       <View style={styles.bottomRow}>
-        <View style={styles.priceCol}>
-          <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatPrice(price)}</Text>
-            {mrp && mrp > price ? <Text style={styles.mrp}>{formatPrice(mrp)}</Text> : null}
-          </View>
-        </View>
+        {discount ? (
+          <Text style={styles.discountText}>{discount}% OFF</Text>
+        ) : <View />}
         {onAddToCart ? (
           <Pressable style={styles.addBtn} onPress={onAddToCart}>
-            <Ionicons name="add" size={18} color={colors.white} />
+            <Ionicons name="add" size={16} color="#15803d" />
           </Pressable>
         ) : null}
       </View>
@@ -66,41 +62,40 @@ const styles = StyleSheet.create({
   card: {
     width: 140,
     backgroundColor: colors.white,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: '#f3f4f6',
-    padding: spacing.sm,
-    marginRight: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    padding: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginRight: spacing.xs,
   },
   compact: { width: '100%', marginRight: 0, marginBottom: spacing.md },
-  imageWrap: { position: 'relative', marginBottom: spacing.sm },
-  image: { width: '100%', height: 100, borderRadius: radius.md, backgroundColor: colors.surface },
-  placeholder: { alignItems: 'center', justifyContent: 'center' },
+  imageWrap: { position: 'relative', marginBottom: 8, width: '100%', height: 90, borderRadius: radius.md, overflow: 'hidden' },
+  image: { width: '100%', height: '100%' },
+  placeholder: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   placeholderText: { color: colors.textMuted, fontSize: 12 },
-  badge: {
+  heartBtn: {
     position: 'absolute',
-    top: spacing.xs,
-    left: spacing.xs,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radius.full,
+    top: 4,
+    right: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  badgeText: { color: colors.white, fontSize: 10, fontFamily: fonts.bold },
-  name: { fontSize: 13, fontFamily: fonts.medium, color: colors.text, marginBottom: 2, height: 36 },
-  vendor: { fontSize: 11, color: colors.textMuted, marginBottom: spacing.sm },
+  
+  name: { fontSize: 12, fontFamily: fonts.semiBold, color: '#333', marginBottom: 2, height: 32 },
+  unit: { fontSize: 10, color: colors.textMuted, marginBottom: 8 },
+  
+  price: { fontSize: 15, fontFamily: fonts.bold, color: '#111' },
+  mrp: { fontSize: 10, color: '#9ca3af', textDecorationLine: 'line-through', marginBottom: 6 },
+  
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  priceCol: { flex: 1 },
-  priceRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  price: { fontSize: 14, fontFamily: fonts.bold, color: colors.primaryDark },
-  mrp: { fontSize: 11, color: colors.textMuted, textDecorationLine: 'line-through' },
+  discountText: { fontSize: 10, fontFamily: fonts.bold, color: '#15803d' },
   addBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#f0fdf4',
     width: 24,
     height: 24,
     borderRadius: 12,

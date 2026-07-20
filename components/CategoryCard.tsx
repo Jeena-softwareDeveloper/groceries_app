@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing, fonts } from '@/constants/theme';
+import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import type { Category } from '@/types/customer';
 
 interface CategoryCardProps {
@@ -21,12 +21,11 @@ function hashIndex(id: string) {
 
 export function CategoryCard({ category, onPress }: CategoryCardProps) {
   const [from] = GRADIENTS[hashIndex(category.id)];
-  // We'll use a placeholder image URL for the mockup if category.imageUrl is missing
   const imageUrl = (category as any).imageUrl || null;
 
   return (
-    <Pressable style={styles.wrap} onPress={onPress}>
-      <View style={[styles.circle, !imageUrl && { backgroundColor: from }]}>
+    <Pressable style={styles.card} onPress={onPress}>
+      <View style={[styles.imageWrap, !imageUrl && { backgroundColor: from }]}>
         {imageUrl ? (
           <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" />
         ) : (
@@ -34,40 +33,50 @@ export function CategoryCard({ category, onPress }: CategoryCardProps) {
         )}
       </View>
       <Text style={styles.name} numberOfLines={2}>
-        {category.name}
+        {category.name.replace(' & ', '\n& ')} 
       </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    width: 72,
+  card: {
+    width: 76,
     alignItems: 'center',
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: spacing.xs,
+    paddingBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
   },
-  circle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  imageWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: '#e5e7eb', // subtle border
+    backgroundColor: '#f8fafc',
     overflow: 'hidden',
   },
   image: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
   },
-  initial: { fontSize: 24, fontFamily: fonts.bold, color: colors.primaryDark },
+  initial: {
+    fontSize: 24,
+    fontFamily: fonts.bold,
+    color: '#333',
+  },
   name: {
-    fontSize: 11,
-    fontFamily: fonts.medium,
+    ...typography.caption,
+    fontFamily: fonts.semiBold,
     color: colors.text,
     textAlign: 'center',
-    lineHeight: 14,
+    lineHeight: 12,
+    fontSize: 10,
+    height: 24, // force 2 lines
   },
 });

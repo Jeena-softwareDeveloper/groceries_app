@@ -284,8 +284,8 @@ export default function VendorMore() {
             <MenuItem
               icon="help-circle"
               title="Help & Support"
-              subtitle="Contact DistrictMart admin team"
-              onPress={() => Alert.alert('Support', 'Contact admin at support@districtmart.com')}
+              subtitle="Contact All Time Market admin team"
+              onPress={() => Alert.alert('Support', 'Contact admin at support@alltimemarket.com')}
             />
             <MenuItem
               icon="shopping-bag"

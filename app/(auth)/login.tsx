@@ -86,20 +86,14 @@ export default function LoginScreen() {
           {/* 1. Top Logo & Branding - Scales naturally */}
           <Box flex={1.2} justify="center" align="center" style={{ zIndex: 10, minHeight: 120 }}>
             <Box 
-              width={70} height={70} 
-              justify="center" align="center" 
-              bg="#16a34a" br={35} mb="md" 
-              style={{ position: 'relative' }}
+              w={80} h={80} 
+              justify="center" align="center"  
+              mb="md" 
             >
-              <Box style={styles.bubble1} />
-              <Box style={styles.bubble2} />
-              <Box style={styles.bubble3} />
-              <Box style={styles.bubble4} />
-              <Feather name="shopping-bag" size={36} color={colors.white} />
+              <Image source={require('../../assets/images/logo.png')} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
             </Box>
             <Box row align="center">
-              <Typography style={styles.brandTextDark}>District</Typography>
-              <Typography style={styles.brandTextPrimary}>Mart</Typography>
+              <Typography style={styles.brandTextDark}>All Time Market</Typography>
             </Box>
             <Box row align="center" mt="xs" mb="sm" gap={4}>
               <Box style={styles.underlineDash} />

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { productApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
 import { CategoryCard } from '@/components/CategoryCard';
@@ -40,7 +40,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header showSearch={false} />
+      <InnerHeader title="Search" showSearch={false} />
       <View style={styles.searchWrap}>
         <TextInput
           style={styles.searchInput}
