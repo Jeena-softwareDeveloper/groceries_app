@@ -5,7 +5,7 @@ import { store } from '../store';
 import { clearAuth } from '../store/authSlice';
 
 export const API_BASE =
-  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:4000';
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? 'https://api.jeenora.com';
 
 export const TOKEN_KEY = 'accessToken';
 export const REFRESH_KEY = 'refreshToken';
