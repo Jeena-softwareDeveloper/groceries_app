@@ -20,7 +20,7 @@ import { persistLocation } from '@/hooks/useBootstrap';
 import { useAppDispatch } from '@/store/hooks';
 import { setLocation } from '@/store/locationSlice';
 
-const mapIllustration = require('@/assets/images/map-illustration.png');
+const mapIllustration = require('@/assets/images/map-illustration.jpg');
 
 export default function LocationScreen() {
   const router = useRouter();

@@ -408,7 +408,7 @@ export default function VendorProducts() {
         visible={isModalVisible}
         onClose={() => setIsModalVisible(false)}
         product={selectedProduct}
-        categories={categories?.data ?? []}
+        categories={categories ?? []}
       />
     </SafeAreaView>
   );

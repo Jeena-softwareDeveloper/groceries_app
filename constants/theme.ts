@@ -6,6 +6,7 @@ export const colors = {
   border: '#e5e7eb',
   text: '#111827',
   textMuted: '#6b7280',
+  textLight: '#9ca3af',
   error: '#dc2626',
   white: '#ffffff',
 };
@@ -13,6 +14,7 @@ export const colors = {
 export const fonts = {
   regular: 'Roboto_400Regular',
   medium: 'Roboto_500Medium',
+  semiBold: 'Roboto_500Medium',
   bold: 'Roboto_700Bold',
 };
 
@@ -27,6 +29,9 @@ export const typography = {
   subtitle2: { fontSize: 13, fontFamily: fonts.medium, lineHeight: 18 },
   caption: { fontSize: 12, fontFamily: fonts.regular, lineHeight: 16 },
   button: { fontSize: 14, fontFamily: fonts.bold },
+  regular: { fontFamily: fonts.regular },
+  semiBold: { fontFamily: fonts.semiBold },
+  bold: { fontFamily: fonts.bold },
 };
 
 export const radius = {
@@ -43,4 +48,5 @@ export const spacing = {
   md: 16,
   lg: 24,
   xl: 32,
+  xxl: 40,
 };

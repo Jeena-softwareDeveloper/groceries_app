@@ -6,7 +6,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  View
+  View,
+  Pressable
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -86,9 +87,8 @@ export default function LoginScreen() {
           {/* 1. Top Logo & Branding - Scales naturally */}
           <Box flex={1.2} justify="center" align="center" style={{ zIndex: 10, minHeight: 120 }}>
             <Box 
-              w={80} h={80} 
+              style={{ width: 80, height: 80, marginBottom: spacing.md }}
               justify="center" align="center"  
-              mb="md" 
             >
               <Image source={require('../../assets/images/logo.png')} style={{ width: '100%', height: '100%', resizeMode: 'contain' }} />
             </Box>
@@ -105,7 +105,7 @@ export default function LoginScreen() {
           </Box>
 
           {/* 2. Main Card - Does not shrink aggressively to preserve readability */}
-          <Box flexShrink={0} justify="center" align="center" style={{ width: '100%' }}>
+          <Box justify="center" align="center" style={{ width: '100%', flexShrink: 0 }}>
             <Card style={styles.cardOverrides}>
               {step === 'phone' ? (
                 <>
@@ -159,7 +159,7 @@ export default function LoginScreen() {
                       <Typography style={styles.cardSubtitle}>
                         Enter the 6-digit OTP sent to +91 {phone}
                       </Typography>
-                      {devOtp ? <Typography variant="subtitle2" color="#16a34a" mt={4}>Dev OTP: {devOtp}</Typography> : null}
+                      {devOtp ? <Typography variant="subtitle2" color="#16a34a" style={{ marginTop: 4 }}>Dev OTP: {devOtp}</Typography> : null}
                     </Box>
                   </Box>
 
@@ -176,35 +176,31 @@ export default function LoginScreen() {
 
                   <Button 
                     variant="primary" 
-                    onPress={handleVerifyOtp} 
-                    loading={loading}
-                    prefixIcon={<Feather name="check-circle" size={18} color={colors.white} />}
-                    style={styles.primaryBtn}
+                    size="lg" 
+                    loading={loading} 
+                    onPress={handleVerifyOtp}
+                    style={{ marginTop: spacing.md }}
                   >
                     Verify & Continue
                   </Button>
-                  
-                  <Button 
-                    variant="ghost" 
-                    onPress={() => { setStep('phone'); setOtp(''); }}
-                    style={{ marginTop: -8 }}
-                  >
-                    <Typography variant="subtitle1" color="textMuted">Change number</Typography>
-                  </Button>
+
+                  <Box row justify="space-between" align="center" mt="md">
+                    <Pressable onPress={() => setStep('phone')} disabled={loading}>
+                      <Typography variant="body2" color="#16a34a">Change number</Typography>
+                    </Pressable>
+                    <Pressable onPress={handleRequestOtp} disabled={loading}>
+                      <Typography variant="body2" color="#16a34a">Resend OTP</Typography>
+                    </Pressable>
+                  </Box>
                 </>
               )}
-
-              <Box row align="center" justify="center" gap={6} mt="xs">
-                <Feather name="shield" size={14} color="#16a34a" />
-                <Typography variant="body2" color="#64748b" style={{ fontSize: 13 }}>Your number is safe with us</Typography>
-              </Box>
             </Card>
           </Box>
 
-          {/* 3. Illustration - Shrinks aggressively on small screens */}
-          <Box flex={1} style={styles.illustrationContainer}>
+          {/* 3. Illustration Banner */}
+          <Box flex={1} justify="center" align="center" style={styles.illustrationContainer}>
             <Image 
-              source={require('@/assets/images/login-illustration.png')} 
+              source={require('@/assets/images/login-illustration.jpg')} 
               style={styles.illustration} 
               resizeMode="contain" 
             />
@@ -220,14 +216,14 @@ export default function LoginScreen() {
             />
             <Box style={styles.badgeDivider} />
             <Badge 
-              title="Quick" 
-              subtitle="Verification" 
+              title="Fast" 
+              subtitle="Delivery" 
               icon={<Ionicons name="flash-outline" size={24} color="#16a34a" />} 
               style={{ padding: 4 }}
             />
             <Box style={styles.badgeDivider} />
             <Badge 
-              title="100%" 
+              title="100% Quality" 
               subtitle="Trusted" 
               icon={<Ionicons name="ribbon-outline" size={24} color="#16a34a" />} 
               style={{ padding: 4 }}
@@ -235,8 +231,8 @@ export default function LoginScreen() {
           </Box>
 
           {/* 5. Terms & Conditions */}
-          <Box align="center" flexShrink={0}>
-            <Typography variant="body2" color="#64748b" mb={2} style={styles.termsText}>
+          <Box align="center" style={{ flexShrink: 0 }}>
+            <Typography variant="body2" color="#64748b" style={[styles.termsText, { marginBottom: 2 }]}>
               By continuing, you agree to our
             </Typography>
             <Box row align="center">

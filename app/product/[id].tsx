@@ -186,9 +186,9 @@ export default function ProductScreen() {
           </Text>
 
           {/* Features from tags */}
-          {product.tags ? (
+          {product.tags && (
             <View style={styles.featuresGrid}>
-              {product.tags.split(',').map((tag, idx) => (
+              {(typeof product.tags === 'string' ? product.tags.split(',') : Array.isArray(product.tags) ? product.tags : []).map((tag: string, idx: number) => (
                 <View key={idx} style={styles.featureItem}>
                   <View style={styles.featureIconWrap}>
                     <Ionicons name="checkmark-circle-outline" size={18} color="#15803d" />
@@ -197,7 +197,7 @@ export default function ProductScreen() {
                 </View>
               ))}
             </View>
-          ) : null}
+          )}
 
           {/* Delivery Information */}
           <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Delivery Information</Text>

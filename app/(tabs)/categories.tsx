@@ -86,7 +86,7 @@ export default function CategoriesScreen() {
                         <Ionicons name="image-outline" size={32} color={colors.border} />
                       )}
                     </View>
-                    <Text style={styles.subName} numberOfLines={2} textAlign="center">
+                    <Text style={styles.subName} numberOfLines={2}>
                       {sub.name}
                     </Text>
                   </Pressable>

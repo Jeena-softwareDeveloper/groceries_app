@@ -14,12 +14,17 @@ export interface SelectProps {
   placeholder?: string;
   options: SelectOption[];
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
+  onSelect?: (value: string) => void;
   error?: string;
   helperText?: string;
 }
 
-export function Select({ label, placeholder, options, value, onChange, error, helperText }: SelectProps) {
+export function Select({ label, placeholder, options, value, onChange, onSelect, error, helperText }: SelectProps) {
+  const handleChange = (val: string) => {
+    if (onChange) onChange(val);
+    if (onSelect) onSelect(val);
+  };
   const [modalVisible, setModalVisible] = useState(false);
   const selectedOption = options.find((o) => o.value === value);
 
@@ -61,7 +66,7 @@ export function Select({ label, placeholder, options, value, onChange, error, he
                 <TouchableOpacity 
                   style={[styles.option, item.value === value && styles.optionSelected]}
                   onPress={() => {
-                    onChange(item.value);
+                    handleChange(item.value);
                     setModalVisible(false);
                   }}
                 >

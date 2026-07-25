@@ -56,7 +56,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Profile" />
+      <InnerHeader title="Profile" showSearch={false} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!isLoggedIn ? (
           <View style={styles.guestCard}>

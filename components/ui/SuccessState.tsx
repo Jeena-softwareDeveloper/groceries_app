@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, radius, typography } from '@/constants/theme';
+import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { Button } from './Button';
 
 interface SuccessStateProps {
@@ -47,14 +47,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontFamily: typography.semiBold,
+    fontFamily: fonts.semiBold,
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing.md,
   },
   message: {
     fontSize: 16,
-    fontFamily: typography.regular,
+    fontFamily: fonts.regular,
     color: colors.textLight,
     textAlign: 'center',
     lineHeight: 24,

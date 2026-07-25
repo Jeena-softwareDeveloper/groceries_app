@@ -54,15 +54,23 @@ export interface VendorRequest {
 }
 
 export const vendorRequestApi = {
-  getMyRequest: () =>
-    unwrap(api.get<{ success: boolean; data: VendorRequest | null }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE)),
+  getMyRequest: async () => {
+    const res = await api.get<{ success: boolean; data: VendorRequest | null }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE);
+    return res.data.data;
+  },
 
-  saveDraft: (data: Partial<VendorRequest>) =>
-    unwrap(api.post<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE, data)),
+  saveDraft: async (data: Partial<VendorRequest>) => {
+    const res = await api.post<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE, data);
+    return res.data.data;
+  },
 
-  updateDraft: (data: Partial<VendorRequest>) =>
-    unwrap(api.put<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE, data)),
+  updateDraft: async (data: Partial<VendorRequest>) => {
+    const res = await api.put<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.BASE, data);
+    return res.data.data;
+  },
 
-  submit: () =>
-    unwrap(api.post<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.SUBMIT, {})),
+  submit: async () => {
+    const res = await api.post<{ success: boolean; data: VendorRequest }>(ENDPOINTS.CUSTOMER.VENDOR_REQUEST.SUBMIT, {});
+    return res.data.data;
+  },
 };

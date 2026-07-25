@@ -5,7 +5,8 @@ import {
   StyleSheet, 
   View, 
   StyleProp, 
-  ViewStyle 
+  ViewStyle,
+  Platform
 } from 'react-native';
 import { colors, radius, spacing, typography } from '@/constants/theme';
 import { Typography } from './Typography';
@@ -61,7 +62,11 @@ export function Input({
         {prefix && <View style={styles.prefix}>{prefix}</View>}
         
         <TextInput
-          style={[styles.input, style]}
+          style={[
+            styles.input,
+            props.multiline && { minHeight: 100, textAlignVertical: 'top', paddingTop: spacing.md, paddingBottom: spacing.md },
+            style
+          ]}
           placeholderTextColor={colors.textMuted}
           onFocus={handleFocus}
           onBlur={handleBlur}
@@ -95,11 +100,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
     borderRadius: radius.md,
     backgroundColor: colors.white,
-    height: 48,
+    minHeight: 48,
   },
   inputFocused: {
     borderColor: colors.primary,
@@ -119,8 +124,12 @@ const styles = StyleSheet.create({
     flex: 1,
     ...typography.body1,
     color: colors.text,
-    height: '100%',
+    alignSelf: 'stretch',
     paddingHorizontal: spacing.md,
+    ...Platform.select({
+      web: { outlineStyle: 'none' } as any,
+      default: {},
+    }),
   },
   helpText: {
     marginTop: spacing.xs,

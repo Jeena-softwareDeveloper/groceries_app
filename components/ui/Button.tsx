@@ -13,16 +13,18 @@ export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends TouchableOpacityProps {
+  title?: string;
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   disabled?: boolean;
   prefixIcon?: React.ReactNode;
   suffixIcon?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function Button({
+  title,
   variant = 'primary',
   size = 'md',
   loading = false,
@@ -33,8 +35,10 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
+  const buttonContent = children ?? title;
+
   const getContainerStyles = () => {
-    let stylesArr = [styles.base];
+    const stylesArr: any[] = [styles.base];
     
     // Size styles
     stylesArr.push(styles[`size_${size}`]);
@@ -72,12 +76,12 @@ export function Button({
       ) : (
         <View style={styles.content}>
           {prefixIcon && <View style={styles.prefix}>{prefixIcon}</View>}
-          {typeof children === 'string' ? (
+          {typeof buttonContent === 'string' ? (
             <Typography variant="button" color={getTextColor()}>
-              {children}
+              {buttonContent}
             </Typography>
           ) : (
-            children
+            buttonContent
           )}
           {suffixIcon && <View style={styles.suffix}>{suffixIcon}</View>}
         </View>

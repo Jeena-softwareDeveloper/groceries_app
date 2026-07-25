@@ -8,6 +8,7 @@ export interface CustomerProfile {
   id: string;
   role?: 'CUSTOMER' | 'VENDOR';
   vendorId?: string;
+  shopName?: string;
   phone: string;
   name?: string | null;
   email?: string | null;
@@ -30,6 +31,7 @@ export interface Category {
   name: string;
   slug: string;
   iconUrl?: string | null;
+  imageUrl?: string | null;
   children?: Category[];
 }
 
@@ -59,7 +61,9 @@ export interface Product {
   description?: string | null;
   sellingPrice: number | string;
   mrp?: number | string | null;
+  unit?: string | null;
   weight?: string | null;
+  tags?: string | string[] | null;
   images?: ProductImage[];
   inventory?: { stock: number } | null;
   category?: Category | null;
@@ -68,7 +72,7 @@ export interface Product {
 }
 
 export interface HomeFeed {
-  banners: { id: string; imageUrl: string; title?: string | null }[];
+  banners: { id: string; imageUrl: string; title?: string | null; themeColor?: string | null; themeColorEnd?: string | null }[];
   microBanners: { id: string; imageUrl: string; title?: string | null }[];
   categories: Category[];
   nearbyShops: Shop[];
@@ -77,6 +81,7 @@ export interface HomeFeed {
   bestSellers: Product[];
   recentlyAdded: Product[];
   flashSale: { id: string; title: string }[];
+  deliveryRule?: any;
   layout?: {
     heroBanner?: { trustBadge?: string; title?: string; subtitle?: string; buttonText?: string; imageUrl?: string };
     freeDelivery?: { title?: string; subtitle?: string };

@@ -1,7 +1,8 @@
 import { useRef, useEffect } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View, type ViewStyle, Animated } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, type ViewStyle, Animated, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
 
@@ -17,7 +18,7 @@ interface HeaderProps {
 }
 
 export function Header({
-  title = 'All Time Market',
+  title = 'ATM',
   showLocation = true,
   showCart = true,
   showSearch = true,
@@ -62,45 +63,29 @@ export function Header({
   const cartBg = darkIcons ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)';
 
   // Animations
-  const topRowHeight = scrollY ? scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [42, 0], // 42 is the iconBtn height
-    extrapolate: 'clamp',
-  }) : 42;
-
-  const topRowOpacity = scrollY ? scrollY.interpolate({
-    inputRange: [0, 40],
-    outputRange: [1, 0],
-    extrapolate: 'clamp',
-  }) : 1;
-
-  const topRowMargin = scrollY ? scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [spacing.sm, 0],
-    extrapolate: 'clamp',
-  }) : spacing.sm;
-
-  const searchMarginRight = scrollY && showCart ? scrollY.interpolate({
-    inputRange: [0, 50],
-    outputRange: [0, 50], // 42 (cart width) + 8 (gap)
-    extrapolate: 'clamp',
-  }) : 0;
+  const topRowHeight = 42;
+  const topRowOpacity = 1;
+  const topRowMargin = spacing.sm;
+  const searchMarginRight = 0;
 
   return (
     <View style={[styles.container, style]}>
       {/* Row 1: App name (left) - Animates OUT on scroll */}
       <Animated.View style={[styles.topRow, { height: topRowHeight, opacity: topRowOpacity, marginBottom: topRowMargin }]}>
-        {showBack ? (
-          <Pressable style={[styles.iconBtn, { backgroundColor: cartBg }]} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color={iconColor} />
-          </Pressable>
-        ) : (
-          <Text style={[styles.logo, { color: textColor }]}>{title}</Text>
-        )}
-
-        {showBack && (
-          <Text style={[styles.logo, { flex: 1, marginLeft: spacing.sm, color: textColor }]}>{title}</Text>
-        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {showBack && (
+            <Pressable style={[styles.iconBtn, { backgroundColor: cartBg, marginRight: spacing.sm }]} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={20} color={iconColor} />
+            </Pressable>
+          )}
+          <BlurView intensity={70} tint="light" style={styles.logoBlurContainer}>
+            <Image source={require('@/assets/images/logo.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+            <Text style={styles.logo}>
+              <Text style={{ color: '#0f5132' }}>AT</Text>
+              <Text style={{ color: '#ea580c' }}>M</Text>
+            </Text>
+          </BlurView>
+        </View>
       </Animated.View>
 
       {/* Cart (Absolute positioned so it stays when topRow collapses) */}
@@ -178,6 +163,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     letterSpacing: -0.5,
   },
+  logoBlurContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.4)', // extra white tint for visibility against green
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+  },
   actions: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -207,7 +204,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: radius.full,
     marginBottom: spacing.sm,
     shadowColor: '#000',

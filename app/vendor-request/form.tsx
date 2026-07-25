@@ -53,13 +53,21 @@ function DocUploader({
     try {
       const asset = result.assets[0];
       const form = new FormData();
-      form.append('file', { uri: asset.uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        const blob = await response.blob();
+        form.append('file', blob, 'upload.jpg');
+      } else {
+        form.append('file', { uri: asset.uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+      }
+      
       const res = await api.post<{ success: boolean; data: { url: string } }>('/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       onChange(res.data.data.url);
-    } catch {
-      Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');
+    } catch (e) {
+      if (Platform.OS === 'web') window.alert('Could not upload the image. Please try again.');
+      else Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');
     } finally {
       setUploading(false);
     }
@@ -163,26 +171,15 @@ export default function VendorRequestFormScreen() {
   }, [form.districtId]);
 
   async function saveAndNext() {
-    if (!accessToken || !user) {
-      Alert.alert('Session Expired', 'Please log in again to continue.', [
-        { text: 'Login', onPress: () => router.replace('/(auth)/login') },
-      ]);
-      return;
-    }
     setSaving(true);
     try {
-      await vendorRequestApi.saveDraft(form);
+      if (accessToken && user) {
+        await vendorRequestApi.saveDraft(form).catch(() => {});
+      }
       setStep((s) => Math.min(s + 1, STEPS.length));
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not save. Try again.';
-      if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('token')) {
-        Alert.alert('Session Expired', 'Please log in again to continue.', [
-          { text: 'Login', onPress: () => router.replace('/(auth)/login') },
-        ]);
-      } else {
-        Alert.alert('Error', msg);
-      }
+      // ignore
     } finally {
       setSaving(false);
     }
@@ -190,13 +187,19 @@ export default function VendorRequestFormScreen() {
 
   async function handleSubmit() {
     if (!termsAccepted) {
-      Alert.alert('Terms Required', 'Please accept the Terms & Conditions to continue.');
+      if (Platform.OS === 'web') window.alert('Please accept the Terms & Conditions to continue.');
+      else Alert.alert('Terms Required', 'Please accept the Terms & Conditions to continue.');
       return;
     }
     if (!accessToken || !user) {
-      Alert.alert('Session Expired', 'Please log in again to continue.', [
-        { text: 'Login', onPress: () => router.replace('/(auth)/login') },
-      ]);
+      if (Platform.OS === 'web') {
+        if (window.confirm('Please log in to submit your application.')) router.push('/(auth)/login');
+      } else {
+        Alert.alert('Session Expired', 'Please log in again to continue.', [
+          { text: 'Login', onPress: () => router.push('/(auth)/login') },
+          { text: 'Cancel', style: 'cancel' }
+        ]);
+      }
       return;
     }
     setSubmitting(true);
@@ -204,14 +207,20 @@ export default function VendorRequestFormScreen() {
       await vendorRequestApi.saveDraft(form);
       await vendorRequestApi.submit();
       setIsSubmitted(true);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not submit. Try again.';
+    } catch (e: any) {
+      const msg = e.response?.data?.message || (e instanceof Error ? e.message : 'Could not submit. Try again.');
       if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('token')) {
-        Alert.alert('Session Expired', 'Please log in again to continue.', [
-          { text: 'Login', onPress: () => router.replace('/(auth)/login') },
-        ]);
+        if (Platform.OS === 'web') {
+          if (window.confirm('Session Expired. Please log in again.')) router.push('/(auth)/login');
+        } else {
+          Alert.alert('Session Expired', 'Please log in again to continue.', [
+            { text: 'Login', onPress: () => router.push('/(auth)/login') },
+            { text: 'Cancel', style: 'cancel' }
+          ]);
+        }
       } else {
-        Alert.alert('Submission Failed', msg);
+        if (Platform.OS === 'web') window.alert(msg);
+        else Alert.alert('Submission Failed', msg);
       }
     } finally {
       setSubmitting(false);
@@ -229,7 +238,7 @@ export default function VendorRequestFormScreen() {
     }
     if (step === 3) {
       if (!form.districtId) return 'Please select a district';
-      if (!form.areaId) return 'Please select an area';
+      if (areas.length > 0 && !form.areaId) return 'Please select an area';
       if (!form.address?.trim()) return 'Shop address is required';
     }
     if (step === 4) {
@@ -247,7 +256,11 @@ export default function VendorRequestFormScreen() {
 
   async function handleNext() {
     const error = validateCurrentStep();
-    if (error) { Alert.alert('Validation Error', error); return; }
+    if (error) { 
+      if (Platform.OS === 'web') window.alert(error);
+      else Alert.alert('Validation Error', error); 
+      return; 
+    }
     await saveAndNext();
   }
 
