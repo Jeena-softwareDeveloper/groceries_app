@@ -6,6 +6,8 @@ export const ENDPOINTS = {
     LOGOUT: '/auth/logout',
     SWITCH_TO_VENDOR: '/auth/switch-to-vendor',
     SWITCH_TO_CUSTOMER: '/auth/switch-to-customer',
+    SESSIONS: '/auth/sessions',
+    DELETE_SESSION: (id: string) => `/auth/sessions/${id}`,
   },
   CUSTOMER: {
     HOME_FEED: '/customer/home/feed',

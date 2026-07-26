@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -12,19 +12,21 @@ import {
   View,
   Pressable,
   NativeSyntheticEvent,
-  NativeScrollEvent
+  NativeScrollEvent,
+  Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
-import { customerApi } from '@/api';
+import { customerApi, cartApi } from '@/api';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setItemCount } from '@/store/cartSlice';
 
 function SectionHeader({ title, onAction }: { title: string; onAction?: () => void }) {
   return (
@@ -43,6 +45,8 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { districtId, areaId } = useAppSelector((s) => s.location);
+  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const SCREEN_WIDTH = Dimensions.get('window').width;
   const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2; // full width minus horizontal padding
   const BANNER_HEIGHT = Math.round(BANNER_WIDTH * 0.45); // 45% aspect ratio = landscape
@@ -53,10 +57,22 @@ export default function HomeScreen() {
     queryKey: ['homeFeed', districtId, areaId],
     queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined),
     enabled: !!districtId,
+    staleTime: 60 * 1000, // 1 minute
   });
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(130); // tracks actual header height for overlay positioning
+
+  const addToCartMutation = useMutation({
+    mutationFn: (productId: string) => cartApi.addToCart(productId, 1),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      const cart = await cartApi.fetchCart();
+      dispatch(setItemCount(cart.items.reduce((s, i) => s + i.quantity, 0)));
+      Alert.alert('Success', 'Item added to cart');
+    },
+    onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Could not add to cart'),
+  });
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!data?.banners?.length) return;
@@ -212,7 +228,7 @@ export default function HomeScreen() {
                     key={p.id}
                     product={p}
                     onPress={() => router.push(`/product/${p.id}`)}
-                    onAddToCart={() => {}}
+                    onAddToCart={() => addToCartMutation.mutate(p.id)}
                   />
                 ))}
               </ScrollView>
@@ -279,7 +295,7 @@ export default function HomeScreen() {
                       product={p}
                       compact={true}
                       onPress={() => router.push(`/product/${p.id}`)}
-                      onAddToCart={() => {}}
+                      onAddToCart={() => addToCartMutation.mutate(p.id)}
                     />
                   </View>
                 ))}

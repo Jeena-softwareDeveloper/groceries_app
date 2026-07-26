@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { authApi } from '@/api';
@@ -39,13 +39,35 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleLogout() {
+  async function doLogout() {
     try {
       if (refreshToken) await authApi.logout(refreshToken);
     } catch {}
     await wipeAuth();
     dispatch(clearAuth());
     router.replace('/(auth)/login');
+  }
+
+  function handleLogout() {
+    if (Platform.OS === 'web') {
+      const confirm = window.confirm('Are you sure you want to log out of your account?');
+      if (confirm) {
+        doLogout();
+      }
+    } else {
+      Alert.alert(
+        'Confirm Logout',
+        'Are you sure you want to log out of your account?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: doLogout,
+          },
+        ]
+      );
+    }
   }
 
   function handleChangeLocation() {
@@ -101,19 +123,19 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Phone Card */}
-            <View style={styles.card}>
+            {/* Account Info Card */}
+            <Pressable style={styles.card} onPress={() => router.push('/account')}>
               <View style={styles.cardIconRow}>
                 <View style={styles.iconSquare}>
-                  <Feather name="phone" size={20} color="#16a34a" />
+                  <Feather name="user" size={20} color="#16a34a" />
                 </View>
                 <View style={styles.rowTextCol}>
-                  <Text style={styles.rowTitle}>Phone</Text>
-                  <Text style={styles.rowSub}>{user?.phone ?? '+91 —'}</Text>
+                  <Text style={styles.rowTitle}>Account Info</Text>
+                  <Text style={styles.rowSub}>Manage your personal details</Text>
                 </View>
                 <Feather name="chevron-right" size={20} color={colors.textMuted} />
               </View>
-            </View>
+            </Pressable>
           </>
         )}
 
@@ -160,26 +182,63 @@ export default function ProfileScreen() {
             title="Help & Support"
             subtitle="Get help & contact support"
             onPress={() => router.push('/support')}
-            last={!isVendorApproved && !isLoggedIn}
+            last={!isLoggedIn}
           />
           {isLoggedIn && (
-            isVendorApproved ? (
-              <MenuItem
-                icon="home"
-                title="Open Vendor Portal"
-                subtitle="Manage your store, products & orders"
-                onPress={handleSwitchToVendor}
-                last
-              />
-            ) : (
-              <MenuItem
-                icon="briefcase"
-                title="Join as Vendor"
-                subtitle="Start selling products on All Time Market"
-                onPress={() => router.push('/vendor-request')}
-                last
-              />
-            )
+            <MenuItem
+              icon="smartphone"
+              title="Logged in Devices"
+              subtitle="Manage your active sessions"
+              onPress={() => router.push('/devices')}
+              last={!isVendorApproved && !isLoggedIn}
+            />
+          )}
+          {isLoggedIn && (
+            (() => {
+              if (vendorRequest?.status === 'APPROVED') {
+                return (
+                  <MenuItem
+                    icon="home"
+                    title="Open Market"
+                    subtitle="Manage your store, products & orders"
+                    onPress={handleSwitchToVendor}
+                    last
+                  />
+                );
+              }
+              if (vendorRequest?.status === 'PENDING') {
+                return (
+                  <MenuItem
+                    icon="clock"
+                    title="Vendor Request Pending"
+                    subtitle="Your application is under review"
+                    onPress={() => router.push('/vendor-request')}
+                    last
+                  />
+                );
+              }
+              if (vendorRequest?.status === 'REJECTED') {
+                return (
+                  <MenuItem
+                    icon="alert-circle"
+                    title="Vendor Request Rejected"
+                    subtitle="Tap to review and re-apply"
+                    onPress={() => router.push('/vendor-request')}
+                    last
+                  />
+                );
+              }
+              // DRAFT or null
+              return (
+                <MenuItem
+                  icon="briefcase"
+                  title="Join as Vendor"
+                  subtitle={vendorRequest?.status === 'DRAFT' ? "Continue your vendor application" : "Start selling products on All Time Market"}
+                  onPress={() => router.push('/vendor-request')}
+                  last
+                />
+              );
+            })()
           )}
         </View>
 

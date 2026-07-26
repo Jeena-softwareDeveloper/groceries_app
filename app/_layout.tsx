@@ -34,6 +34,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { ready } = useBootstrap();
   const { accessToken, user } = useAppSelector((s) => s.auth);
   const { districtId } = useAppSelector((s) => s.location);
+  const { appSettings } = useAppSelector((s) => s.config);
 
   useEffect(() => {
     if (!ready) return;
@@ -45,10 +46,10 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     if (accessToken && inAuth) {
       if (!districtId) {
         router.replace('/location');
-      } else if (user?.role === 'VENDOR') {
-        router.replace('/(vendor)');
-      } else {
-        router.replace('/(tabs)');
+      } else if (appSettings) {
+        const role = user?.role || 'GUEST';
+        const defaultRoute = appSettings.roles[role]?.defaultRoute || '/(tabs)';
+        router.replace(defaultRoute as any);
       }
       return;
     }
@@ -87,6 +88,7 @@ function CartBadgeSync() {  const dispatch = useAppDispatch();
     queryKey: ['cart'],
     queryFn: cartApi.fetchCart,
     enabled: !!accessToken,
+    retry: false,
   });
 
   useEffect(() => {

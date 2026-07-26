@@ -52,6 +52,11 @@ function DocUploader({
     setUploading(true);
     try {
       const asset = result.assets[0];
+      // 1. Get signature from backend
+      const sigRes = await api.get<{ data: { signature: string; timestamp: number; cloudName: string; apiKey: string; folder: string } }>('/upload/signature?folder=districtmart/vendors');
+      const { signature, timestamp, cloudName, apiKey, folder: uploadFolder } = sigRes.data.data;
+
+      // 2. Prepare form data for Cloudinary
       const form = new FormData();
       if (Platform.OS === 'web') {
         const response = await fetch(asset.uri);
@@ -60,11 +65,23 @@ function DocUploader({
       } else {
         form.append('file', { uri: asset.uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
       }
-      
-      const res = await api.post<{ success: boolean; data: { url: string } }>('/upload', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+      form.append('api_key', apiKey);
+      form.append('timestamp', timestamp.toString());
+      form.append('signature', signature);
+      form.append('folder', uploadFolder);
+
+      // 3. Upload directly to Cloudinary
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: form,
       });
-      onChange(res.data.data.url);
+
+      if (!uploadRes.ok) {
+        throw new Error('Cloudinary upload failed');
+      }
+
+      const uploadData = await uploadRes.json();
+      onChange(uploadData.secure_url);
     } catch (e) {
       if (Platform.OS === 'web') window.alert('Could not upload the image. Please try again.');
       else Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');

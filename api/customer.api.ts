@@ -16,6 +16,9 @@ export const customerApi = {
   fetchProfile: () =>
     unwrap(api.get(ENDPOINTS.CUSTOMER.PROFILE)),
 
+  updateProfile: (data: { name?: string; email?: string }) =>
+    unwrap(api.put(ENDPOINTS.CUSTOMER.PROFILE, data)),
+
   fetchAddresses: () =>
     unwrap<Address[]>(api.get(ENDPOINTS.CUSTOMER.ADDRESSES)),
 
@@ -42,4 +45,7 @@ export const customerApi = {
 
   fetchAreas: (districtId: string) =>
     unwrap<Area[]>(api.get(ENDPOINTS.CUSTOMER.AREAS, { params: { districtId } })),
+
+  lookupPincode: (pincode: string) =>
+    unwrap<{ district: string; state: string }>(api.get(`/customer/pincode/${pincode}`)),
 };

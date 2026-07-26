@@ -63,15 +63,60 @@ export function Header({
   const cartBg = darkIcons ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.2)';
 
   // Animations
-  const topRowHeight = 42;
-  const topRowOpacity = 1;
-  const topRowMargin = spacing.sm;
-  const searchMarginRight = 0;
+  const scrollValue = scrollY || new Animated.Value(0);
+
+  const headerBgColor = scrollValue.interpolate({
+    inputRange: [0, 60],
+    outputRange: ['rgba(255, 255, 255, 0)', 'rgba(220, 252, 231, 0.98)'], // Light green when sticky
+    extrapolate: 'clamp',
+  });
+
+  const topRowHeight = scrollValue.interpolate({
+    inputRange: [0, 50],
+    outputRange: [42, 0],
+    extrapolate: 'clamp',
+  });
+
+  const topRowOpacity = scrollValue.interpolate({
+    inputRange: [0, 30],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+
+  const topRowMargin = scrollValue.interpolate({
+    inputRange: [0, 50],
+    outputRange: [spacing.sm, 0],
+    extrapolate: 'clamp',
+  });
+
+  const searchMarginRight = scrollValue.interpolate({
+    inputRange: [0, 60],
+    outputRange: [0, showCart ? 50 : 0],
+    extrapolate: 'clamp',
+  });
+
+  const locationHeight = scrollValue.interpolate({
+    inputRange: [0, 60],
+    outputRange: [34, 0],
+    extrapolate: 'clamp',
+  });
+
+  const locationOpacity = scrollValue.interpolate({
+    inputRange: [0, 30],
+    outputRange: [1, 0],
+    extrapolate: 'clamp',
+  });
+  
+  const locationMargin = scrollValue.interpolate({
+    inputRange: [0, 60],
+    outputRange: [spacing.xs, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
-    <View style={[styles.container, style]}>
+    <Animated.View style={[styles.container, style, { backgroundColor: headerBgColor }]}>
       {/* Row 1: App name (left) - Animates OUT on scroll */}
-      <Animated.View style={[styles.topRow, { height: topRowHeight, opacity: topRowOpacity, marginBottom: topRowMargin }]}>
+      <Animated.View style={[styles.topRow, { height: topRowHeight, opacity: topRowOpacity, marginBottom: topRowMargin, overflow: 'hidden' }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {showBack && (
             <Pressable style={[styles.iconBtn, { backgroundColor: cartBg, marginRight: spacing.sm }]} onPress={() => router.back()}>
@@ -79,7 +124,7 @@ export function Header({
             </Pressable>
           )}
           <BlurView intensity={70} tint="light" style={styles.logoBlurContainer}>
-            <Image source={require('@/assets/images/logo.png')} style={{ width: 28, height: 28, resizeMode: 'contain' }} />
+            <Image source={require('@/assets/images/logo.png')} style={{ width: 34, height: 34, resizeMode: 'contain' }} />
             <Text style={styles.logo}>
               <Text style={{ color: '#0f5132' }}>AT</Text>
               <Text style={{ color: '#ea580c' }}>M</Text>
@@ -124,15 +169,17 @@ export function Header({
 
       {/* Row 3: Address / Location */}
       {showLocation && !showBack ? (
-        <Pressable style={styles.locationRow} onPress={() => router.push('/location')}>
-          <Ionicons name="location-outline" size={16} color={iconColor} />
-          <Text style={[styles.locationText, { color: textColor }]} numberOfLines={1}>
-            {locationLabel}
-          </Text>
-          <Ionicons name="chevron-down" size={14} color={mutedColor} />
-        </Pressable>
+        <Animated.View style={{ height: locationHeight, opacity: locationOpacity, marginBottom: locationMargin, overflow: 'hidden' }}>
+          <Pressable style={styles.locationRow} onPress={() => router.push('/location')}>
+            <Ionicons name="location-outline" size={16} color={iconColor} />
+            <Text style={[styles.locationText, { color: textColor }]} numberOfLines={1}>
+              {locationLabel}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={mutedColor} />
+          </Pressable>
+        </Animated.View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -204,7 +251,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 16,
+    paddingVertical: 10,
     borderRadius: radius.full,
     marginBottom: spacing.sm,
     shadowColor: '#000',
@@ -224,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    paddingVertical: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.15)', // semi-transparent background for blur effect
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)', // subtle white border

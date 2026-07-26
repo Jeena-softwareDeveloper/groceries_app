@@ -10,7 +10,8 @@ interface ShopCardProps {
 }
 
 export function ShopCard({ shop, onPress, horizontal }: ShopCardProps) {
-  const banner = shop.bannerUrl ?? shop.logoUrl;
+  // Use logoUrl first (shop logo), then bannerUrl; treat empty strings as falsy
+  const banner = shop.logoUrl || shop.bannerUrl || null;
 
   return (
     <Pressable style={[styles.card, horizontal && styles.horizontalCard]} onPress={onPress}>
@@ -19,7 +20,12 @@ export function ShopCard({ shop, onPress, horizontal }: ShopCardProps) {
           <Image source={{ uri: banner }} style={styles.banner} resizeMode="cover" />
         ) : (
           <View style={[styles.banner, styles.bannerPlaceholder]}>
-            <Ionicons name="storefront-outline" size={32} color={colors.textMuted} />
+            <View style={styles.initialsCircle}>
+              <Text style={styles.initialsText}>
+                {shop.shopName?.charAt(0)?.toUpperCase() || '?'}
+              </Text>
+            </View>
+            <Text style={styles.shopNameUnder} numberOfLines={1}>{shop.shopName}</Text>
           </View>
         )}
         
@@ -94,4 +100,30 @@ const styles = StyleSheet.create({
   metaText: { fontSize: 11, color: colors.textMuted },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   timeText: { fontSize: 11, color: colors.textMuted },
+  initialsCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  initialsText: {
+    fontSize: 24,
+    fontFamily: fonts.bold,
+    color: '#fff',
+  },
+  shopNameUnder: {
+    fontSize: 11,
+    fontFamily: fonts.semiBold,
+    color: colors.textMuted,
+    maxWidth: 120,
+    textAlign: 'center',
+  },
 });

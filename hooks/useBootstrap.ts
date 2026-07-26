@@ -14,6 +14,8 @@ import {
   setLocationHydrated,
   clearLocation,
 } from '@/store/locationSlice';
+import { fetchAppSettings } from '@/api/config.api';
+import { setAppSettings } from '@/store/configSlice';
 
 const LOCATION_KEYS = {
   districtId: 'districtId',
@@ -26,6 +28,7 @@ export function useBootstrap() {
   const dispatch = useAppDispatch();
   const { isHydrated: authHydrated } = useAppSelector((s) => s.auth);
   const { isHydrated: locationHydrated } = useAppSelector((s) => s.location);
+  const { appSettings } = useAppSelector((s) => s.config);
 
   useEffect(() => {
     let mounted = true;
@@ -60,6 +63,13 @@ export function useBootstrap() {
             setLocation({ districtId, districtName, areaId, areaName }),
           );
         }
+
+        try {
+          const config = await fetchAppSettings();
+          dispatch(setAppSettings(config));
+        } catch (e) {
+          console.error('Failed to fetch app settings', e);
+        }
       } finally {
         if (mounted) {
           dispatch(setAuthHydrated(true));
@@ -74,7 +84,7 @@ export function useBootstrap() {
     };
   }, [dispatch]);
 
-  return { ready: authHydrated && locationHydrated };
+  return { ready: authHydrated && locationHydrated && appSettings !== null };
 }
 
 export async function persistAuth(accessToken: string, refreshToken: string) {

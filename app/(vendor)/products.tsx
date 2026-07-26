@@ -1,16 +1,19 @@
 import React, { useState, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert,
+  TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert, Image, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { vendorApi, type VendorProduct } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { api } from '@/api/client';
 
 const STATUS_TABS = [
   { key: '', label: 'All' },
@@ -56,6 +59,9 @@ function ProductFormModal({
     unit: product?.unit ?? 'piece',
     stock: product?.inventory?.stock ? String(product.inventory.stock) : '0',
   });
+  
+  const [images, setImages] = useState<string[]>([]);
+  const [primaryIndex, setPrimaryIndex] = useState(0);
 
   // reset form when product changes
   React.useEffect(() => {
@@ -69,8 +75,38 @@ function ProductFormModal({
         unit: product?.unit ?? 'piece',
         stock: product?.inventory?.stock ? String(product.inventory.stock) : '0',
       });
+      if (product?.images?.length) {
+        setImages(product.images.map((img: any) => img.url));
+        const pIndex = product.images.findIndex((img: any) => img.isPrimary);
+        setPrimaryIndex(pIndex >= 0 ? pIndex : 0);
+      } else {
+        setImages([]);
+        setPrimaryIndex(0);
+      }
     }
   }, [product, visible]);
+
+  const pickImages = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      const newUris = result.assets.map((a) => a.uri);
+      setImages((prev) => [...prev, ...newUris]);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+    if (primaryIndex === index) {
+      setPrimaryIndex(0);
+    } else if (primaryIndex > index) {
+      setPrimaryIndex(p => p - 1);
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -79,12 +115,51 @@ function ProductFormModal({
         return;
       }
       setLoading(true);
+
+      // Upload images to Cloudinary
+      const uploadedImages = [];
+      if (images.length > 0) {
+        let sigData: any = null;
+        for (let i = 0; i < images.length; i++) {
+          const uri = images[i];
+          if (uri.startsWith('http')) {
+            uploadedImages.push({ url: uri, isPrimary: i === primaryIndex });
+            continue;
+          }
+          if (!sigData) {
+            const sigRes = await api.get<{ data: { signature: string; timestamp: number; cloudName: string; apiKey: string; folder: string } }>('/upload/signature?folder=districtmart/products');
+            sigData = sigRes.data.data;
+          }
+          const formBody = new FormData();
+          if (Platform.OS === 'web') {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            formBody.append('file', blob, 'upload.jpg');
+          } else {
+            formBody.append('file', { uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+          }
+          formBody.append('api_key', sigData.apiKey);
+          formBody.append('timestamp', sigData.timestamp.toString());
+          formBody.append('signature', sigData.signature);
+          formBody.append('folder', sigData.folder);
+
+          const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
+            method: 'POST',
+            body: formBody,
+          });
+          if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
+          const uploadData = await uploadRes.json();
+          uploadedImages.push({ url: uploadData.secure_url, isPrimary: i === primaryIndex });
+        }
+      }
+
       const data = {
         ...form,
         slug: form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         mrp: Number(form.mrp),
         sellingPrice: Number(form.sellingPrice),
         stock: Number(form.stock),
+        images: uploadedImages,
       };
 
       if (product) {
@@ -180,6 +255,47 @@ function ProductFormModal({
               containerStyle={{ flex: 1 }}
             />
           </View>
+
+          <View style={{ marginTop: spacing.lg }}>
+            <Text style={{ fontSize: 14, color: colors.text, marginBottom: spacing.sm, fontFamily: fonts.medium }}>Product Photos (Tap to set primary)</Text>
+            
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {images.map((uri, index) => (
+                <Pressable key={index} style={{ position: 'relative' }} onPress={() => setPrimaryIndex(index)}>
+                  <Image 
+                    source={{ uri }} 
+                    style={{ 
+                      width: 80, 
+                      height: 80, 
+                      borderRadius: radius.md, 
+                      backgroundColor: colors.surface,
+                      borderWidth: primaryIndex === index ? 2 : 0,
+                      borderColor: colors.primary
+                    }} 
+                  />
+                  {primaryIndex === index && (
+                    <View style={{ position: 'absolute', top: -5, left: -5, backgroundColor: colors.primary, borderRadius: 12, padding: 4 }}>
+                      <Feather name="star" size={12} color="#fff" />
+                    </View>
+                  )}
+                  <Pressable 
+                    onPress={() => removeImage(index)}
+                    style={{ position: 'absolute', top: -5, right: -5, backgroundColor: 'red', borderRadius: 12, padding: 2 }}
+                  >
+                    <Feather name="x" size={14} color="#fff" />
+                  </Pressable>
+                </Pressable>
+              ))}
+              
+              <Pressable 
+                onPress={pickImages}
+                style={{ width: 80, height: 80, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' }}
+              >
+                <Feather name="plus" size={24} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          </View>
+
         </ScrollView>
 
         <View style={modalStyles.footer}>
@@ -198,6 +314,7 @@ export default function VendorProducts() {
   const [page, setPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<VendorProduct | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const router = useRouter();
 
   const queryClient = useQueryClient();
 
@@ -205,8 +322,15 @@ export default function VendorProducts() {
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['vendor-products', activeTab, search, page],
     queryFn: () => vendorApi.listProducts({ status: activeTab || undefined, search: search || undefined, page }),
-    staleTime: 15000,
+    staleTime: 0,
   });
+
+  // Refetch every time the screen is focused so status changes (e.g. approved) are visible immediately
+  useFocusEffect(
+    useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
 
   const { data: categories } = useQuery({
     queryKey: ['vendor-categories'],
@@ -239,16 +363,27 @@ export default function VendorProducts() {
     setIsModalVisible(true);
   };
 
+  const handleView = (product: VendorProduct) => {
+    router.push(`/product/${product.id}`);
+  };
+
   const handleAdd = () => {
     setSelectedProduct(null);
     setIsModalVisible(true);
   };
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete Product', 'Are you sure you want to delete this product?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
-    ]);
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Are you sure you want to delete this product?');
+      if (confirmed) {
+        deleteMutation.mutate(id);
+      }
+    } else {
+      Alert.alert('Delete Product', 'Are you sure you want to delete this product?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => deleteMutation.mutate(id) },
+      ]);
+    }
   };
 
   const products: VendorProduct[] = data?.data ?? [];
@@ -351,9 +486,18 @@ export default function VendorProducts() {
             return (
               <View style={cardStyles.card}>
                 <View style={cardStyles.topRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={cardStyles.name} numberOfLines={1}>{item.name}</Text>
-                    <Text style={cardStyles.category}>{item.category?.name ?? 'Uncategorized'}</Text>
+                  <View style={{ flexDirection: 'row', flex: 1, alignItems: 'center', gap: spacing.md }}>
+                    {item.images?.[0] ? (
+                      <Image source={{ uri: item.images[0].url }} style={{ width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                    ) : (
+                      <View style={{ width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="image" size={20} color={colors.border} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, paddingRight: spacing.sm }}>
+                      <Text style={cardStyles.name} numberOfLines={1}>{item.name}</Text>
+                      <Text style={cardStyles.category}>{item.category?.name ?? 'Uncategorized'}</Text>
+                    </View>
                   </View>
                   <View style={[cardStyles.badge, { backgroundColor: st.bg }]}>
                     <Text style={[cardStyles.badgeText, { color: st.color }]}>{st.label}</Text>
@@ -364,7 +508,22 @@ export default function VendorProducts() {
 
                 <View style={cardStyles.midRow}>
                   <Text style={cardStyles.price}>₹{Number(item.sellingPrice).toFixed(0)} <Text style={cardStyles.unit}>/ {item.unit}</Text></Text>
-                  <Text style={cardStyles.stock}>Stock: <Text style={{ fontFamily: fonts.bold }}>{item.inventory?.stock ?? 0}</Text></Text>
+                  
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                    <Text style={cardStyles.stock}>Stock: <Text style={{ fontFamily: fonts.bold }}>{item.inventory?.stock ?? 0}</Text></Text>
+                    
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Pressable style={cardStyles.smallIconBtn} onPress={() => handleView(item)}>
+                        <Feather name="eye" size={14} color={colors.text} />
+                      </Pressable>
+                      <Pressable style={cardStyles.smallIconBtn} onPress={() => handleEdit(item)}>
+                        <Feather name="edit-2" size={14} color={colors.text} />
+                      </Pressable>
+                      <Pressable style={[cardStyles.smallIconBtn, { borderColor: '#fecaca', backgroundColor: '#fef2f2' }]} onPress={() => handleDelete(item.id)}>
+                        <Feather name="trash-2" size={14} color="#dc2626" />
+                      </Pressable>
+                    </View>
+                  </View>
                 </View>
 
                 {item.status === 'REJECTED' && approval?.rejectionReason && (
@@ -374,8 +533,8 @@ export default function VendorProducts() {
                   </View>
                 )}
 
-                <View style={cardStyles.actions}>
-                  {item.status === 'DRAFT' && (
+                {item.status === 'DRAFT' && (
+                  <View style={cardStyles.actions}>
                     <Pressable
                       style={cardStyles.submitBtn}
                       onPress={() => submitMutation.mutate(item.id)}
@@ -383,16 +542,8 @@ export default function VendorProducts() {
                     >
                       <Text style={cardStyles.submitBtnText}>Submit for Approval</Text>
                     </Pressable>
-                  )}
-                  <View style={cardStyles.actionRight}>
-                    <Pressable style={cardStyles.iconBtn} onPress={() => handleEdit(item)}>
-                      <Feather name="edit-2" size={16} color={colors.text} />
-                    </Pressable>
-                    <Pressable style={[cardStyles.iconBtn, { borderColor: '#fecaca', backgroundColor: '#fef2f2' }]} onPress={() => handleDelete(item.id)}>
-                      <Feather name="trash-2" size={16} color="#dc2626" />
-                    </Pressable>
                   </View>
-                </View>
+                )}
               </View>
             );
           }}
@@ -512,7 +663,7 @@ const cardStyles = StyleSheet.create({
   card: {
     backgroundColor: colors.white,
     borderRadius: radius.lg,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: '#f1f5f9',
     elevation: 2,
@@ -524,9 +675,9 @@ const cardStyles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   name: { fontSize: 16, fontFamily: fonts.bold, color: colors.text, marginBottom: 2 },
   category: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.medium },
-  badge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: radius.full },
-  badgeText: { fontSize: 12, fontFamily: fonts.bold },
-  divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: spacing.md },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full },
+  badgeText: { fontSize: 11, fontFamily: fonts.bold },
+  divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: spacing.sm },
   midRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   price: { fontSize: 18, fontFamily: fonts.bold, color: colors.primary },
   unit: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.regular },
@@ -538,7 +689,7 @@ const cardStyles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.md,
     gap: spacing.sm,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
   },
   rejectText: { fontSize: 12, color: '#dc2626', flex: 1 },
   actions: {
@@ -547,21 +698,20 @@ const cardStyles = StyleSheet.create({
     alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    paddingTop: spacing.md,
-    marginTop: spacing.md,
+    paddingTop: spacing.sm,
+    marginTop: spacing.sm,
   },
   submitBtn: {
     backgroundColor: '#f59e0b',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: radius.full,
   },
   submitBtnText: { color: colors.white, fontSize: 12, fontFamily: fonts.bold },
-  actionRight: { flexDirection: 'row', gap: spacing.sm, flex: 1, justifyContent: 'flex-end' },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  smallIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#f8fafc',
     alignItems: 'center',
     justifyContent: 'center',

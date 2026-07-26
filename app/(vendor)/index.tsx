@@ -104,7 +104,7 @@ export default function VendorDashboard() {
         </View>
         <Pressable
           style={[styles.notifBtn, d.notifications.unread > 0 && styles.notifBtnActive]}
-          onPress={() => router.push('/(vendor)/more')}
+          onPress={() => router.push('/vendor-notifications')}
         >
           <Feather name="bell" size={20} color={d.notifications.unread > 0 ? colors.white : colors.text} />
           {d.notifications.unread > 0 && (

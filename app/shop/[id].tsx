@@ -49,9 +49,7 @@ export default function ShopScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       {shop.bannerUrl ? (
         <Image source={{ uri: shop.bannerUrl }} style={styles.banner} resizeMode="cover" />
-      ) : (
-        <View style={[styles.banner, styles.bannerPlaceholder]} />
-      )}
+      ) : null}
       <View style={styles.header}>
         {shop.logoUrl ? (
           <Image source={{ uri: shop.logoUrl }} style={styles.logo} />

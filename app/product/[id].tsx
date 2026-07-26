@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -10,8 +11,9 @@ import {
   View,
   Pressable,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { cartApi, customerApi, productApi } from '@/api';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -23,6 +25,13 @@ export default function ProductScreen() {
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
   const cartCount = useAppSelector((state) => state.cart.itemCount);
+  const user = useAppSelector((state) => state.auth.user);
+  const { appSettings } = useAppSelector((state) => state.config);
+  const role = user?.role || 'GUEST';
+  const canAddToCart = appSettings?.roles[role]?.features?.canAddToCart ?? false;
+  const { width } = useWindowDimensions();
+  const [activeImage, setActiveImage] = useState(0);
+  const [qty, setQty] = useState(1);
 
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
@@ -30,16 +39,38 @@ export default function ProductScreen() {
     enabled: !!id,
   });
 
+  const { data: wishlist = [] } = useQuery({
+    queryKey: ['wishlist'],
+    queryFn: customerApi.fetchWishlist,
+    enabled: role === 'CUSTOMER',
+  });
+
+  const isWishlisted = wishlist.some((item: any) => item.product?.id === id || item.productId === id);
+
+  const toggleWishlist = useMutation({
+    mutationFn: () => isWishlisted ? customerApi.removeFromWishlist(id!) : customerApi.addToWishlist(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wishlist'] });
+    },
+    onError: (e) => {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Could not update wishlist');
+    }
+  });
+
   const addMutation = useMutation({
-    mutationFn: () => cartApi.addToCart(id!, 1),
-    onSuccess: async () => {
+    mutationFn: (variables?: { isBuyNow?: boolean }) => cartApi.addToCart(id!, qty),
+    onSuccess: async (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       const cart = await cartApi.fetchCart();
       dispatch(setItemCount(cart.items.reduce((s, i) => s + i.quantity, 0)));
-      Alert.alert('Added to cart', 'Item added successfully.', [
-        { text: 'Continue shopping' },
-        { text: 'View cart', onPress: () => router.push('/(tabs)/cart') },
-      ]);
+      if (variables?.isBuyNow) {
+        router.push('/(tabs)/cart');
+      } else {
+        Alert.alert('Added to cart', 'Item added successfully.', [
+          { text: 'Continue shopping', style: 'cancel' },
+          { text: 'View cart', onPress: () => router.push('/(tabs)/cart') },
+        ]);
+      }
     },
     onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Could not add to cart'),
   });
@@ -97,12 +128,26 @@ export default function ProductScreen() {
       />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Image */}
         <View style={styles.imageWrap}>
-          {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+          {product.images && product.images.length > 0 ? (
+            <ScrollView 
+              horizontal 
+              pagingEnabled 
+              showsHorizontalScrollIndicator={false}
+              scrollEventThrottle={16}
+              onScroll={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width);
+                if (index !== activeImage && index >= 0) {
+                  setActiveImage(index);
+                }
+              }}
+            >
+              {product.images.map((img: any, i: number) => (
+                <Image key={i} source={{ uri: img.url }} style={[styles.image, { width: width - spacing.md * 2 }]} resizeMode="cover" />
+              ))}
+            </ScrollView>
           ) : (
-            <View style={[styles.image, styles.imagePlaceholder]}>
+            <View style={[styles.image, styles.imagePlaceholder, { width: width - spacing.md * 2 }]}>
               <Text style={styles.placeholderText}>No image</Text>
             </View>
           )}
@@ -113,16 +158,23 @@ export default function ProductScreen() {
             </View>
           )}
 
-          <Pressable style={styles.heroHeartBtn}>
-            <Ionicons name="heart-outline" size={20} color="#111" />
+          <Pressable style={styles.heroHeartBtn} onPress={() => {
+            if (role !== 'CUSTOMER') {
+              Alert.alert('Login required', 'Please login to add to wishlist');
+              return;
+            }
+            toggleWishlist.mutate();
+          }}>
+            <Ionicons name={isWishlisted ? "heart" : "heart-outline"} size={20} color={isWishlisted ? "#ef4444" : "#111"} />
           </Pressable>
           
-          <View style={styles.dotsRow}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
+          {product.images && product.images.length > 1 && (
+            <View style={styles.dotsRow}>
+              {product.images.map((_, i) => (
+                <View key={i} style={[styles.dot, activeImage === i && styles.dotActive]} />
+              ))}
+            </View>
+          )}
         </View>
 
         <View style={styles.body}>
@@ -166,6 +218,37 @@ export default function ProductScreen() {
               </View>
             ) : null}
           </View>
+
+          {/* Micro Banners */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.microBannersWrap} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
+            <View style={styles.microBanner}>
+              <View style={[styles.microBannerIcon, { backgroundColor: '#f0fdf4' }]}>
+                <Ionicons name="shield-checkmark" size={16} color="#166534" />
+              </View>
+              <View style={styles.microBannerTextWrap}>
+                <Text style={styles.microBannerTitle}>100% Genuine</Text>
+                <Text style={styles.microBannerSub}>Quality verified</Text>
+              </View>
+            </View>
+            <View style={styles.microBanner}>
+              <View style={[styles.microBannerIcon, { backgroundColor: '#fff7ed' }]}>
+                <Ionicons name="leaf" size={16} color="#c2410c" />
+              </View>
+              <View style={styles.microBannerTextWrap}>
+                <Text style={styles.microBannerTitle}>Farm Fresh</Text>
+                <Text style={styles.microBannerSub}>Sourced daily</Text>
+              </View>
+            </View>
+            <View style={styles.microBanner}>
+              <View style={[styles.microBannerIcon, { backgroundColor: '#eff6ff' }]}>
+                <Ionicons name="pricetag" size={16} color="#1d4ed8" />
+              </View>
+              <View style={styles.microBannerTextWrap}>
+                <Text style={styles.microBannerTitle}>Best Prices</Text>
+                <Text style={styles.microBannerSub}>Guaranteed savings</Text>
+              </View>
+            </View>
+          </ScrollView>
 
           <View style={styles.divider} />
 
@@ -242,53 +325,79 @@ export default function ProductScreen() {
                 </View>
               </View>
             </>
-          ) : null}
+          ) : (
+            <>
+              <Text style={[styles.sectionTitle, { marginTop: spacing.lg }]}>Customer Reviews</Text>
+              <View style={styles.noReviewsBox}>
+                <Ionicons name="chatbubble-ellipses-outline" size={32} color="#9ca3af" />
+                <Text style={styles.noReviewsText}>No reviews yet</Text>
+                <Text style={styles.noReviewsSub}>Be the first to review this product!</Text>
+              </View>
+            </>
+          )}
+
+          {/* Related Products */}
+          {product.relatedProducts && product.relatedProducts.length > 0 && (
+            <View style={{ marginTop: spacing.xl }}>
+              <Text style={styles.sectionTitle}>Related Products</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -spacing.md }} contentContainerStyle={{ paddingHorizontal: spacing.md }}>
+                {product.relatedProducts.map((rp: any) => (
+                  <Pressable key={rp.id} style={styles.relatedCard} onPress={() => router.push(`/product/${rp.id}`)}>
+                    {rp.images?.[0]?.url ? (
+                      <Image source={{ uri: rp.images[0].url }} style={styles.relatedImage} />
+                    ) : (
+                      <View style={[styles.relatedImage, styles.imagePlaceholder]}>
+                        <Text style={{ fontSize: 10, color: '#aaa' }}>No image</Text>
+                      </View>
+                    )}
+                    <View style={styles.relatedInfo}>
+                      <Text style={styles.relatedBrand} numberOfLines={1}>{rp.vendor?.shopName || 'Vendor'}</Text>
+                      <Text style={styles.relatedName} numberOfLines={2}>{rp.name}</Text>
+                      <Text style={styles.relatedPrice}>₹{rp.sellingPrice}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
         </View>
       </ScrollView>
 
       {/* Bottom Action Bar */}
-      <View style={styles.bottomBar}>
-        <View style={styles.qtyBox}>
-          <Pressable style={styles.qtyBtn}>
-            <Ionicons name="trash-outline" size={16} color="#333" />
+      {canAddToCart && (
+        <View style={styles.bottomBar}>
+          <View style={styles.qtyBox}>
+            <Pressable style={styles.qtyBtn} onPress={() => setQty(Math.max(1, qty - 1))}><Feather name="minus" size={14} color="#6b7280" /></Pressable>
+            <Text style={styles.qtyText}>{qty}</Text>
+            <Pressable style={styles.qtyBtn} onPress={() => setQty(qty + 1)}><Feather name="plus" size={14} color="#15803d" /></Pressable>
+          </View>
+
+          <Pressable 
+            style={styles.addToCartBtn}
+            disabled={stock <= 0 || addMutation.isPending}
+            onPress={() => addMutation.mutate({ qty })}
+          >
+            {addMutation.isPending && !addMutation.variables?.isBuyNow ? (
+               <ActivityIndicator color="#15803d" size="small" />
+            ) : (
+               <Text style={[styles.addToCartBtnText, { color: '#15803d' }]}>Add to Cart</Text>
+            )}
           </Pressable>
-          <Text style={styles.qtyText}>1</Text>
-          <Pressable style={styles.qtyBtn}>
-            <Ionicons name="add" size={16} color="#15803d" />
+
+          <Pressable 
+            style={styles.buyNowBtn}
+            disabled={stock <= 0 || addMutation.isPending}
+            onPress={() => addMutation.mutate({ qty, isBuyNow: true })}
+          >
+            {addMutation.isPending && addMutation.variables?.isBuyNow ? (
+               <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.addToCartBtnText}>Buy Now</Text>
+            )}
           </Pressable>
         </View>
-
-        <Pressable 
-          style={styles.wishlistBtn}
-          onPress={async () => {
-            try {
-              await customerApi.addToWishlist(id!);
-              Alert.alert('Wishlist', 'Added to wishlist');
-            } catch (e) {
-              Alert.alert('Error', e instanceof Error ? e.message : 'Could not add');
-            }
-          }}
-        >
-          <Ionicons name="heart-outline" size={18} color="#333" />
-          <Text style={styles.wishlistBtnText}>Add to Wishlist</Text>
-        </Pressable>
-
-        <Pressable 
-          style={styles.addToCartBtn}
-          disabled={stock <= 0 || addMutation.isPending}
-          onPress={() => addMutation.mutate()}
-        >
-          {addMutation.isPending ? (
-             <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <>
-              <Ionicons name="cart-outline" size={18} color="#fff" />
-              <Text style={styles.addToCartBtnText}>Add to Cart</Text>
-            </>
-          )}
-        </Pressable>
-      </View>
+      )}
     </View>
   );
 }
@@ -334,7 +443,113 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: spacing.md, marginTop: spacing.md },
   brand: { fontSize: 10, color: colors.textMuted, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
   name: { fontSize: 20, fontFamily: fonts.bold, color: '#111', marginTop: 4 },
-  vendor: { fontSize: 12, color: '#15803d', fontFamily: fonts.semiBold },
+  vendor: {
+    fontSize: 14,
+    color: '#15803d',
+    fontFamily: fonts.semiBold,
+  },
+  microBannersWrap: {
+    marginHorizontal: -spacing.md,
+    marginTop: spacing.lg,
+    marginBottom: 0,
+  },
+  microBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    paddingRight: spacing.md,
+    marginRight: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  microBannerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  microBannerTextWrap: {
+    justifyContent: 'center',
+  },
+  microBannerTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 12,
+    color: '#333',
+  },
+  microBannerSub: {
+    fontFamily: fonts.regular,
+    fontSize: 10,
+    color: '#666',
+    marginTop: 1,
+  },
+  
+  noReviewsBox: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+    borderRadius: radius.md,
+    marginTop: spacing.sm,
+  },
+  noReviewsText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 14,
+    color: '#374151',
+    marginTop: spacing.sm,
+  },
+  noReviewsSub: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  relatedCard: {
+    width: 130,
+    backgroundColor: '#fff',
+    borderRadius: radius.md,
+    marginRight: spacing.md,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    overflow: 'hidden',
+  },
+  relatedImage: {
+    width: '100%',
+    height: 110,
+    backgroundColor: '#f9fafb',
+    resizeMode: 'cover',
+  },
+  relatedInfo: {
+    padding: spacing.sm,
+  },
+  relatedBrand: {
+    fontFamily: fonts.semiBold,
+    fontSize: 9,
+    color: '#15803d',
+    marginBottom: 2,
+  },
+  relatedName: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    color: '#111',
+    marginBottom: 4,
+    height: 32, // approx 2 lines
+  },
+  relatedPrice: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#111',
+  },
   
   priceAndRating: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: spacing.md },
   priceRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -393,15 +608,16 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 36, alignItems: 'center', justifyContent: 'center', height: '100%' },
   qtyText: { width: 24, textAlign: 'center', fontSize: 14, fontFamily: fonts.bold, color: '#111' },
   
-  wishlistBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 40, borderRadius: 8, borderWidth: 1, borderColor: '#15803d', gap: 6,
-  },
   wishlistBtnText: { color: '#111', fontSize: 13, fontFamily: fonts.semiBold },
   
   addToCartBtn: {
-    flex: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    height: 40, borderRadius: 8, backgroundColor: '#15803d', gap: 6,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    height: 40, borderRadius: 8, backgroundColor: '#dcfce7', gap: 6,
   },
   addToCartBtnText: { color: '#fff', fontSize: 13, fontFamily: fonts.semiBold },
+  
+  buyNowBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    height: 40, borderRadius: 8, backgroundColor: '#15803d', gap: 6,
+  },
 });

@@ -30,9 +30,6 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
             <Text style={styles.placeholderText}>No image</Text>
           </View>
         )}
-        <Pressable style={styles.heartBtn}>
-          <Ionicons name="heart-outline" size={14} color="#6b7280" />
-        </Pressable>
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {product.name}
@@ -41,8 +38,10 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
         {product.unit || '1 pc'}
       </Text>
       
-      <Text style={styles.price}>{formatPrice(price)}</Text>
-      <Text style={styles.mrp}>{mrp && mrp > price ? formatPrice(mrp) : ' '}</Text>
+      <View style={styles.priceContainer}>
+        <Text style={styles.price}>{formatPrice(price)}</Text>
+        <Text style={styles.mrp}>{mrp && mrp > price ? formatPrice(mrp) : ' '}</Text>
+      </View>
       
       <View style={styles.bottomRow}>
         {discount ? (
@@ -86,11 +85,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   
-  name: { fontSize: 12, fontFamily: fonts.semiBold, color: '#333', marginBottom: 2, height: 32 },
+  name: { fontSize: 12, fontFamily: fonts.semiBold, color: '#333', marginBottom: 2, minHeight: 15, lineHeight: 16 },
   unit: { fontSize: 10, color: colors.textMuted, marginBottom: 8 },
   
+  priceContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
   price: { fontSize: 15, fontFamily: fonts.bold, color: '#111' },
-  mrp: { fontSize: 10, color: '#9ca3af', textDecorationLine: 'line-through', marginBottom: 6 },
+  mrp: { fontSize: 11, color: '#9ca3af', textDecorationLine: 'line-through' },
   
   bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   discountText: { fontSize: 10, fontFamily: fonts.bold, color: '#15803d' },
