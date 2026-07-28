@@ -46,9 +46,9 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     if (accessToken && inAuth) {
       if (!districtId) {
         router.replace('/location');
-      } else if (appSettings) {
+      } else {
         const role = user?.role || 'GUEST';
-        const defaultRoute = appSettings.roles[role]?.defaultRoute || '/(tabs)';
+        const defaultRoute = appSettings?.roles[role]?.defaultRoute || '/(tabs)';
         router.replace(defaultRoute as any);
       }
       return;

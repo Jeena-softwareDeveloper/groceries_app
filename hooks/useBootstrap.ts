@@ -68,7 +68,27 @@ export function useBootstrap() {
           const config = await fetchAppSettings();
           dispatch(setAppSettings(config));
         } catch (e) {
-          console.error('Failed to fetch app settings', e);
+          console.error('Failed to fetch app settings, using fallback defaults', e);
+          // Dispatch fallback defaults so the app doesn't stay stuck on the loading spinner
+          dispatch(setAppSettings({
+            roles: {
+              CUSTOMER: {
+                defaultRoute: '/(tabs)',
+                allowedRoutes: ['/(tabs)', '/orders', '/wishlist', '/wallet'],
+                features: { canAddToCart: true, canCheckout: true, canManageProducts: false, showWishlist: true },
+              },
+              VENDOR: {
+                defaultRoute: '/(vendor)',
+                allowedRoutes: ['/(vendor)'],
+                features: { canAddToCart: false, canCheckout: false, canManageProducts: true, showWishlist: false },
+              },
+              GUEST: {
+                defaultRoute: '/(tabs)',
+                allowedRoutes: ['/(tabs)'],
+                features: { canAddToCart: false, canCheckout: false, canManageProducts: false, showWishlist: false },
+              },
+            },
+          }));
         }
       } finally {
         if (mounted) {
