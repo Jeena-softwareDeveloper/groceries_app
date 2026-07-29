@@ -13,6 +13,8 @@ export interface CustomerProfile {
   name?: string | null;
   email?: string | null;
   addresses?: Address[];
+  createdAt?: string;
+  isBlocked?: boolean;
 }
 
 
@@ -70,6 +72,7 @@ export interface Product {
   category?: Category | null;
   vendor?: { id: string; shopName: string; slug?: string };
   reviews?: { rating: number; comment?: string | null }[];
+  relatedProducts?: Product[];
 }
 
 export interface HomeFeed {

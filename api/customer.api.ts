@@ -1,7 +1,7 @@
 import { api, unwrap } from './client';
 import { ENDPOINTS } from './endpoints';
 import type { District, Area } from '@shared/types';
-import type { HomeFeed, Shop, Address, Product } from '@/types/customer';
+import type { HomeFeed, Shop, Address, Product, CustomerProfile } from '@/types/customer';
 
 export const customerApi = {
   fetchHomeFeed: (districtId: string, areaId?: string) =>
@@ -14,10 +14,10 @@ export const customerApi = {
     unwrap<Shop & { area?: { district?: { name: string } } }>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BY_ID(id))),
 
   fetchProfile: () =>
-    unwrap(api.get(ENDPOINTS.CUSTOMER.PROFILE)),
+    unwrap<CustomerProfile>(api.get(ENDPOINTS.CUSTOMER.PROFILE)),
 
   updateProfile: (data: { name?: string; email?: string }) =>
-    unwrap(api.put(ENDPOINTS.CUSTOMER.PROFILE, data)),
+    unwrap<CustomerProfile>(api.put(ENDPOINTS.CUSTOMER.PROFILE, data)),
 
   fetchAddresses: () =>
     unwrap<Address[]>(api.get(ENDPOINTS.CUSTOMER.ADDRESSES)),

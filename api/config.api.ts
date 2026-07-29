@@ -1,4 +1,5 @@
 import { api, unwrap } from './client';
+import type { ApiResponse } from '@shared/types';
 
 export interface AppSettings {
   minOrderValue?: number;
@@ -17,4 +18,4 @@ export interface AppSettings {
   }>;
 }
 
-export const fetchAppSettings = () => unwrap(api.get<AppSettings>('/config/app-settings'));
+export const fetchAppSettings = () => unwrap(api.get<ApiResponse<AppSettings>>('/config/app-settings'));

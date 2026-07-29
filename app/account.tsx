@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { StyleSheet, Text, View, ScrollView, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import type { CustomerProfile } from '@/types/customer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authApi } from '@/api';
 import { customerApi } from '@/api/customer.api';
@@ -15,10 +16,10 @@ export default function AccountScreen() {
   const queryClient = useQueryClient();
   const { user: authUser } = useAppSelector((s) => s.auth);
   
-  const { data: user, isLoading } = useQuery({ 
+  const { data: user, isLoading } = useQuery<CustomerProfile>({ 
     queryKey: ['me'], 
     queryFn: authApi.getMe,
-    initialData: authUser || undefined,
+    initialData: (authUser as CustomerProfile) || undefined,
     retry: false,
   });
 

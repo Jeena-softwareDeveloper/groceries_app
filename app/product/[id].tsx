@@ -382,7 +382,7 @@ export default function ProductScreen() {
           <Pressable 
             style={styles.addToCartBtn}
             disabled={stock <= 0 || addMutation.isPending}
-            onPress={() => addMutation.mutate({ qty })}
+            onPress={() => addMutation.mutate({})}
           >
             {addMutation.isPending && !addMutation.variables?.isBuyNow ? (
                <ActivityIndicator color="#15803d" size="small" />
@@ -394,7 +394,7 @@ export default function ProductScreen() {
           <Pressable 
             style={styles.buyNowBtn}
             disabled={stock <= 0 || addMutation.isPending}
-            onPress={() => addMutation.mutate({ qty, isBuyNow: true })}
+            onPress={() => addMutation.mutate({ isBuyNow: true })}
           >
             {addMutation.isPending && addMutation.variables?.isBuyNow ? (
                <ActivityIndicator color="#fff" size="small" />

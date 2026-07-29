@@ -123,7 +123,7 @@ function ProductFormModal({
         for (let i = 0; i < images.length; i++) {
           const uri = images[i];
           if (uri.startsWith('http')) {
-            uploadedImages.push({ url: uri, isPrimary: i === primaryIndex });
+            uploadedImages.push({ id: '', url: uri, isPrimary: i === primaryIndex });
             continue;
           }
           if (!sigData) {
@@ -149,7 +149,7 @@ function ProductFormModal({
           });
           if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
           const uploadData = await uploadRes.json();
-          uploadedImages.push({ url: uploadData.secure_url, isPrimary: i === primaryIndex });
+          uploadedImages.push({ id: '', url: uploadData.secure_url, isPrimary: i === primaryIndex });
         }
       }
 
