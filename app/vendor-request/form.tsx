@@ -248,7 +248,8 @@ export default function VendorRequestFormScreen() {
     if (step === 1) {
       if (!form.shopName?.trim()) return 'Shop Name is required';
       if (!form.ownerName?.trim()) return 'Owner Name is required';
-      if (!form.mobileNumber?.trim() || form.mobileNumber.replace(/\D/g, '').length < 10) return 'Valid mobile number is required';
+      const mobile = form.mobileNumber?.replace(/\D/g, '') ?? '';
+      if (!/^[6-9]\d{9}$/.test(mobile)) return 'Enter a valid 10-digit Indian mobile number';
     }
     if (step === 2) {
       if (!form.shopCategory) return 'Please select a shop category';
@@ -256,13 +257,15 @@ export default function VendorRequestFormScreen() {
     if (step === 3) {
       if (!form.districtId) return 'Please select a district';
       if (areas.length > 0 && !form.areaId) return 'Please select an area';
-      if (!form.address?.trim()) return 'Shop address is required';
+      if (!form.address?.trim() || form.address.trim().length < 5) return 'Shop address is required';
     }
     if (step === 4) {
       if (!form.accountHolderName?.trim()) return 'Account holder name is required';
       if (!form.bankName?.trim()) return 'Bank name is required';
-      if (!form.accountNumber?.trim()) return 'Account number is required';
-      if (!form.ifscCode?.trim()) return 'IFSC code is required';
+      const accountNumber = form.accountNumber?.replace(/\s/g, '') ?? '';
+      if (!/^\d{9,18}$/.test(accountNumber)) return 'Enter a valid bank account number (9-18 digits)';
+      const ifsc = (form.ifscCode ?? '').trim().toUpperCase();
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) return 'Enter a valid IFSC code';
     }
     if (step === 5) {
       // Images are optional for now so the user can skip them
@@ -447,7 +450,7 @@ export default function VendorRequestFormScreen() {
   return (
 
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         {/* Progress Bar */}
         <View style={styles.progressContainer}>
           {STEPS.map((s) => (

@@ -28,7 +28,7 @@ export const typography = {
   subtitle1: { fontSize: 14, fontFamily: fonts.medium, lineHeight: 20 },
   subtitle2: { fontSize: 13, fontFamily: fonts.medium, lineHeight: 18 },
   caption: { fontSize: 12, fontFamily: fonts.regular, lineHeight: 16 },
-  button: { fontSize: 14, fontFamily: fonts.bold },
+  button: { fontSize: 14, lineHeight: 20, fontFamily: fonts.bold },
   regular: { fontFamily: fonts.regular },
   semiBold: { fontFamily: fonts.semiBold },
   bold: { fontFamily: fonts.bold },

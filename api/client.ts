@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import type { ApiResponse } from '@shared/types';
 import { store } from '../store';
@@ -36,6 +36,17 @@ function onRefreshed(token: string) {
   refreshSubscribers = [];
 }
 
+function extractApiErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiResponse<unknown> | undefined;
+    if (data?.error?.message) return data.error.message;
+    if (typeof data?.error === 'string') return data.error;
+    if (error.message) return error.message;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Request failed';
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -64,8 +75,9 @@ api.interceptors.response.use(
         if (!refreshToken) {
           throw new Error('No refresh token');
         }
+        // Must include /api/v1 — request interceptor is bypassed for raw axios.post
         const res = await axios.post<{ success: boolean; data: { accessToken: string; refreshToken: string } }>(
-          `${API_BASE}/auth/refresh`,
+          `${API_BASE}/api/v1/auth/refresh`,
           { refreshToken }
         );
         if (res.data?.success && res.data?.data?.accessToken) {
@@ -90,11 +102,18 @@ api.interceptors.response.use(
 );
 
 export async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-  const { data } = await promise;
-  if (!data.success || data.data === null) {
-    throw new Error(data.error?.message ?? 'Request failed');
+  try {
+    const { data } = await promise;
+    if (!data.success || data.data === null) {
+      throw new Error(data.error?.message ?? 'Request failed');
+    }
+    return data.data;
+  } catch (error) {
+    if (error instanceof Error && !(error instanceof AxiosError)) {
+      throw error;
+    }
+    throw new Error(extractApiErrorMessage(error));
   }
-  return data.data;
 }
 
 export async function saveTokens(accessToken: string, refreshToken: string) {

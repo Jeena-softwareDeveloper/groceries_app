@@ -53,7 +53,10 @@ export default function CategoriesScreen() {
                         <Ionicons name="basket-outline" size={24} color={isSelected ? colors.primary : colors.textMuted} />
                       )}
                     </View>
-                    <Text style={[styles.parentName, isSelected && styles.parentNameSelected]}>
+                    <Text
+                      style={[styles.parentName, isSelected && styles.parentNameSelected]}
+                      numberOfLines={2}
+                    >
                       {cat.name}
                     </Text>
                     {isSelected && (
@@ -146,7 +149,10 @@ const styles = StyleSheet.create({
   },
   parentName: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     fontSize: 12,
+    lineHeight: 16,
     fontFamily: fonts.semiBold,
     color: colors.text,
   },

@@ -15,15 +15,23 @@ export default function SupportScreen() {
 
 
   async function handleSubmit() {
-    if (!subject.trim() || !message.trim()) return;
+    const subjectValue = subject.trim();
+    const messageValue = message.trim();
+    if (subjectValue.length < 3) {
+      Alert.alert('Validation', 'Subject must be at least 3 characters.');
+      return;
+    }
+    if (messageValue.length < 10) {
+      Alert.alert('Validation', 'Message must be at least 10 characters.');
+      return;
+    }
     setLoading(true);
     try {
-      await customerApi.createSupportTicket(subject.trim(), message.trim());
+      await customerApi.createSupportTicket(subjectValue, messageValue);
       setIsSuccess(true);
       setSubject('');
       setMessage('');
     } catch (e) {
-
       Alert.alert('Error', e instanceof Error ? e.message : 'Could not submit ticket');
     } finally {
       setLoading(false);

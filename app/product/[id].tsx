@@ -10,9 +10,9 @@ import {
   Text,
   View,
   Pressable,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { cartApi, customerApi, productApi } from '@/api';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
@@ -24,6 +24,7 @@ export default function ProductScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
   const cartCount = useAppSelector((state) => state.cart.itemCount);
   const user = useAppSelector((state) => state.auth.user);
   const { appSettings } = useAppSelector((state) => state.config);
@@ -366,11 +367,16 @@ export default function ProductScreen() {
 
       {/* Bottom Action Bar */}
       {canAddToCart && (
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(spacing.md, insets.bottom) }]}>
           <View style={styles.qtyBox}>
             <Pressable style={styles.qtyBtn} onPress={() => setQty(Math.max(1, qty - 1))}><Feather name="minus" size={14} color="#6b7280" /></Pressable>
             <Text style={styles.qtyText}>{qty}</Text>
-            <Pressable style={styles.qtyBtn} onPress={() => setQty(qty + 1)}><Feather name="plus" size={14} color="#15803d" /></Pressable>
+            <Pressable
+              style={styles.qtyBtn}
+              onPress={() => setQty((q) => Math.min(Math.max(stock, 1), q + 1))}
+            >
+              <Feather name="plus" size={14} color="#15803d" />
+            </Pressable>
           </View>
 
           <Pressable 
@@ -541,9 +547,10 @@ const styles = StyleSheet.create({
   relatedName: {
     fontFamily: fonts.medium,
     fontSize: 12,
+    lineHeight: 16,
     color: '#111',
     marginBottom: 4,
-    height: 32, // approx 2 lines
+    minHeight: 32,
   },
   relatedPrice: {
     fontFamily: fonts.bold,
@@ -577,10 +584,10 @@ const styles = StyleSheet.create({
   
   description: { fontSize: 13, color: '#4b5563', lineHeight: 20 },
   
-  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: spacing.md },
-  featureItem: { width: '23%', alignItems: 'center' },
+  featuresGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.md, gap: spacing.sm },
+  featureItem: { width: '22%', flexGrow: 1, alignItems: 'center', minWidth: 70 },
   featureIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  featureItemText: { fontSize: 10, color: '#4b5563', textAlign: 'center', fontFamily: fonts.medium },
+  featureItemText: { fontSize: 10, lineHeight: 13, color: '#4b5563', textAlign: 'center', fontFamily: fonts.medium },
   
   deliveryBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0fdf4', padding: spacing.md, borderRadius: radius.lg },
   deliveryTitle: { fontSize: 13, fontFamily: fonts.bold, color: '#111' },
@@ -602,7 +609,6 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6',
     flexDirection: 'row', padding: spacing.md, alignItems: 'center', gap: spacing.sm,
-    paddingBottom: Platform.OS === 'ios' ? 32 : spacing.md,
   },
   qtyBox: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, height: 40 },
   qtyBtn: { width: 36, alignItems: 'center', justifyContent: 'center', height: '100%' },

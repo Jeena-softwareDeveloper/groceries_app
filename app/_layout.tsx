@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Provider } from 'react-redux';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Roboto_400Regular,
   Roboto_500Medium,
@@ -138,11 +139,13 @@ export default function RootLayout() {
   }
 
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <RootNavigator />
-      </QueryClientProvider>
-    </Provider>
+    <SafeAreaProvider>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <RootNavigator />
+        </QueryClientProvider>
+      </Provider>
+    </SafeAreaProvider>
   );
 }
 

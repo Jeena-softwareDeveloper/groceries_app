@@ -78,9 +78,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semiBold,
     color: colors.text,
     textAlign: 'center',
-    lineHeight: 12,
+    lineHeight: 15,
     fontSize: 11,
-    height: 24, // force 2 lines
+    minHeight: 30,
   },
   nameSelected: {
     color: colors.primary,

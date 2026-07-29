@@ -111,7 +111,10 @@ export default function LocationScreen() {
             <Pressable style={styles.selectorBox} onPress={() => setShowDistrictModal(true)}>
               <View style={styles.selectorLeft}>
                 <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} style={styles.selectorIcon} />
-                <Text style={[styles.selectorText, !selectedDistrict && { color: colors.textMuted }]}>
+                <Text
+                  style={[styles.selectorText, !selectedDistrict && { color: colors.textMuted }]}
+                  numberOfLines={1}
+                >
                   {selectedDistrict ? selectedDistrict.name : 'Select a district...'}
                 </Text>
               </View>
@@ -136,7 +139,10 @@ export default function LocationScreen() {
             >
               <View style={styles.selectorLeft}>
                 <MaterialCommunityIcons name="office-building-marker" size={20} color={!selectedDistrict ? colors.textMuted : colors.primary} style={styles.selectorIcon} />
-                <Text style={[styles.selectorText, !selectedArea && { color: colors.textMuted }]}>
+                <Text
+                  style={[styles.selectorText, !selectedArea && { color: colors.textMuted }]}
+                  numberOfLines={1}
+                >
                   {selectedArea ? selectedArea.name : 'Select an area...'}
                 </Text>
               </View>
@@ -289,9 +295,9 @@ const styles = StyleSheet.create({
   
   selectorBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   selectorDisabled: { opacity: 0.5 },
-  selectorLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  selectorLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minWidth: 0, marginRight: spacing.sm },
   selectorIcon: { marginRight: 4 },
-  selectorText: { fontSize: 15, fontFamily: fonts.medium, color: colors.text },
+  selectorText: { flexShrink: 1, fontSize: 15, lineHeight: 20, fontFamily: fonts.medium, color: colors.text },
 
   nearbySection: { marginTop: spacing.xl },
   nearbyTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.md },

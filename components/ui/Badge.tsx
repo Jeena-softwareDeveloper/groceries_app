@@ -44,10 +44,13 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     justifyContent: 'center',
+    flexShrink: 1,
+    minWidth: 0,
   },
   subtitle: {
     marginTop: -2,
     fontSize: 11,
+    lineHeight: 14,
   },
   variant_primary: {
     backgroundColor: colors.primary,

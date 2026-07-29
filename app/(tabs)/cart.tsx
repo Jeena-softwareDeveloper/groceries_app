@@ -14,7 +14,7 @@ import {
   TouchableOpacity,
   Pressable,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { cartApi, orderApi, customerApi } from '@/api';
@@ -36,6 +36,7 @@ export default function CartScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const appSettings = useAppSelector((s) => s.config.appSettings);
   const [showCheckout, setShowCheckout] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -116,11 +117,13 @@ export default function CartScreen() {
     mutationFn: ({ productId, quantity }: { productId: string; quantity: number }) =>
       cartApi.updateCartItem(productId, quantity),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onError: (e) => Alert.alert('Cart update failed', e instanceof Error ? e.message : 'Try again'),
   });
 
   const removeMutation = useMutation({
     mutationFn: (productId: string) => cartApi.removeFromCart(productId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onError: (e) => Alert.alert('Remove failed', e instanceof Error ? e.message : 'Try again'),
   });
 
   const checkoutMutation = useMutation({
@@ -135,7 +138,7 @@ export default function CartScreen() {
   });
 
   const createAddressMutation = useMutation({
-    mutationFn: () => customerApi.createAddress(addressForm),
+    mutationFn: (payload: typeof addressForm) => customerApi.createAddress(payload),
     onSuccess: (newAddress) => {
       queryClient.invalidateQueries({ queryKey: ['addresses'] });
       setAddressForm({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
@@ -145,7 +148,35 @@ export default function CartScreen() {
         setSelectedAddressId(newAddress.id);
       }
     },
+    onError: (e) => Alert.alert('Address failed', e instanceof Error ? e.message : 'Could not save address'),
   });
+
+  function handleSaveAddress() {
+    const payload = {
+      label: addressForm.label.trim() || 'Home',
+      line1: addressForm.line1.trim(),
+      city: addressForm.city.trim(),
+      state: addressForm.state.trim(),
+      pincode: addressForm.pincode.replace(/\D/g, ''),
+    };
+    if (payload.line1.length < 3) {
+      Alert.alert('Invalid address', 'Enter a valid address line.');
+      return;
+    }
+    if (!/^\d{6}$/.test(payload.pincode)) {
+      Alert.alert('Invalid pincode', 'Enter a valid 6-digit pincode.');
+      return;
+    }
+    if (payload.city.length < 2) {
+      Alert.alert('Invalid city', 'Enter a valid city.');
+      return;
+    }
+    if (payload.state.length < 2) {
+      Alert.alert('Invalid state', 'Enter a valid state.');
+      return;
+    }
+    createAddressMutation.mutate(payload);
+  }
 
   if (isSuccess) {
     return (
@@ -288,12 +319,19 @@ export default function CartScreen() {
                <View style={styles.addressFormBox}>
                   <Text style={styles.formTitle}>Add new address</Text>
                   <TextInput style={styles.input} placeholder="Address line" value={addressForm.line1} onChangeText={(v) => setAddressForm((f) => ({ ...f, line1: v }))} />
-                  <TextInput style={styles.input} placeholder="Pincode" keyboardType="number-pad" maxLength={6} value={addressForm.pincode} onChangeText={(v) => setAddressForm((f) => ({ ...f, pincode: v }))} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Pincode"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={addressForm.pincode}
+                    onChangeText={(v) => setAddressForm((f) => ({ ...f, pincode: v.replace(/\D/g, '').slice(0, 6) }))}
+                  />
                   <TextInput style={styles.input} placeholder="City" value={addressForm.city} onChangeText={(v) => setAddressForm((f) => ({ ...f, city: v }))} />
                   <TextInput style={styles.input} placeholder="State" value={addressForm.state} onChangeText={(v) => setAddressForm((f) => ({ ...f, state: v }))} />
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                     <Button title="Cancel" variant="ghost" onPress={() => setShowAddressForm(false)} style={{ flex: 1 }} />
-                    <Button title="Save" variant="primary" loading={createAddressMutation.isPending} onPress={() => createAddressMutation.mutate()} style={{ flex: 1 }} />
+                    <Button title="Save" variant="primary" loading={createAddressMutation.isPending} onPress={handleSaveAddress} style={{ flex: 1 }} />
                   </View>
                </View>
              )}
@@ -458,7 +496,7 @@ export default function CartScreen() {
       {/* Checkout Address Selection Modal */}
       <Modal visible={showCheckoutModal} transparent animationType="slide" onRequestClose={() => setShowCheckoutModal(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setShowCheckoutModal(false)}>
-          <Pressable style={styles.modalSheet} onPress={() => {}}>
+          <Pressable style={[styles.modalSheet, { paddingBottom: spacing.md + insets.bottom }]} onPress={() => {}}>
             {/* Handle bar */}
             <View style={styles.modalHandle} />
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, FlatList } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors, radius, spacing, typography } from '@/constants/theme';
+import { colors, fonts, radius, spacing, typography } from '@/constants/theme';
 import { Typography } from './Typography';
 
 export interface SelectOption {
@@ -77,7 +78,7 @@ export function Select({ label, placeholder, options, value, onChange, onSelect,
                 </TouchableOpacity>
               )}
             />
-            <SafeAreaView />
+            <SafeAreaView edges={['bottom']} />
           </View>
         </View>
       </Modal>
@@ -165,6 +166,6 @@ const styles = StyleSheet.create({
   },
   optionTextSelected: {
     color: colors.primary,
-    fontFamily: 'Inter-Medium',
+    fontFamily: fonts.medium,
   },
 });

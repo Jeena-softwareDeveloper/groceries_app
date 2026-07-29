@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, radius, fonts } from '@/constants/theme';
+import { colors, spacing, fonts } from '@/constants/theme';
 import { Button } from './Button';
 
 interface SuccessStateProps {
@@ -13,14 +14,20 @@ interface SuccessStateProps {
 
 export function SuccessState({ title, message, buttonText, onButtonPress }: SuccessStateProps) {
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.iconContainer}>
-          <Feather name="check-circle" size={80} color={colors.primary} />
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.container}>
+          <View style={styles.iconContainer}>
+            <Feather name="check-circle" size={80} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.message}>{message}</Text>
         </View>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.message}>{message}</Text>
-      </View>
+      </ScrollView>
       <View style={styles.footer}>
         <Button title={buttonText} onPress={onButtonPress} />
       </View>
@@ -33,8 +40,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   container: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -47,6 +57,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
+    lineHeight: 32,
     fontFamily: fonts.semiBold,
     color: colors.text,
     textAlign: 'center',
@@ -60,7 +71,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   footer: {
-    padding: spacing.xl,
-    paddingBottom: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
   },
 });
