@@ -4,7 +4,7 @@ import type { CustomerProfile } from '@/types/customer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authApi } from '@/api';
 import { customerApi } from '@/api/customer.api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
@@ -43,7 +43,8 @@ export default function AccountScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Account Info" showBack showSearch={false} />
+      <InnerHeader title="Account Info" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={styles.content}>
         
         <View style={styles.headerCard}>
@@ -156,12 +157,13 @@ export default function AccountScreen() {
         </View>
 
       </ScrollView>
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   content: { padding: spacing.md, gap: spacing.md },
   headerCard: {
     backgroundColor: '#fff',

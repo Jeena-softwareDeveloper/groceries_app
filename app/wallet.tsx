@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { walletApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WalletScreen() {
@@ -10,7 +10,8 @@ export default function WalletScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Wallet" showBack />
+      <InnerHeader title="Wallet" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.balanceCard}>
         <Text style={styles.label}>Available balance</Text>
         <Text style={styles.balance}>₹{isLoading ? '—' : Number(data?.balance ?? 0).toFixed(0)}</Text>
@@ -30,12 +31,13 @@ export default function WalletScreen() {
           </View>
         )}
       />
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   balanceCard: {
     margin: spacing.md,
     backgroundColor: colors.primary,

@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,6 +18,15 @@ import { useBootstrap } from '@/hooks/useBootstrap';
 import { store } from '@/store';
 import { setItemCount } from '@/store/cartSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { CustomSplashScreen } from '@/components/CustomSplashScreen';
+import Toast from 'react-native-toast-message';
+
+// Keep the native splash screen visible until we are ready to replace it
+SplashScreen.preventAutoHideAsync();
+
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
 
 // Apply Roboto globally as default font
 const defaultFontFamily = 'Roboto_400Regular';
@@ -36,6 +46,10 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { accessToken, user } = useAppSelector((s) => s.auth);
   const { districtId } = useAppSelector((s) => s.location);
   const { appSettings } = useAppSelector((s) => s.config);
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
+  // Track whether the user was authenticated on this session start
+  const wasAuthenticated = useRef(false);
+  if (accessToken) wasAuthenticated.current = true;
 
   useEffect(() => {
     if (!ready) return;
@@ -48,11 +62,22 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       if (!districtId) {
         router.replace('/location');
       } else {
-        const role = user?.role || 'GUEST';
-        const defaultRoute = appSettings?.roles[role]?.defaultRoute || '/(tabs)';
-        router.replace(defaultRoute as any);
+        router.replace(user?.role === 'VENDOR' ? '/(vendor)' : '/(tabs)');
       }
       return;
+    }
+
+    // Role-based routing enforcement
+    if (accessToken) {
+      const inVendorApp = segments[0] === '(vendor)';
+      if (user?.role === 'VENDOR' && !inVendorApp && !onLocation) {
+        router.replace('/(vendor)');
+        return;
+      }
+      if (user?.role === 'CUSTOMER' && inVendorApp) {
+        router.replace('/(tabs)');
+        return;
+      }
     }
 
     // If logged in but no location selected
@@ -61,23 +86,19 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // If NOT logged in, enforce redirect to auth (unless already on location or auth)
+    // If NOT logged in, only enforce location or redirect to auth if they were logged in
     if (!accessToken && !inAuth && !onLocation) {
-      // Per requirements, even Home is protected. Unauthenticated users must go to Location then Login.
       if (!districtId) {
         router.replace('/location');
-      } else {
+      } else if (wasAuthenticated.current) {
+        // Session expired mid-use — redirect to login
         router.replace('/(auth)/login');
       }
     }
   }, [ready, accessToken, districtId, segments, router]);
 
-  if (!ready) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+  if (isSplashVisible) {
+    return <CustomSplashScreen ready={ready} onFinish={() => setIsSplashVisible(false)} />;
   }
 
   return <>{children}</>;
@@ -106,8 +127,9 @@ function RootNavigator() {
       <CartBadgeSync />
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" options={{ presentation: 'transparentModal', animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' } }} />
         <Stack.Screen name="(vendor)" />
         <Stack.Screen name="location" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="shop/[id]" options={{ headerShown: true, title: 'Shop' }} />
@@ -117,7 +139,7 @@ function RootNavigator() {
         <Stack.Screen name="wallet" options={{ headerShown: false }} />
         <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Order' }} />
-        <Stack.Screen name="index" />
+        <Stack.Screen name="category/[id]" options={{ headerShown: false }} />
       </Stack>
     </NavigationGuard>
   );
@@ -131,11 +153,7 @@ export default function RootLayout() {
   });
 
   if (!fontsLoaded) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return null; // Don't show a spinner, let the native splash screen stay
   }
 
   return (
@@ -143,6 +161,7 @@ export default function RootLayout() {
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <RootNavigator />
+          <Toast />
         </QueryClientProvider>
       </Provider>
     </SafeAreaProvider>

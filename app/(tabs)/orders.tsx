@@ -12,6 +12,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { orderApi } from '@/api';
 import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import { useAppSelector } from '@/store/hooks';
+import { Feather } from '@expo/vector-icons';
+import { Button } from '@/components/Button';
 
 const STATUS_COLORS: Record<string, string> = {
   PLACED: '#3b82f6',
@@ -24,14 +27,34 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function OrdersScreen() {
   const router = useRouter();
+  const { accessToken } = useAppSelector((s) => s.auth);
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['orders'],
     queryFn: () => orderApi.fetchOrders(1),
+    enabled: !!accessToken,
   });
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <InnerHeader title="My Orders" />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Feather name="package" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 8 }}>Please Login</Text>
+          <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', marginBottom: 24 }}>
+            Login to view your order history and track deliveries.
+          </Text>
+          <Button title="Login / Sign Up" onPress={() => router.push('/(auth)/login')} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <InnerHeader title="My Orders" />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} size="large" />
@@ -73,12 +96,13 @@ export default function OrdersScreen() {
           )}
         />
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   list: { padding: spacing.md, paddingBottom: spacing.xl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   error: { color: colors.error },

@@ -48,13 +48,28 @@ export function useBootstrap() {
         if (!mounted) return;
 
         if (accessToken && refreshToken) {
-          dispatch(setTokens({ accessToken, refreshToken }));
           try {
+            // First set tokens so the api interceptor can attach the Authorization header
+            dispatch(setTokens({ accessToken, refreshToken }));
             const user = await authApi.getMe();
+            // Confirmed valid — keep tokens and set user
             dispatch(setUser(user));
-          } catch {
-            await clearTokens();
-            dispatch(clearAuth());
+          } catch (getMeErr: any) {
+            // Distinguish network errors from genuine auth failures
+            const statusCode = getMeErr?.response?.status;
+            const isNetworkError = !getMeErr?.response;
+
+            if (isNetworkError) {
+              // User is offline at startup — keep them logged in (tokens still valid)
+              console.warn('[Bootstrap] Network error during getMe — keeping session');
+            } else if (statusCode === 401 || statusCode === 403) {
+              // Token genuinely rejected — try was already made, clear everything
+              await clearTokens();
+              dispatch(clearAuth());
+            } else {
+              // Server error (5xx) or other — keep session, don't punish user
+              console.warn('[Bootstrap] Server error during getMe — keeping session');
+            }
           }
         }
 

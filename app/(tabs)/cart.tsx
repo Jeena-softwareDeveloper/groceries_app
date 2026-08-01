@@ -53,6 +53,11 @@ export default function CartScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isChangingAddress, setIsChangingAddress] = useState(false);
 
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+
+  const { accessToken } = useAppSelector((s) => s.auth);
+
   const cartQuery = useQuery({
     queryKey: ['cart'],
     queryFn: cartApi.fetchCart,
@@ -172,10 +177,33 @@ export default function CartScreen() {
       return;
     }
     if (payload.state.length < 2) {
-      Alert.alert('Invalid state', 'Enter a valid state.');
+      Toast.show({ type: 'error', text1: 'Invalid state', text2: 'Enter a valid state.' });
       return;
     }
     createAddressMutation.mutate(payload);
+  }
+
+  function handleApplyCoupon() {
+    if (!couponCode.trim()) {
+      Toast.show({ type: 'error', text1: 'Empty Coupon', text2: 'Please enter a coupon code.' });
+      return;
+    }
+    Toast.show({ type: 'error', text1: 'Invalid Coupon', text2: 'This coupon code is not valid or expired.' });
+    setCouponCode('');
+    setShowCouponModal(false);
+  }
+
+  if (!accessToken) {
+    return (
+      <View style={styles.safe}>
+        <View style={styles.centered}>
+          <Ionicons name="cart-outline" size={70} color={colors.textMuted} style={{ marginBottom: 16 }} />
+          <Text style={styles.emptyTitle}>Please Login</Text>
+          <Text style={styles.emptyDesc}>Login to view your cart and place orders.</Text>
+          <Button title="Login / Sign Up" onPress={() => router.push('/(auth)/login')} style={{ marginTop: spacing.lg }} />
+        </View>
+      </View>
+    );
   }
 
   if (isSuccess) {
@@ -391,7 +419,7 @@ export default function CartScreen() {
           ))}
         </View>
 
-        <View style={styles.couponSection}>
+        <TouchableOpacity style={styles.couponSection} onPress={() => setShowCouponModal(true)}>
            <View style={styles.couponLeft}>
               <MaterialCommunityIcons name="ticket-percent-outline" size={24} color={colors.primary} />
               <View style={styles.couponTexts}>
@@ -400,7 +428,7 @@ export default function CartScreen() {
               </View>
            </View>
            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </View>
+        </TouchableOpacity>
 
 
 
@@ -492,6 +520,29 @@ export default function CartScreen() {
             <Text style={styles.secureText}>Secure Payments • 100% Safe & Reliable</Text>
          </View>
       </View>
+
+      {/* Coupon Modal */}
+      <Modal visible={showCouponModal} transparent animationType="slide" onRequestClose={() => setShowCouponModal(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowCouponModal(false)}>
+          <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Apply Coupon</Text>
+            <View style={{ paddingBottom: insets.bottom + 20 }}>
+              <TextInput
+                style={[styles.input, { textTransform: 'uppercase' }]}
+                placeholder="Enter coupon code"
+                autoCapitalize="characters"
+                value={couponCode}
+                onChangeText={setCouponCode}
+              />
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                <Button title="Cancel" variant="ghost" onPress={() => setShowCouponModal(false)} style={{ flex: 1 }} />
+                <Button title="Apply" variant="primary" onPress={handleApplyCoupon} style={{ flex: 1 }} />
+              </View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Checkout Address Selection Modal */}
       <Modal visible={showCheckoutModal} transparent animationType="slide" onRequestClose={() => setShowCheckoutModal(false)}>

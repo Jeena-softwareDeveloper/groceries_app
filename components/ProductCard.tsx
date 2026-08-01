@@ -1,4 +1,4 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import type { Product } from '@/types/customer';
@@ -7,6 +7,7 @@ interface ProductCardProps {
   product: Product;
   onPress?: () => void;
   onAddToCart?: () => void;
+  isAdding?: boolean;
   compact?: boolean;
 }
 
@@ -14,7 +15,7 @@ function formatPrice(value: number | string) {
   return `₹${Number(value).toFixed(0)}`;
 }
 
-export function ProductCard({ product, onPress, onAddToCart, compact }: ProductCardProps) {
+export function ProductCard({ product, onPress, onAddToCart, isAdding, compact }: ProductCardProps) {
   const imageUrl = product.images?.[0]?.url;
   const mrp = product.mrp ? Number(product.mrp) : null;
   const price = Number(product.sellingPrice);
@@ -48,8 +49,12 @@ export function ProductCard({ product, onPress, onAddToCart, compact }: ProductC
           <Text style={styles.discountText}>{discount}% OFF</Text>
         ) : <View />}
         {onAddToCart ? (
-          <Pressable style={styles.addBtn} onPress={onAddToCart}>
-            <Ionicons name="add" size={16} color="#15803d" />
+          <Pressable style={[styles.addBtn, isAdding && { opacity: 0.7 }]} onPress={onAddToCart} disabled={isAdding}>
+            {isAdding ? (
+              <ActivityIndicator size="small" color="#15803d" />
+            ) : (
+              <Ionicons name="add" size={16} color="#15803d" />
+            )}
           </Pressable>
         ) : null}
       </View>

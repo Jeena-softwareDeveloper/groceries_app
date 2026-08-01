@@ -7,6 +7,7 @@ interface InnerHeaderProps {
   showCart?: boolean;
   showSearch?: boolean;
   showBack?: boolean;
+  customSearchNode?: React.ReactNode;
   style?: ViewStyle;
 }
 
@@ -15,6 +16,7 @@ export function InnerHeader({
   showCart = true,
   showSearch = true,
   showBack = false,
+  customSearchNode,
   style,
 }: InnerHeaderProps) {
   return (
@@ -24,6 +26,7 @@ export function InnerHeader({
       showCart={showCart}
       showSearch={showSearch}
       showBack={showBack}
+      customSearchNode={customSearchNode}
       darkIcons={true}
       style={style}
     />

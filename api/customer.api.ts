@@ -5,7 +5,12 @@ import type { HomeFeed, Shop, Address, Product, CustomerProfile } from '@/types/
 
 export const customerApi = {
   fetchHomeFeed: (districtId: string, areaId?: string) =>
-    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId } })),
+    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId } })).then(res => {
+      console.log('--- HOME FEED RESPONSE ---');
+      console.log(JSON.stringify(res, null, 2));
+      console.log('--------------------------');
+      return res;
+    }),
 
   fetchShops: (districtId: string, areaId?: string, categoryId?: string) =>
     unwrap<Shop[]>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BASE, { params: { districtId, areaId, categoryId } })),

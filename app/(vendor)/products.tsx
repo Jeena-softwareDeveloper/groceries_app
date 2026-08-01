@@ -24,14 +24,14 @@ const STATUS_TABS = [
 ];
 
 function getStatusStyle(s: string) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    DRAFT: { bg: '#f3f4f6', color: '#4b5563', label: 'Draft' },
-    PENDING_REVIEW: { bg: '#fef3c7', color: '#d97706', label: 'Pending Approval' },
-    PUBLISHED: { bg: '#dcfce7', color: '#16a34a', label: 'Active' },
-    REJECTED: { bg: '#fee2e2', color: '#dc2626', label: 'Rejected' },
-    UNPUBLISHED: { bg: '#f3f4f6', color: '#4b5563', label: 'Unpublished' },
+  const map: Record<string, { bg: string; color: string; label: string; icon: string }> = {
+    DRAFT: { bg: '#f3f4f6', color: '#4b5563', label: 'Draft', icon: 'file-text' },
+    PENDING_REVIEW: { bg: '#fef3c7', color: '#d97706', label: 'Pending Approval', icon: 'clock' },
+    PUBLISHED: { bg: '#dcfce7', color: '#16a34a', label: 'Active', icon: 'check-circle' },
+    REJECTED: { bg: '#fee2e2', color: '#dc2626', label: 'Rejected', icon: 'alert-circle' },
+    UNPUBLISHED: { bg: '#f3f4f6', color: '#4b5563', label: 'Unpublished', icon: 'eye-off' },
   };
-  return map[s] ?? { bg: '#f3f4f6', color: '#4b5563', label: s };
+  return map[s] ?? { bg: '#f3f4f6', color: '#4b5563', label: s, icon: 'info' };
 }
 
 // ─── Product Form Modal ───────────────────────────────────────────────────────
@@ -344,7 +344,6 @@ export default function VendorProducts() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-products'] });
       queryClient.invalidateQueries({ queryKey: ['vendor-dashboard'] });
-      Alert.alert('Success', 'Product submitted for admin approval!');
     },
     onError: (e: any) => Alert.alert('Error', e.message ?? 'Submission failed'),
   });
@@ -499,8 +498,11 @@ export default function VendorProducts() {
                       <Text style={cardStyles.category}>{item.category?.name ?? 'Uncategorized'}</Text>
                     </View>
                   </View>
-                  <View style={[cardStyles.badge, { backgroundColor: st.bg }]}>
-                    <Text style={[cardStyles.badgeText, { color: st.color }]}>{st.label}</Text>
+                  <View style={[cardStyles.badge, { backgroundColor: st.bg, flexDirection: 'row', alignItems: 'center' }]}>
+                    <Feather name={st.icon as any} size={12} color={st.color} />
+                    {item.status !== 'DRAFT' && (
+                      <Text style={[cardStyles.badgeText, { color: st.color, marginLeft: 4 }]}>{st.label}</Text>
+                    )}
                   </View>
                 </View>
 

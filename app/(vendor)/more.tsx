@@ -13,6 +13,7 @@ import { vendorApi } from '@/api/vendor.api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
 import { wipeAuth, persistAuth } from '@/hooks/useBootstrap';
+import Toast from 'react-native-toast-message';
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
@@ -43,10 +44,10 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
       await vendorApi.updateProfile(form);
       queryClient.invalidateQueries({ queryKey: ['vendor-profile'] });
       queryClient.invalidateQueries({ queryKey: ['vendor-dashboard'] });
-      Alert.alert('Success', 'Profile updated successfully');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Profile updated successfully' });
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to update profile');
+      Toast.show({ type: 'error', text1: 'Error', text2: e.message ?? 'Failed to update profile' });
     } finally {
       setLoading(false);
     }
@@ -105,10 +106,10 @@ function SettingsModal({ visible, onClose, profile }: { visible: boolean; onClos
         deliveryRadius: Number(form.deliveryRadius),
       });
       queryClient.invalidateQueries({ queryKey: ['vendor-profile'] });
-      Alert.alert('Success', 'Settings updated');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Settings updated' });
       onClose();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to update settings');
+      Toast.show({ type: 'error', text1: 'Error', text2: e.message ?? 'Failed to update settings' });
     } finally {
       setLoading(false);
     }
@@ -173,7 +174,7 @@ export default function VendorMore() {
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Failed to switch role', error);
-      Alert.alert('Error', 'Failed to switch to Customer Mode');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to switch to Customer Mode' });
     }
   }
 
@@ -279,13 +280,13 @@ export default function VendorMore() {
               icon="tag"
               title="Offers & Discounts"
               subtitle="Create coupons & store promotions"
-              onPress={() => Alert.alert('Coming Soon', 'Offers module is currently under development.')}
+              onPress={() => Toast.show({ type: 'error', text1: 'Coming Soon', text2: 'Offers module is currently under development.' })}
             />
             <MenuItem
               icon="help-circle"
               title="Help & Support"
               subtitle="Contact All Time Market admin team"
-              onPress={() => Alert.alert('Support', 'Contact admin at support@alltimemarket.com')}
+              onPress={() => Toast.show({ type: 'error', text1: 'Support', text2: 'Contact admin at support@alltimemarket.com' })}
             />
             <MenuItem
               icon="shopping-bag"

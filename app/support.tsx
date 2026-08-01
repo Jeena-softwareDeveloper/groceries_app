@@ -3,9 +3,10 @@ import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
 import { Button } from '@/components/Button';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import Toast from 'react-native-toast-message';
 
 export default function SupportScreen() {
   const [subject, setSubject] = useState('');
@@ -18,11 +19,11 @@ export default function SupportScreen() {
     const subjectValue = subject.trim();
     const messageValue = message.trim();
     if (subjectValue.length < 3) {
-      Alert.alert('Validation', 'Subject must be at least 3 characters.');
+      Toast.show({ type: 'error', text1: 'Validation', text2: 'Subject must be at least 3 characters.' });
       return;
     }
     if (messageValue.length < 10) {
-      Alert.alert('Validation', 'Message must be at least 10 characters.');
+      Toast.show({ type: 'error', text1: 'Validation', text2: 'Message must be at least 10 characters.' });
       return;
     }
     setLoading(true);
@@ -32,7 +33,7 @@ export default function SupportScreen() {
       setSubject('');
       setMessage('');
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Could not submit ticket');
+      Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Could not submit ticket' });
     } finally {
       setLoading(false);
     }
@@ -52,7 +53,8 @@ export default function SupportScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
 
-      <Header title="Help & Support" showBack />
+      <InnerHeader title="Help & Support" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.form}>
         <Text style={styles.label}>Subject</Text>
         <TextInput style={styles.input} value={subject} onChangeText={setSubject} placeholder="What do you need help with?" />
@@ -67,12 +69,13 @@ export default function SupportScreen() {
         />
         <Button title="Submit ticket" loading={loading} onPress={handleSubmit} style={{ marginTop: spacing.lg }} />
       </View>
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   form: { padding: spacing.md },
   label: { fontFamily: fonts.medium, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
   input: {

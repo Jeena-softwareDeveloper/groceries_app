@@ -16,6 +16,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { user, refreshToken, accessToken } = useAppSelector((s) => s.auth);
+  const isLoggedIn = !!accessToken;
   const { districtName, areaName } = useAppSelector((s) => s.location);
 
   const { data: vendorRequest } = useQuery({
@@ -34,8 +35,8 @@ export default function ProfileScreen() {
       const me = await authApi.getMe();
       dispatch(setUser(me));
       router.replace('/(vendor)');
-    } catch (e) {
-      alert('Failed to switch to Vendor Mode');
+    } catch (e: any) {
+      alert(`Failed to switch to Vendor Mode: ${e?.message || String(e)}`);
     }
   }
 
@@ -74,28 +75,32 @@ export default function ProfileScreen() {
     router.push('/location');
   }
 
-  const isLoggedIn = !!(accessToken && user);
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <InnerHeader title="Profile" showBack={false} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Feather name="user-x" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 8 }}>Please Login</Text>
+          <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', marginBottom: 24 }}>
+            Login to view and manage your profile, orders, and addresses.
+          </Text>
+          <Pressable 
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 }}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <Text style={{ color: colors.white, fontFamily: fonts.bold, fontSize: 16 }}>Login / Sign Up</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Profile" showSearch={false} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {!isLoggedIn ? (
-          <View style={styles.guestCard}>
-            <View style={styles.guestIconCircle}>
-              <Feather name="user-check" size={28} color={colors.primary} />
-            </View>
-            <Text style={styles.guestTitle}>Welcome to All Time Market</Text>
-            <Text style={styles.guestSub}>
-              Log in to access your wishlist, wallet, orders, and manage your store.
-            </Text>
-            <Pressable style={styles.loginBtn} onPress={() => router.push('/(auth)/login')}>
-              <Text style={styles.loginBtnText}>Log in / Sign up</Text>
-              <Feather name="arrow-right" size={16} color="#fff" />
-            </Pressable>
-          </View>
-        ) : (
-          <>
+      <InnerHeader title="Profile" />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {/* User Info Header Card */}
             <View style={styles.profileHeaderCard}>
               <View style={styles.avatarBox}>
@@ -136,8 +141,6 @@ export default function ProfileScreen() {
                 <Feather name="chevron-right" size={20} color={colors.textMuted} />
               </View>
             </Pressable>
-          </>
-        )}
 
         {/* Delivery Location Card */}
         <View style={styles.card}>
@@ -257,7 +260,8 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -294,7 +298,7 @@ function MenuItem({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   content: { padding: spacing.md, paddingBottom: 120, gap: 14 },
 
   guestCard: {

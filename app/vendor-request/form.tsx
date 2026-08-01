@@ -12,6 +12,7 @@ import { api } from '@/api/client';
 import { colors, spacing, radius, fonts, typography } from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
 import { Input, Select, Button, Typography, Badge, SuccessState } from '@/components/ui';
+import Toast from 'react-native-toast-message';
 
 
 
@@ -84,7 +85,7 @@ function DocUploader({
       onChange(uploadData.secure_url);
     } catch (e) {
       if (Platform.OS === 'web') window.alert('Could not upload the image. Please try again.');
-      else Alert.alert('Upload Failed', 'Could not upload the image. Please try again.');
+      else Toast.show({ type: 'error', text1: 'Upload Failed', text2: 'Could not upload the image. Please try again.' });
     } finally {
       setUploading(false);
     }
@@ -205,7 +206,7 @@ export default function VendorRequestFormScreen() {
   async function handleSubmit() {
     if (!termsAccepted) {
       if (Platform.OS === 'web') window.alert('Please accept the Terms & Conditions to continue.');
-      else Alert.alert('Terms Required', 'Please accept the Terms & Conditions to continue.');
+      else Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please accept the Terms & Conditions to continue.' });
       return;
     }
     if (!accessToken || !user) {
@@ -237,7 +238,7 @@ export default function VendorRequestFormScreen() {
         }
       } else {
         if (Platform.OS === 'web') window.alert(msg);
-        else Alert.alert('Submission Failed', msg);
+        else Toast.show({ type: 'error', text1: 'Submission Failed', text2: msg });
       }
     } finally {
       setSubmitting(false);
@@ -278,7 +279,7 @@ export default function VendorRequestFormScreen() {
     const error = validateCurrentStep();
     if (error) { 
       if (Platform.OS === 'web') window.alert(error);
-      else Alert.alert('Validation Error', error); 
+      else Toast.show({ type: 'error', text1: 'Validation Error', text2: error }); 
       return; 
     }
     await saveAndNext();

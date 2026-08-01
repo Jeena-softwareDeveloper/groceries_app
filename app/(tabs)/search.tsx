@@ -40,17 +40,24 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Search" showSearch={false} />
-      <View style={styles.searchWrap}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products, shops, categories..."
-          value={query}
-          onChangeText={setQuery}
-          autoCapitalize="none"
-          returnKeyType="search"
-        />
-      </View>
+      <InnerHeader 
+        title="Search" 
+        showSearch={true} 
+        customSearchNode={
+          <View style={{ flex: 1 }}>
+            <TextInput
+              style={[styles.searchInput, { flex: 1, backgroundColor: '#fff', borderRadius: 999, height: 44, paddingVertical: 0, paddingHorizontal: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, borderWidth: 0 }]}
+              placeholder="Search products, shops, categories..."
+              value={query}
+              onChangeText={setQuery}
+              autoCapitalize="words"
+              returnKeyType="search"
+              autoFocus={true}
+            />
+          </View>
+        }
+      />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
       {!hasQuery ? (
         <View style={styles.hint}>
@@ -104,12 +111,13 @@ export default function SearchScreen() {
           ) : null}
         </ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   searchWrap: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   searchInput: {
     backgroundColor: colors.surface,

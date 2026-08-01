@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
@@ -53,6 +53,13 @@ export default function HomeScreen() {
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
+  // Scroll down → header slides up and hides; scroll back → it reappears
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, 80],
+    outputRange: [0, -80],
+    extrapolate: 'clamp',
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['homeFeed', districtId, areaId],
     queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined),
@@ -62,6 +69,12 @@ export default function HomeScreen() {
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(130); // tracks actual header height for overlay positioning
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [catBarVisible, setCatBarVisible] = useState(false);
+  const catBarY = useRef(0); // Y position of the categories row in the scroll view
+  const catTabAnim = useRef(new Animated.Value(0)).current; // animated underline position
+  const catBarOpacity = useRef(new Animated.Value(0)).current;
+  const catBarTranslateY = useRef(new Animated.Value(-48)).current;
 
   const addToCartMutation = useMutation({
     mutationFn: (productId: string) => cartApi.addToCart(productId, 1),
@@ -75,14 +88,37 @@ export default function HomeScreen() {
   });
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (!data?.banners?.length) return;
-    const scrollX = event.nativeEvent.contentOffset.x;
-    const itemWidth = BANNER_WIDTH + spacing.sm; // banner width + gap
-    const index = Math.round(scrollX / itemWidth);
-    const safeIndex = Math.min(Math.max(index, 0), data.banners.length - 1);
-    if (safeIndex !== activeBannerIndex) {
-      setActiveBannerIndex(safeIndex);
+    // Banner index tracking
+    if (data?.banners?.length) {
+      const scrollX = event.nativeEvent.contentOffset.x;
+      const itemWidth = BANNER_WIDTH + spacing.sm;
+      const index = Math.round(scrollX / itemWidth);
+      const safeIndex = Math.min(Math.max(index, 0), data.banners.length - 1);
+      if (safeIndex !== activeBannerIndex) setActiveBannerIndex(safeIndex);
     }
+  };
+
+  // Show/hide sticky cat bar based on scroll
+  const handleMainScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: true,
+      listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const y = e.nativeEvent.contentOffset.y;
+        const shouldShow = catBarY.current > 0 && y > catBarY.current - headerHeight - 10;
+        if (shouldShow !== catBarVisible) {
+          setCatBarVisible(shouldShow);
+          Animated.parallel([
+            Animated.spring(catBarOpacity, { toValue: shouldShow ? 1 : 0, useNativeDriver: true, tension: 80, friction: 10 }),
+            Animated.spring(catBarTranslateY, { toValue: shouldShow ? 0 : -48, useNativeDriver: true, tension: 80, friction: 10 }),
+          ]).start();
+        }
+      }
+    }
+  );
+
+  const handleCategorySelect = (catId: string, _index: number) => {
+    setSelectedCategoryId(prev => prev === catId ? null : catId);
   };
 
   const activeBanner = data?.banners?.[activeBannerIndex];
@@ -103,50 +139,102 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: safeAreaBg }]} edges={['top']}>
-      {/* ═══ STICKY HEADER: solid gradient (no fade) ═══ */}
-      <LinearGradient
-        colors={[headerColor, headerColorEnd]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
-      >
-        <Header darkIcons style={{ backgroundColor: 'transparent' }} scrollY={scrollY} />
-      </LinearGradient>
-
-      {isLoading ? (
-        <View style={[styles.centered, { backgroundColor: safeAreaBg }]}>
-          <ActivityIndicator size="large" color={colors.white} />
-        </View>
-      ) : error ? (
-        <View style={styles.centered}>
-          <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
-        </View>
-      ) : (
-        <Animated.ScrollView
-          style={{ backgroundColor: colors.background, marginTop: -1 }}
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false } // We animate layout/height, so useNativeDriver must be false
-          )}
-          scrollEventThrottle={16}
-        >
-          {/* ═══ GRADIENT FADE: sits BEHIND the banners, scrolls up with them ═══ */}
+      <View style={{ flex: 1, position: 'relative' }}>
+        {/* ═══ STICKY HEADER ═══ */}
+        <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, transform: [{ translateY: headerTranslateY }] }}>
           <LinearGradient
-            colors={[headerColorEnd, headerColorEnd + '00']}
+            colors={[headerColor, headerColorEnd]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0, y: 1 }}
+            onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+          >
+            <Header showLogo={true} showLocation={true} darkIcons style={{ backgroundColor: 'transparent' }} scrollY={scrollY} />
+          </LinearGradient>
+        </Animated.View>
+
+        {/* ═══ STICKY CATEGORY TAB BAR — slides in below search bar when scrolled past categories ═══ */}
+        {data?.categories?.length ? (
+          <Animated.View
             style={{
               position: 'absolute',
-              top: 0,
+              top: headerHeight,
               left: 0,
               right: 0,
-              height: BANNER_HEIGHT * 0.65, // slightly longer fade behind banner
+              zIndex: 9,
+              opacity: catBarOpacity,
+              transform: [
+                { translateY: catBarTranslateY },
+                { translateY: headerTranslateY }, // follows header when it hides
+              ],
+              backgroundColor: colors.white,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f0f0f0',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 6,
+              elevation: 4,
             }}
-            pointerEvents="none"
-          />
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: spacing.md, paddingVertical: 8, gap: 8 }}
+            >
+              {/* All pill */}
+              <Pressable
+                onPress={() => setSelectedCategoryId(null)}
+                style={[styles.catPill, !selectedCategoryId && styles.catPillActive]}
+              >
+                <Text style={[styles.catPillText, !selectedCategoryId && styles.catPillTextActive]}>All</Text>
+              </Pressable>
+              {data.categories.map((cat) => (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => router.push(`/category/${cat.id}?name=${encodeURIComponent(cat.name)}`)}
+                  style={[styles.catPill, selectedCategoryId === cat.id && styles.catPillActive]}
+                >
+                  <Text style={[styles.catPillText, selectedCategoryId === cat.id && styles.catPillTextActive]}>
+                    {cat.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Animated.View>
+        ) : null}
 
+        {isLoading ? (
+          <View style={[styles.centered, { backgroundColor: safeAreaBg }]}>
+            <ActivityIndicator size="large" color={colors.white} />
+          </View>
+        ) : error ? (
+          <View style={styles.centered}>
+            <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
+          </View>
+        ) : (
+          <Animated.ScrollView
+            style={{ backgroundColor: colors.background }}
+            contentContainerStyle={[styles.scroll, { paddingTop: headerHeight > 0 ? headerHeight : 120 }]}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleMainScroll}
+            scrollEventThrottle={16}
+          >
+            {/* ═══ GRADIENT FADE: sits BEHIND the banners, scrolls up with them ═══ */}
+            <View style={{ width: '100%', position: 'relative', zIndex: 0 }}>
+              <LinearGradient
+                colors={[headerColorEnd, headerColorEnd + '00']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: BANNER_HEIGHT * 0.9, // Fades perfectly past the middle of the banner
+                }}
+                pointerEvents="none"
+              />
+            </View>
           {/* Banners: normal flow, renders ON TOP of the gradient background */}
           {data?.banners?.length ? (
             <ScrollView
@@ -168,72 +256,104 @@ export default function HomeScreen() {
             </ScrollView>
           ) : null}
 
-          {/* Categories */}
+          {/* Categories — scroll-into-view row: tap → go to search/product list page */}
           {data?.categories?.length ? (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={[styles.hList, { marginTop: spacing.md }]}
-              contentContainerStyle={{ paddingHorizontal: spacing.md }}
+            <View
+              onLayout={(e) => {
+                catBarY.current = e.nativeEvent.layout.y;
+              }}
             >
-              {data.categories.map((cat) => (
-                <CategoryCard
-                  key={cat.id}
-                  category={cat}
-                  onPress={() => router.push(`/(tabs)/search?q=${encodeURIComponent(cat.name)}`)}
-                />
-              ))}
-            </ScrollView>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={[styles.hList, { marginTop: spacing.md }]}
+                contentContainerStyle={{ paddingHorizontal: spacing.md }}
+              >
+                {data.categories.map((cat) => (
+                  <CategoryCard
+                    key={cat.id}
+                    category={cat}
+                    isSelected={false}
+                    onPress={() => router.push(`/category/${cat.id}?name=${encodeURIComponent(cat.name)}`)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
           ) : null}
 
           {/* Free Delivery Banner */}
           {data?.deliveryRule?.freeAbove || data?.layout?.freeDelivery ? (
-            <View style={[styles.freeDeliveryBanner, { padding: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: '#e6f4ea', borderColor: '#dcfce7', marginHorizontal: spacing.md, marginTop: spacing.md }]}>
-              {/* Icon Left */}
-              <View style={{ marginRight: spacing.sm }}>
-                {data?.deliveryRule?.bannerIcon?.includes('.json') ? (
-                  <LottieView
-                    source={{ uri: data.deliveryRule.bannerIcon }}
-                    autoPlay loop style={{ width: 48, height: 48 }}
-                  />
-                ) : (
-                  <Ionicons name="bicycle" size={40} color={colors.primary} />
-                )}
-              </View>
+            <Pressable style={{ marginHorizontal: spacing.md, marginTop: spacing.md, overflow: 'hidden', borderRadius: radius.md, elevation: 3, shadowColor: '#3b1c0a', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6 }}>
+              <LinearGradient
+                colors={['#4a2107', '#783810', '#4a2107']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' }}
+              >
+                {/* Glossy Overlay for shiny wrapper effect */}
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.06)' }} />
+                
+                {/* Scalloped edges (left) to look like a wrapper cut */}
+                <View style={{ position: 'absolute', left: -8, top: 0, bottom: 0, width: 16, justifyContent: 'space-evenly', paddingVertical: 4 }}>
+                  {[1, 2, 3, 4, 5, 6, 7].map(i => <View key={`l-${i}`} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.background }} />)}
+                </View>
+                
+                {/* Scalloped edges (right) */}
+                <View style={{ position: 'absolute', right: -8, top: 0, bottom: 0, width: 16, justifyContent: 'space-evenly', paddingVertical: 4 }}>
+                  {[1, 2, 3, 4, 5, 6, 7].map(i => <View key={`r-${i}`} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.background }} />)}
+                </View>
 
-              {/* Text Center */}
-              <View style={styles.freeDeliveryContent}>
-                <Text style={[styles.freeDeliveryTitle, { color: '#166534', fontSize: 13 }]}>
-                  {data?.deliveryRule?.bannerTitle || data?.layout?.freeDelivery?.title || 'FREE DELIVERY'}
-                </Text>
-                <Text style={[styles.freeDeliverySub, { color: '#166534', fontSize: 11 }]}>
-                  {data?.deliveryRule?.bannerSubtitle || data?.layout?.freeDelivery?.subtitle || `On all orders above ₹199`}
-                </Text>
-              </View>
+                {/* Icon Left */}
+                <View style={{ marginLeft: 16, marginRight: spacing.md }}>
+                  {data?.deliveryRule?.bannerIcon?.includes('.json') ? (
+                    <LottieView
+                      source={{ uri: data.deliveryRule.bannerIcon }}
+                      autoPlay loop style={{ width: 44, height: 44 }}
+                    />
+                  ) : (
+                    <Ionicons name="gift" size={38} color="#FFD700" />
+                  )}
+                </View>
 
-              {/* Arrow Right */}
-              <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="chevron-forward" size={16} color="#166534" />
-              </View>
-            </View>
+                {/* Text Center */}
+                <View style={{ flex: 1, zIndex: 1 }}>
+                  <Text style={{ ...typography.h4, color: '#FFD700', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
+                    {data?.deliveryRule?.bannerTitle || data?.layout?.freeDelivery?.title || 'FREE DELIVERY'}
+                  </Text>
+                  <Text style={{ ...typography.subtitle2, color: '#FFECA1', fontSize: 11.5, marginTop: 2, fontWeight: '500', opacity: 0.9 }}>
+                    {data?.deliveryRule?.bannerSubtitle || data?.layout?.freeDelivery?.subtitle || `On all orders above ₹199`}
+                  </Text>
+                </View>
+
+                {/* Arrow Right */}
+                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,215,0,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1, borderColor: 'rgba(255,215,0,0.3)' }}>
+                  <Ionicons name="chevron-forward" size={16} color="#FFD700" />
+                </View>
+              </LinearGradient>
+            </Pressable>
           ) : null}
 
           {/* Best Sellers (Products) */}
-          {data?.trendingProducts?.length ? (
-            <>
-              <SectionHeader title="Best Sellers" onAction={() => {}} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hList} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
-                {data.trendingProducts.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    onPress={() => router.push(`/product/${p.id}`)}
-                    onAddToCart={() => addToCartMutation.mutate(p.id)}
-                  />
-                ))}
-              </ScrollView>
-            </>
-          ) : null}
+          {(() => {
+            const filtered = selectedCategoryId
+              ? (data?.trendingProducts ?? []).filter((p: any) => p.categoryId === selectedCategoryId)
+              : (data?.trendingProducts ?? []);
+            return filtered.length ? (
+              <>
+                <SectionHeader title={selectedCategoryId ? (data?.categories?.find((c: any) => c.id === selectedCategoryId)?.name ?? 'Products') : 'Best Sellers'} onAction={() => {}} />
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hList} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
+                  {filtered.map((p: any) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      onPress={() => router.push(`/product/${p.id}`)}
+                      onAddToCart={() => addToCartMutation.mutate(p.id)}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null;
+          })()}
 
           {/* Bulk Orders Banner */}
           {data?.layout?.bulkOrders ? (
@@ -285,23 +405,35 @@ export default function HomeScreen() {
           ) : null}
 
           {/* All Products Grid */}
-          {data?.recentlyAdded?.length ? (
-            <>
-              <SectionHeader title="All Products" onAction={() => {}} />
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, justifyContent: 'space-between' }}>
-                {data.recentlyAdded.map((p) => (
-                  <View key={p.id} style={{ width: '48%', marginBottom: spacing.md }}>
-                    <ProductCard
-                      product={p}
-                      compact={true}
-                      onPress={() => router.push(`/product/${p.id}`)}
-                      onAddToCart={() => addToCartMutation.mutate(p.id)}
-                    />
+          {(() => {
+            const allProds = data?.recentlyAdded ?? [];
+            const filtered = selectedCategoryId
+              ? allProds.filter((p: any) => p.categoryId === selectedCategoryId)
+              : allProds;
+            return filtered.length ? (
+              <>
+                <SectionHeader title={selectedCategoryId ? 'Category Products' : 'All Products'} onAction={() => {}} />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, justifyContent: 'space-between' }}>
+                  {filtered.map((p: any) => (
+                    <View key={p.id} style={{ width: '48%', marginBottom: spacing.md }}>
+                      <ProductCard
+                        product={p}
+                        compact={true}
+                        onPress={() => router.push(`/product/${p.id}`)}
+                        onAddToCart={() => addToCartMutation.mutate(p.id)}
+                      />
+                    </View>
+                  ))}
+                </View>
+                {filtered.length === 0 && (
+                  <View style={{ alignItems: 'center', padding: spacing.xl }}>
+                    <Ionicons name="cube-outline" size={48} color={colors.textMuted} />
+                    <Text style={{ color: colors.textMuted, marginTop: 8 }}>No products in this category</Text>
                   </View>
-                ))}
-              </View>
-            </>
-          ) : null}
+                )}
+              </>
+            ) : null;
+          })()}
 
           {/* Why Shop With Us? */}
           {data?.layout?.whyShopWithUs && data.layout.whyShopWithUs.length > 0 ? (
@@ -336,19 +468,7 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* Popular Searches */}
-          {data?.layout?.popularSearches && data.layout.popularSearches.length > 0 ? (
-            <>
-              <SectionHeader title="Popular Searches" />
-              <View style={styles.pillsRow}>
-                {data.layout.popularSearches.map((pill: string) => (
-                  <Pressable key={pill} style={styles.pill}>
-                    <Text style={styles.pillText}>{pill}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </>
-          ) : null}
+
 
           {/* Desktop/Expanded Footer */}
           {data?.layout?.footer ? (
@@ -370,35 +490,13 @@ export default function HomeScreen() {
                   ))}
                 </View>
               ) : null}
-              {data.layout.footer.download ? (
-                <View style={styles.downloadBox}>
-                  <View style={styles.downloadContent}>
-                    <Text style={styles.downloadTitle}>{data.layout.footer.download.title}</Text>
-                    <Text style={styles.downloadSub}>{data.layout.footer.download.subtitle}</Text>
-                    <View style={styles.downloadButtons}>
-                      <View style={styles.storeBtn}>
-                        <Ionicons name="logo-google-playstore" size={20} color={colors.white} />
-                        <View>
-                          <Text style={styles.storeBtnSub}>GET IT ON</Text>
-                          <Text style={styles.storeBtnTitle}>Google Play</Text>
-                        </View>
-                      </View>
-                      <View style={styles.storeBtn}>
-                        <Ionicons name="logo-apple" size={20} color={colors.white} />
-                        <View>
-                          <Text style={styles.storeBtnSub}>Download on the</Text>
-                          <Text style={styles.storeBtnTitle}>App Store</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              ) : null}
+           
             </View>
           ) : null}
 
         </Animated.ScrollView>
       )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -427,6 +525,27 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...typography.h3,
     color: colors.text,
+  },
+  catPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.full,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  catPillActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  catPillText: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
+  catPillTextActive: {
+    color: colors.white,
+    fontFamily: fonts.bold,
   },
   viewAllRow: {
     flexDirection: 'row',
@@ -547,10 +666,9 @@ const styles = StyleSheet.create({
   freeDeliverySub: { ...typography.subtitle2, color: colors.textMuted },
   freeDeliveryIcon: { marginRight: 8 },
 
-  // Bulk Orders
   bulkBanner: {
     backgroundColor: '#16a34a',
-    borderRadius: radius.lg,
+    borderRadius: 0,
     padding: spacing.lg,
     marginTop: spacing.md,
     flexDirection: 'row',

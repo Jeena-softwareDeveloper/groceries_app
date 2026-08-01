@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function WishlistScreen() {
@@ -18,7 +18,8 @@ export default function WishlistScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Wishlist" showBack />
+      <InnerHeader title="Wishlist" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
         <Text style={styles.empty}>Loading…</Text>
       ) : data.length === 0 ? (
@@ -46,12 +47,13 @@ export default function WishlistScreen() {
           }}
         />
       )}
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   empty: { textAlign: 'center', marginTop: spacing.xl, color: colors.textMuted },
   row: {
     flexDirection: 'row',

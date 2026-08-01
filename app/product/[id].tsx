@@ -18,6 +18,7 @@ import { cartApi, customerApi, productApi } from '@/api';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
+import Toast from 'react-native-toast-message';
 
 export default function ProductScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,7 +55,7 @@ export default function ProductScreen() {
       queryClient.invalidateQueries({ queryKey: ['wishlist'] });
     },
     onError: (e) => {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Could not update wishlist');
+      Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Could not update wishlist' });
     }
   });
 
@@ -73,7 +74,7 @@ export default function ProductScreen() {
         ]);
       }
     },
-    onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Could not add to cart'),
+    onError: (e) => Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Could not add to cart' }),
   });
 
   if (isLoading) {
@@ -161,7 +162,7 @@ export default function ProductScreen() {
 
           <Pressable style={styles.heroHeartBtn} onPress={() => {
             if (role !== 'CUSTOMER') {
-              Alert.alert('Login required', 'Please login to add to wishlist');
+              Toast.show({ type: 'error', text1: 'Login required', text2: 'Please login to add to wishlist' });
               return;
             }
             toggleWishlist.mutate();

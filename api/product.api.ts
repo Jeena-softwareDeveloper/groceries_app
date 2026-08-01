@@ -9,6 +9,11 @@ export const productApi = {
   fetchProduct: (id: string) =>
     unwrap<Product>(api.get(ENDPOINTS.CUSTOMER.PRODUCTS.BY_ID(id))),
 
+  fetchProducts: (params: { categoryId?: string; districtId?: string; sort?: string; page?: number; limit?: number }) =>
+    unwrap<{ products: Product[]; total: number; page: number; totalPages: number }>(
+      api.get(ENDPOINTS.CUSTOMER.PRODUCTS.LIST, { params })
+    ),
+
   searchProducts: (q: string, districtId?: string, scope?: string) =>
     unwrap<SearchResults>(api.get(ENDPOINTS.CUSTOMER.SEARCH, { params: { q, districtId, scope } })),
 };

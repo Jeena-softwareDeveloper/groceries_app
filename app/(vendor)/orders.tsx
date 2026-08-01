@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import { vendorApi, type VendorOrder } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
+import Toast from 'react-native-toast-message';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -292,7 +293,7 @@ export default function VendorOrders() {
       queryClient.invalidateQueries({ queryKey: ['vendor-dashboard'] });
     },
     onError: (err: any) => {
-      Alert.alert('Error', err?.message ?? 'Failed to update order status');
+      Toast.show({ type: 'error', text1: 'Error', text2: err?.message ?? 'Failed to update order status' });
     },
   });
 

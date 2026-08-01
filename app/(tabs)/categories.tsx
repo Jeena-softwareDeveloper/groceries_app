@@ -5,18 +5,20 @@ import { InnerHeader } from '@/components/InnerHeader';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { useQuery } from '@tanstack/react-query';
 import { categoryApi } from '@/api/category.api';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function CategoriesScreen() {
+  const { categoryId: initialCategoryId } = useLocalSearchParams<{ categoryId?: string }>();
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: categoryApi.fetchCategories,
   });
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(initialCategoryId ?? null);
 
   useEffect(() => {
+    // If a categoryId was passed in URL, use it; otherwise auto-select first
     if (categories && categories.length > 0 && !selectedCategoryId) {
       setSelectedCategoryId(categories[0].id);
     }
@@ -28,7 +30,7 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <InnerHeader title="All Categories" />
-      
+      <View style={{ flex: 1, backgroundColor: colors.white }}>
       {isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
@@ -103,12 +105,13 @@ export default function CategoriesScreen() {
           </View>
         </View>
       )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.white },
+  container: { flex: 1, backgroundColor: '#dcfce7' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   splitContainer: { flex: 1, flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#f1f5f9' },
   

@@ -18,6 +18,7 @@ export const ENDPOINTS = {
       PRODUCTS: (id: string) => `/customer/shops/${id}/products`,
     },
     PRODUCTS: {
+      LIST: '/customer/products',
       BY_ID: (id: string) => `/customer/products/${id}`,
     },
     SEARCH: '/customer/search',

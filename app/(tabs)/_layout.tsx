@@ -4,6 +4,8 @@ import { colors , fonts} from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Animated } from 'react-native';
 import { useEffect, useRef } from 'react';
+import { useAppSelector } from '@/store/hooks';
+import { useRouter } from 'expo-router';
 
 const FloatingTabIcon = () => {
   const scale = useRef(new Animated.Value(1)).current;
@@ -42,6 +44,15 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const paddingBottom = Math.max(10, insets.bottom);
   const tabHeight = 64 + paddingBottom;
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const router = useRouter();
+
+  const handleProtectedTabPress = (e: any) => {
+    if (!accessToken) {
+      e.preventDefault();
+      router.push('/(auth)/login');
+    }
+  };
 
   return (
     <Tabs
@@ -99,6 +110,7 @@ export default function TabLayout() {
             <Ionicons name="receipt-outline" size={size} color={color} />
           ),
         }}
+        listeners={{ tabPress: handleProtectedTabPress }}
       />
       <Tabs.Screen
         name="profile"
@@ -108,6 +120,7 @@ export default function TabLayout() {
             <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
+        listeners={{ tabPress: handleProtectedTabPress }}
       />
     </Tabs>
   );

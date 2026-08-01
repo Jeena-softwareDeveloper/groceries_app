@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlatList, StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
 
 export default function DevicesScreen() {
   const queryClient = useQueryClient();
@@ -19,13 +20,13 @@ export default function DevicesScreen() {
       queryClient.invalidateQueries({ queryKey: ['sessions'] });
     },
     onError: () => {
-      Alert.alert('Error', 'Failed to log out device.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to log out device.' });
     }
   });
 
   const handleRevoke = (id: string, isCurrentDevice: boolean) => {
     if (isCurrentDevice) {
-      Alert.alert('Cannot remove', 'This is your current device. Please use the main Log out button instead.');
+      Toast.show({ type: 'error', text1: 'Cannot remove', text2: 'This is your current device. Please use the main Log out button instead.' });
       return;
     }
     Alert.alert(
@@ -40,7 +41,8 @@ export default function DevicesScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Logged in Devices" showBack />
+      <InnerHeader title="Logged in Devices" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.content}>
         <Text style={styles.infoText}>
           These are the devices that currently have access to your account. You can remotely log out any device you don't recognize.
@@ -88,12 +90,13 @@ export default function DevicesScreen() {
           />
         )}
       </View>
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   content: { flex: 1 },
   infoText: {
     padding: spacing.md,

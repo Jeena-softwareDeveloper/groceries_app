@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationApi } from '@/api';
-import { Header } from '@/components/Header';
+import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 
 export default function NotificationsScreen() {
@@ -16,7 +16,8 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Notifications" showBack />
+      <InnerHeader title="Notifications" showBack showSearch={false} showCart={false} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
         <Text style={styles.empty}>Loading…</Text>
       ) : data.length === 0 ? (
@@ -37,12 +38,13 @@ export default function NotificationsScreen() {
           )}
         />
       )}
+          </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+  safe: { flex: 1, backgroundColor: '#dcfce7' },
   empty: { textAlign: 'center', marginTop: spacing.xl, color: colors.textMuted },
   card: {
     backgroundColor: colors.surface,
