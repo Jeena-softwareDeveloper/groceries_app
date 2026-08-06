@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable,
+  View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, Link } from 'expo-router';
 import { vendorApi } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
@@ -102,7 +102,8 @@ export default function VendorDashboard() {
           <Text style={styles.greeting}>Vendor Portal</Text>
           <Text style={styles.shopName}>{user?.shopName ?? 'My Shop'}</Text>
         </View>
-        <Pressable
+        <TouchableOpacity
+          activeOpacity={0.7}
           style={[styles.notifBtn, d.notifications.unread > 0 && styles.notifBtnActive]}
           onPress={() => router.push('/vendor-notifications')}
         >
@@ -112,7 +113,7 @@ export default function VendorDashboard() {
               <Text style={styles.notifBadgeText}>{d.notifications.unread > 9 ? '9+' : d.notifications.unread}</Text>
             </View>
           )}
-        </Pressable>
+        </TouchableOpacity>
       </View>
 
       <ScrollView

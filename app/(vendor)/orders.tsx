@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, Pressable,
   TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert,
 } from 'react-native';
+import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
@@ -197,74 +198,26 @@ function OrderCard({
   onQuickAction: (id: string, status: string) => void;
 }) {
   const st = getStatusStyle(order.status);
-  const itemsText = order.items?.map((i) => `${i.name} ×${i.quantity}`).join(', ') ?? '';
-  const nextActions = NEXT_STATUS[order.status] ?? [];
-
   return (
-    <Pressable style={cardStyles.card} onPress={onPress}>
-      <View style={cardStyles.topRow}>
-        <View style={cardStyles.orderNumBox}>
-          <Text style={cardStyles.orderNum}>#{order.orderNumber}</Text>
-          <Text style={cardStyles.time}>{timeAgo(order.createdAt)}</Text>
+    <Pressable style={[cardStyles.card, { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]} onPress={onPress}>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{ fontFamily: fonts.bold, fontSize: 15, color: '#111' }}>#{order.orderNumber}</Text>
+          <View style={[cardStyles.badge, { backgroundColor: st.bg, paddingHorizontal: 6, paddingVertical: 2 }]}>
+            <Text style={[cardStyles.badgeText, { color: st.color, fontSize: 10 }]}>{formatStatus(order.status)}</Text>
+          </View>
         </View>
-        <View style={[cardStyles.badge, { backgroundColor: st.bg }]}>
-          <Text style={[cardStyles.badgeText, { color: st.color }]}>{formatStatus(order.status)}</Text>
-        </View>
-      </View>
-
-      <View style={cardStyles.divider} />
-
-      <View style={cardStyles.customerRow}>
-        <View style={cardStyles.customerIcon}>
-          <Feather name="user" size={14} color={colors.textMuted} />
-        </View>
-        <View style={cardStyles.customerInfo}>
-          <Text style={cardStyles.customerName}>
-            {order.customer?.name ?? order.customer?.phone ?? 'Customer'}
-          </Text>
-          {order.address?.city ? (
-            <Text style={cardStyles.customerLoc} numberOfLines={1}>
-              {order.address.line1}, {order.address.city}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={cardStyles.itemsBox}>
-        <Feather name="shopping-bag" size={13} color={colors.textMuted} style={{ marginTop: 2 }} />
-        <Text style={cardStyles.itemsText} numberOfLines={2}>
-          {itemsText || 'No items listed'}
+        <Text style={{ fontFamily: fonts.medium, fontSize: 13, color: '#4b5563', marginTop: 4 }} numberOfLines={1}>
+          {order.customer?.name ?? order.customer?.phone ?? 'Customer'}
+        </Text>
+        <Text style={{ fontFamily: fonts.regular, fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+          {timeAgo(order.createdAt)}
         </Text>
       </View>
-
-      <View style={cardStyles.footerRow}>
-        <View>
-          <Text style={cardStyles.totalLabel}>Total Amount</Text>
-          <Text style={cardStyles.amount}>₹{Number(order.grandTotal).toFixed(0)}</Text>
-        </View>
-
-        {nextActions.length > 0 ? (
-          <View style={cardStyles.quickActions}>
-            {nextActions.slice(0, 1).map((act) => (
-              <Pressable
-                key={act.status}
-                style={[cardStyles.quickBtn, { backgroundColor: act.color }]}
-                onPress={(e) => {
-                  e.stopPropagation();
-                  onQuickAction(order.id, act.status);
-                }}
-              >
-                <Text style={cardStyles.quickBtnText}>{act.label}</Text>
-                <Feather name="chevron-right" size={14} color="#fff" />
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <View style={cardStyles.viewDetailsBtn}>
-            <Text style={cardStyles.viewDetailsText}>Details</Text>
-            <Feather name="arrow-right" size={14} color={colors.primary} />
-          </View>
-        )}
+      
+      <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+        <Text style={{ fontFamily: fonts.bold, fontSize: 16, color: '#111' }}>₹{Number(order.grandTotal).toFixed(0)}</Text>
+        <Feather name='chevron-right' size={16} color='#d1d5db' style={{ marginTop: 4 }} />
       </View>
     </Pressable>
   );
@@ -306,37 +259,35 @@ export default function VendorOrders() {
   }, [refetch]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Orders Management</Text>
-          <Text style={styles.subTitle}>Track and fulfill customer orders</Text>
-        </View>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{meta?.total ?? orders.length}</Text>
-        </View>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchBar}>
-        <Feather name="search" size={18} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search order ID, customer name or phone..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={(t) => {
-            setSearch(t);
-            setPage(1);
-          }}
-        />
-        {search !== '' && (
-          <Pressable onPress={() => setSearch('')} style={styles.clearBtn}>
-            <Feather name="x" size={16} color={colors.textMuted} />
-          </Pressable>
-        )}
-      </View>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          header: () => (
+            <SafeAreaView edges={['top']} style={{ backgroundColor: '#fff' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
+                <View style={[styles.searchBar, { flex: 1, marginHorizontal: 0, marginTop: 0 }]}>
+                  <Feather name="search" size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={[styles.searchInput, { paddingVertical: 6, fontSize: 14 }]}
+                    placeholder="Search orders..."
+                    placeholderTextColor={colors.textMuted}
+                    value={search}
+                    onChangeText={(t) => {
+                      setSearch(t);
+                      setPage(1);
+                    }}
+                  />
+                  {search !== '' && (
+                    <Pressable onPress={() => setSearch('')}>
+                      <Feather name="x" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            </SafeAreaView>
+          ),
+        }}
+      />
 
       {/* Status Tabs */}
       <View style={styles.tabsWrapper}>

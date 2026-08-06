@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fonts } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
 
 export default function VendorTabLayout() {
   const insets = useSafeAreaInsets();
@@ -11,6 +12,7 @@ export default function VendorTabLayout() {
   return (
     <Tabs
       screenOptions={{
+        // Default: no native header (each tab renders its own inline header)
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
@@ -28,41 +30,84 @@ export default function VendorTabLayout() {
         },
       }}
     >
+      {/* Dashboard — keeps its custom header with shop name + bell */}
       <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, size }) => <Feather name="grid" size={22} color={color} />,
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Feather name="grid" size={22} color={color} />,
         }}
       />
+
+      {/* Products — native header: title only */}
       <Tabs.Screen
         name="products"
         options={{
           title: 'Products',
-          tabBarIcon: ({ color, size }) => <Feather name="box" size={22} color={color} />,
+          headerShown: true,
+          headerTitle: 'Products',
+          headerTitleStyle: styles.headerTitle,
+          headerStyle: styles.headerStyle,
+          headerShadowVisible: false,
+          tabBarIcon: ({ color }) => <Feather name="box" size={22} color={color} />,
         }}
       />
+
+      {/* Orders — native header: title only */}
       <Tabs.Screen
         name="orders"
         options={{
           title: 'Orders',
-          tabBarIcon: ({ color, size }) => <Feather name="shopping-bag" size={22} color={color} />,
+          headerShown: true,
+          headerTitle: 'Orders',
+          headerTitleStyle: styles.headerTitle,
+          headerStyle: styles.headerStyle,
+          headerShadowVisible: false,
+          tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} />,
         }}
       />
+
+      {/* Finance — native header: title only */}
       <Tabs.Screen
         name="finance"
         options={{
           title: 'Finance',
-          tabBarIcon: ({ color, size }) => <Feather name="dollar-sign" size={22} color={color} />,
+          headerShown: true,
+          headerTitle: 'Finance',
+          headerTitleStyle: styles.headerTitle,
+          headerStyle: styles.headerStyle,
+          headerShadowVisible: false,
+          tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} />,
         }}
       />
+
+      {/* More — native header: title only */}
       <Tabs.Screen
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color, size }) => <Feather name="menu" size={22} color={color} />,
+          headerShown: true,
+          headerTitle: 'More',
+          headerTitleStyle: styles.headerTitle,
+          headerStyle: styles.headerStyle,
+          headerShadowVisible: false,
+          tabBarIcon: ({ color }) => <Feather name="menu" size={22} color={color} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  headerStyle: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  headerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    color: '#111',
+  },
+});

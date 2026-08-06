@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextStyle, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { StyleSheet, Text, TextStyle } from 'react-native';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -45,11 +45,7 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const { ready } = useBootstrap();
   const { accessToken, user } = useAppSelector((s) => s.auth);
   const { districtId } = useAppSelector((s) => s.location);
-  const { appSettings } = useAppSelector((s) => s.config);
   const [isSplashVisible, setIsSplashVisible] = useState(true);
-  // Track whether the user was authenticated on this session start
-  const wasAuthenticated = useRef(false);
-  if (accessToken) wasAuthenticated.current = true;
 
   useEffect(() => {
     if (!ready) return;
@@ -67,9 +63,9 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Role-based routing enforcement
+    // Role-based routing enforcement for authenticated users
     if (accessToken) {
-      const inVendorApp = segments[0] === '(vendor)';
+      const inVendorApp = segments[0] === '(vendor)' || segments[0] === 'vendor-notifications';
       if (user?.role === 'VENDOR' && !inVendorApp && !onLocation) {
         router.replace('/(vendor)');
         return;
@@ -80,22 +76,18 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // If logged in but no location selected
+    // If logged in but no location selected, force location picker
     if (accessToken && !districtId && !onLocation && !inAuth) {
       router.replace('/location');
       return;
     }
 
-    // If NOT logged in, only enforce location or redirect to auth if they were logged in
-    if (!accessToken && !inAuth && !onLocation) {
-      if (!districtId) {
-        router.replace('/location');
-      } else if (wasAuthenticated.current) {
-        // Session expired mid-use — redirect to login
-        router.replace('/(auth)/login');
-      }
+    // If NOT logged in and no district set, redirect to location picker
+    // Do NOT auto-redirect to login — guests can browse the app freely
+    if (!accessToken && !inAuth && !onLocation && !districtId) {
+      router.replace('/location');
     }
-  }, [ready, accessToken, districtId, segments, router]);
+  }, [ready, accessToken, districtId, segments, router, user]);
 
   if (isSplashVisible) {
     return <CustomSplashScreen ready={ready} onFinish={() => setIsSplashVisible(false)} />;
@@ -136,6 +128,7 @@ function RootNavigator() {
         <Stack.Screen name="product/[id]" options={{ headerShown: true, title: 'Product' }} />
         <Stack.Screen name="wishlist" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="vendor-notifications" options={{ headerShown: true, title: 'Notifications', headerBackTitle: '' }} />
         <Stack.Screen name="wallet" options={{ headerShown: false }} />
         <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Order' }} />

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, Stack } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, Pressable,
   TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert, Image, Platform,
@@ -390,35 +390,50 @@ export default function VendorProducts() {
   const onRefresh = useCallback(() => { setPage(1); refetch(); }, [refetch]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Products</Text>
-          {meta && <Text style={styles.total}>{meta.total} total</Text>}
-        </View>
-        <Pressable style={styles.addBtn} onPress={handleAdd}>
-          <Feather name="plus" size={18} color={colors.white} />
-          <Text style={styles.addBtnText}>Add Product</Text>
-        </Pressable>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchBar}>
-        <Feather name="search" size={16} color={colors.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={(t) => { setSearch(t); setPage(1); }}
-        />
-        {search !== '' && (
-          <Pressable onPress={() => setSearch('')}>
-            <Feather name="x" size={16} color={colors.textMuted} />
-          </Pressable>
-        )}
-      </View>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          header: () => (
+            <SafeAreaView edges={['top']} style={{ backgroundColor: '#fff' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12 }}>
+                <View style={[styles.searchBar, { flex: 1, marginHorizontal: 0, marginTop: 0 }]}>
+                  <Feather name="search" size={16} color={colors.textMuted} />
+                  <TextInput
+                    style={[styles.searchInput, { paddingVertical: 6, fontSize: 14 }]}
+                    placeholder="Search products..."
+                    placeholderTextColor={colors.textMuted}
+                    value={search}
+                    onChangeText={(t) => {
+                      setSearch(t);
+                      setPage(1);
+                    }}
+                  />
+                  {search !== '' && (
+                    <Pressable onPress={() => setSearch('')}>
+                      <Feather name="x" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  )}
+                </View>
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 14,
+                    paddingVertical: 10,
+                    borderRadius: 20,
+                    gap: 6,
+                  }}
+                  onPress={handleAdd}
+                >
+                  <Feather name="plus" size={14} color="#fff" />
+                  <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 13 }}>Add</Text>
+                </Pressable>
+              </View>
+            </SafeAreaView>
+          ),
+        }}
+      />
 
       {/* Status Tabs */}
       <View style={styles.tabsWrapper}>
@@ -438,7 +453,7 @@ export default function VendorProducts() {
               }}
             >
               <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-                {tab.label}
+                {tab.label} {activeTab === tab.key && meta ? `(${meta.total})` : ''}
               </Text>
             </Pressable>
           ))}

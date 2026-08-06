@@ -27,7 +27,7 @@ export default function VendorFinance() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.center}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
@@ -37,7 +37,7 @@ export default function VendorFinance() {
 
   if (!data) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
         <View style={styles.center}>
           <Feather name="alert-circle" size={48} color={colors.error} />
           <Text style={styles.emptyText}>Failed to load finance data</Text>
@@ -49,10 +49,7 @@ export default function VendorFinance() {
   const { summary, transactions } = data;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Finance</Text>
-      </View>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
 
       <ScrollView
         contentContainerStyle={styles.scroll}

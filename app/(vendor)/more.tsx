@@ -186,8 +186,7 @@ export default function VendorMore() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <Header title="Settings & More" showBack={false} />
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
 
       {isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
