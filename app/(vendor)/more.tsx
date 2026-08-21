@@ -7,8 +7,9 @@ import { Feather } from '@expo/vector-icons';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
-import { authApi } from '@/api';
+import { authApi, customerApi } from '@/api';
 import { vendorApi } from '@/api/vendor.api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
@@ -25,6 +26,20 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
     description: profile?.description ?? '',
     phone: profile?.phone ?? '',
     address: profile?.address ?? '',
+    districtId: profile?.districtId ?? '',
+    areaId: profile?.areaId ?? '',
+  });
+
+  const { data: districts } = useQuery({
+    queryKey: ['districts'],
+    queryFn: customerApi.getDistricts,
+    enabled: visible,
+  });
+
+  const { data: areas } = useQuery({
+    queryKey: ['areas', form.districtId],
+    queryFn: () => customerApi.getAreas(form.districtId!),
+    enabled: visible && !!form.districtId,
   });
 
   React.useEffect(() => {
@@ -34,6 +49,8 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
         description: profile?.description ?? '',
         phone: profile?.phone ?? '',
         address: profile?.address ?? '',
+        districtId: profile?.districtId ?? '',
+        areaId: profile?.areaId ?? '',
       });
     }
   }, [profile, visible]);
@@ -65,6 +82,20 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
         <ScrollView style={modalStyles.body}>
           <Input label="Shop Name" value={form.shopName} onChangeText={(t) => setForm(f => ({ ...f, shopName: t }))} />
           <Input label="Phone Number" value={form.phone} onChangeText={(t) => setForm(f => ({ ...f, phone: t }))} keyboardType="phone-pad" />
+          <Select
+            label="District"
+            placeholder="Select District"
+            value={form.districtId}
+            onSelect={(val) => setForm(f => ({ ...f, districtId: val, areaId: '' }))}
+            options={districts?.map(d => ({ label: d.name, value: d.id })) ?? []}
+          />
+          <Select
+            label="Area"
+            placeholder="Select Area"
+            value={form.areaId}
+            onSelect={(val) => setForm(f => ({ ...f, areaId: val }))}
+            options={areas?.map(a => ({ label: a.name, value: a.id })) ?? []}
+          />
           <Input label="Shop Address" value={form.address} onChangeText={(t) => setForm(f => ({ ...f, address: t }))} multiline style={{ height: 60 }} />
           <Input label="Description" value={form.description} onChangeText={(t) => setForm(f => ({ ...f, description: t }))} multiline style={{ height: 80 }} />
         </ScrollView>

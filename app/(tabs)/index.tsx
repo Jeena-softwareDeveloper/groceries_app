@@ -13,7 +13,8 @@ import {
   Pressable,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  Alert
+  Alert,
+  RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,12 +61,23 @@ export default function HomeScreen() {
     extrapolate: 'clamp',
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['homeFeed', districtId, areaId],
     queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined),
     enabled: !!districtId,
     staleTime: 60 * 1000, // 1 minute
   });
+
+  useEffect(() => {
+    if (data) {
+      console.log('UI RENDER DATA:', {
+        trending: data.trendingProducts?.length,
+        nearbyShops: data.nearbyShops?.length,
+        recentlyAdded: data.recentlyAdded?.length,
+        categories: data.categories?.length
+      });
+    }
+  }, [data]);
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(130); // tracks actual header height for overlay positioning
@@ -213,6 +225,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <Animated.ScrollView
+            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
             style={{ backgroundColor: colors.background }}
             contentContainerStyle={[styles.scroll, { paddingTop: headerHeight > 0 ? headerHeight : 120 }]}
             showsVerticalScrollIndicator={false}
@@ -338,6 +351,7 @@ export default function HomeScreen() {
             const filtered = selectedCategoryId
               ? (data?.trendingProducts ?? []).filter((p: any) => p.categoryId === selectedCategoryId)
               : (data?.trendingProducts ?? []);
+            console.log('RENDERING BEST SELLERS, filtered length:', filtered.length, 'selectedCategoryId:', selectedCategoryId);
             return filtered.length ? (
               <>
                 <SectionHeader title={selectedCategoryId ? (data?.categories?.find((c: any) => c.id === selectedCategoryId)?.name ?? 'Products') : 'Best Sellers'} onAction={() => {}} />
