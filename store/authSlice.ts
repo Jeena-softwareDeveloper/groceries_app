@@ -6,6 +6,7 @@ interface AuthState {
   refreshToken: string | null;
   user: CustomerProfile | null;
   isHydrated: boolean;
+  showLoginModal: boolean;
 }
 
 const initialState: AuthState = {
@@ -13,6 +14,7 @@ const initialState: AuthState = {
   refreshToken: null,
   user: null,
   isHydrated: false,
+  showLoginModal: false,
 };
 
 const authSlice = createSlice({
@@ -34,8 +36,11 @@ const authSlice = createSlice({
     setHydrated(state, action: PayloadAction<boolean>) {
       state.isHydrated = action.payload;
     },
+    setShowLoginModal(state, action: PayloadAction<boolean>) {
+      state.showLoginModal = action.payload;
+    },
   },
 });
 
-export const { setTokens, setUser, clearAuth, setHydrated } = authSlice.actions;
+export const { setTokens, setUser, clearAuth, setHydrated, setShowLoginModal } = authSlice.actions;
 export default authSlice.reducer;

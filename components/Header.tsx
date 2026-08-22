@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
+import { AnimatedLoader } from '@/components/AnimatedLoader';
 
 interface HeaderProps {
   title?: string;
@@ -16,6 +17,8 @@ interface HeaderProps {
   style?: ViewStyle;
   darkIcons?: boolean;
   scrollY?: Animated.Value;
+  isLocating?: boolean;
+  onLocationPress?: () => void;
 }
 
 export function Header({
@@ -29,6 +32,8 @@ export function Header({
   style,
   darkIcons = true,
   scrollY,
+  isLocating = false,
+  onLocationPress,
 }: HeaderProps) {
   const router = useRouter();
   const { districtName, areaName } = useAppSelector((s) => s.location);
@@ -56,8 +61,9 @@ export function Header({
     ).start();
   }, []);
 
-  const locationLabel =
-    districtName && areaName ? `${areaName}, ${districtName}` : 'Select delivery location';
+  const locationLabel = isLocating
+    ? 'Fetching location...'
+    : (districtName && areaName ? `${areaName}, ${districtName}` : 'Select delivery location');
 
   const iconColor = darkIcons ? 'rgba(0,0,0,0.75)' : colors.white;
   const textColor = darkIcons ? '#111827' : colors.white;
@@ -78,55 +84,61 @@ export function Header({
 
   return (
     <View style={[styles.container, style]}>
-      {/* Row 1: Logo & Location (Fades out) */}
+      {/* Row 1: Logo (left) + Location pill (right) */}
       {hasTopRow && (
         <Animated.View style={[styles.topRow, { opacity: topRowOpacity }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          {(showBack && (!showSearch || showLogo)) && (
-            <Pressable style={[styles.iconBtn, { backgroundColor: cartBg, marginRight: spacing.sm }]} onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={20} color={iconColor} />
-            </Pressable>
-          )}
-          {showLogo && (
-            <View style={styles.logoContainer}>
-              <Image source={require('@/assets/images/logo.png')} style={{ width: 68, height: 68, resizeMode: 'contain' }} />
-              <View style={{ justifyContent: 'center', marginLeft: -6 }}>
-                <Text style={[styles.logoText, { color: '#0f5132' }]}>ALL TIME</Text>
-                <Text style={[styles.logoText, { color: '#ea580c' }]}>MARKET</Text>
+          {/* LEFT: back button / logo / title */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 }}>
+            {(showBack && (!showSearch || showLogo)) && (
+              <Pressable style={[styles.iconBtn, { backgroundColor: cartBg, marginRight: spacing.sm }]} onPress={() => router.back()}>
+                <Ionicons name="arrow-back" size={20} color={iconColor} />
+              </Pressable>
+            )}
+            {showLogo && (
+              <View style={styles.logoContainer}>
+                <Image source={require('@/assets/images/logo.png')} style={{ width: 68, height: 68, resizeMode: 'contain' }} />
+                <View style={{ justifyContent: 'center', marginLeft: -6 }}>
+                  <Text style={[styles.logoText, { color: '#0f5132' }]}>ALL TIME</Text>
+                  <Text style={[styles.logoText, { color: '#ea580c' }]}>MARKET</Text>
+                </View>
               </View>
-            </View>
-          )}
-          {!showLogo && title ? (
-            <Text style={{ fontSize: 18, fontFamily: fonts.bold, color: textColor, marginLeft: showBack ? 4 : 0 }}>{title}</Text>
-          ) : null}
-        </View>
-
-        {showLocation && !showBack ? (
-          <Pressable style={styles.locationRow} onPress={() => router.push('/location')}>
-            <Ionicons name="location-outline" size={16} color={iconColor} />
-            <Text style={[styles.locationText, { color: textColor }]} numberOfLines={1}>
-              {locationLabel}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={mutedColor} />
-          </Pressable>
-        ) : null}
-
-        {!showSearch && showCart ? (
-          <Pressable
-            style={[styles.iconBtn, { backgroundColor: cartBg, marginLeft: spacing.sm }]}
-            onPress={() => router.push('/(tabs)/cart')}
-          >
-            <Animated.View style={{ transform: [{ scale: cartScale }] }}>
-              <Ionicons name="cart-outline" size={22} color={iconColor} />
-            </Animated.View>
-            {itemCount > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{itemCount > 9 ? '9+' : itemCount}</Text>
-              </View>
+            )}
+            {!showLogo && title ? (
+              <Text style={{ fontSize: 18, fontFamily: fonts.bold, color: textColor, marginLeft: showBack ? 4 : 0 }}>{title}</Text>
             ) : null}
-          </Pressable>
-        ) : null}
-      </Animated.View>
+          </View>
+
+          {/* RIGHT: Location pill */}
+          {showLocation && !showBack ? (
+            <Pressable style={styles.locationRow} onPress={onLocationPress}>
+              {isLocating ? (
+                <View style={{ width: 16, height: 16, marginRight: 4 }}><AnimatedLoader size="small" /></View>
+              ) : (
+                <Ionicons name="location" size={14} color={iconColor} />
+              )}
+              <Text style={[styles.locationText, { color: textColor }]} numberOfLines={1}>
+                {locationLabel}
+              </Text>
+              {!isLocating && <Ionicons name="chevron-down" size={12} color={mutedColor} />}
+            </Pressable>
+          ) : null}
+
+          {!showSearch && showCart ? (
+            <Pressable
+              style={[styles.iconBtn, { backgroundColor: cartBg, marginLeft: spacing.sm }]}
+              onPress={() => router.push('/(tabs)/cart')}
+            >
+              <Animated.View style={{ transform: [{ scale: cartScale }] }}>
+                <Ionicons name="cart-outline" size={22} color={iconColor} />
+              </Animated.View>
+              {itemCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{itemCount > 9 ? '9+' : itemCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          ) : null}
+        </Animated.View>
       )}
 
       {/* Row 2: Search bar & Cart (Only rendered if showSearch is true) */}
@@ -244,18 +256,18 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: radius.md,
-    maxWidth: '55%',
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+    borderRadius: radius.full,
+    maxWidth: 160,
   },
   locationText: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: fonts.medium,
   },
 });

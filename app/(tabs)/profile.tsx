@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { authApi } from '@/api';
@@ -9,6 +9,7 @@ import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistAuth, wipeAuth } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { clearAuth, setTokens, setUser } from '@/store/authSlice';
+import { setShowLocationModal } from '@/store/locationSlice';
 import { vendorRequestApi } from '@/api/vendor-request.api';
 import { useQuery } from '@tanstack/react-query';
 
@@ -27,7 +28,11 @@ export default function ProfileScreen() {
 
   const isVendorApproved = vendorRequest?.status === 'APPROVED';
 
+  const [isSwitching, setIsSwitching] = useState(false);
+
   async function handleSwitchToVendor() {
+    if (isSwitching) return;
+    setIsSwitching(true);
     try {
       const tokens = await authApi.switchToVendor();
       await persistAuth(tokens.accessToken, tokens.refreshToken);
@@ -37,6 +42,8 @@ export default function ProfileScreen() {
       router.replace('/(vendor)');
     } catch (e: any) {
       alert(`Failed to switch to Vendor Mode: ${e?.message || String(e)}`);
+    } finally {
+      setIsSwitching(false);
     }
   }
 
@@ -46,7 +53,7 @@ export default function ProfileScreen() {
     } catch {}
     await wipeAuth();
     dispatch(clearAuth());
-    router.replace('/(auth)/login');
+    router.replace('/(tabs)');
   }
 
   function handleLogout() {
@@ -72,7 +79,7 @@ export default function ProfileScreen() {
   }
 
   function handleChangeLocation() {
-    router.push('/location');
+    dispatch(setShowLocationModal(true));
   }
 
   if (!accessToken) {
@@ -206,6 +213,7 @@ export default function ProfileScreen() {
                     subtitle="Manage your store, products & orders"
                     onPress={handleSwitchToVendor}
                     last
+                    loading={isSwitching}
                   />
                 );
               }
@@ -274,15 +282,17 @@ function MenuItem({
   subtitle,
   onPress,
   last,
+  loading,
 }: {
   icon: string;
   title: string;
   subtitle: string;
   onPress: () => void;
   last?: boolean;
+  loading?: boolean;
 }) {
   return (
-    <Pressable style={[styles.menuRow, !last && styles.menuDivider]} onPress={onPress}>
+    <Pressable style={[styles.menuRow, !last && styles.menuDivider]} onPress={onPress} disabled={loading}>
       <View style={styles.iconSquare}>
         <Feather name={icon as any} size={20} color="#16a34a" />
       </View>
@@ -290,7 +300,11 @@ function MenuItem({
         <Text style={styles.menuTitle}>{title}</Text>
         <Text style={styles.menuSub}>{subtitle}</Text>
       </View>
-      <Feather name="chevron-right" size={20} color={colors.textMuted} />
+      {loading ? (
+        <ActivityIndicator size="small" color="#16a34a" />
+      ) : (
+        <Feather name="chevron-right" size={20} color={colors.textMuted} />
+      )}
     </Pressable>
   );
 }

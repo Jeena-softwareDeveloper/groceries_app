@@ -19,10 +19,13 @@ import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistLocation } from '@/hooks/useBootstrap';
 import { useAppDispatch } from '@/store/hooks';
 import { setLocation } from '@/store/locationSlice';
+import * as Location from 'expo-location';
 
 const mapIllustration = require('@/assets/images/map-illustration.jpg');
 
-export default function LocationScreen() {
+export default function LocationScreen(props: any = {}) {
+  const isModalComponent = props?.isModalComponent || false;
+  const onClose = props?.onClose;
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
@@ -39,6 +42,8 @@ export default function LocationScreen() {
     enabled: !!selectedDistrict,
   });
 
+  const [isLocating, setIsLocating] = useState(false);
+
   async function handleConfirm() {
     if (!selectedDistrict || !selectedArea) return;
     const payload = {
@@ -49,15 +54,135 @@ export default function LocationScreen() {
     };
     await persistLocation(payload);
     dispatch(setLocation(payload));
-    router.replace('/(tabs)');
+    if (isModalComponent && onClose) {
+      onClose();
+    } else {
+      router.replace('/(tabs)');
+    }
+  }
+
+  async function handleAutoGPS() {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Location permission is required to find nearby stores.');
+        return;
+      }
+      const location = await Location.getCurrentPositionAsync({});
+      let [addressData] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      let address: any = addressData;
+      if (!addressData) {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.coords.latitude}&lon=${location.coords.longitude}`);
+          const data = await res.json();
+          if (data?.address) {
+            address = {
+              city: data.address.city || data.address.town || data.address.village || '',
+              subregion: data.address.county || data.address.state_district || '',
+              region: data.address.state || '',
+              street: data.address.road || data.address.neighbourhood || '',
+              name: data.address.suburb || '',
+              district: data.address.city_district || ''
+            };
+          }
+        } catch (err) {}
+      }
+
+      if (!address || Object.keys(address).length === 0) {
+        return;
+      }
+
+      const districts = await customerApi.fetchDistricts();
+      const userCity = (address.city || address.subregion || address.region || '').toLowerCase();
+      
+      const matchedDistrict = districts.find(d => 
+        d.name.toLowerCase() === userCity || 
+        userCity.includes(d.name.toLowerCase()) ||
+        d.name.toLowerCase().includes(userCity)
+      );
+
+      const isFallback = !matchedDistrict;
+      const finalDistrict = matchedDistrict || districts[0];
+
+      if (!finalDistrict) {
+        alert("No districts found in the database.");
+        return;
+      }
+
+      const areas = await customerApi.fetchAreas(finalDistrict.id);
+      const userStreet = (address.street || address.name || address.district || '').toLowerCase();
+      
+      const matchedArea = areas.find(a => 
+        a.name.toLowerCase() === userStreet ||
+        userStreet.includes(a.name.toLowerCase()) ||
+        a.name.toLowerCase().includes(userStreet) ||
+        a.name.toLowerCase().includes(userCity)
+      ) || areas[0];
+
+      if (!matchedArea) {
+        alert("No areas found in the database.");
+        return;
+      }
+
+      const payload = {
+        districtId: finalDistrict.id,
+        districtName: finalDistrict.name,
+        areaId: matchedArea.id,
+        areaName: matchedArea.name,
+        latitude: isFallback ? undefined : location.coords.latitude,
+        longitude: isFallback ? undefined : location.coords.longitude,
+      };
+      
+      await persistLocation(payload);
+      dispatch(setLocation(payload));
+      if (isModalComponent && onClose) {
+        onClose();
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (e: any) {
+      console.log('Auto GPS failed:', e);
+    } finally {
+      setIsLocating(false);
+    }
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <>
+      {isModalComponent ? (
+        <View style={styles.modalContainer}>
+          <Pressable style={styles.overlay} onPress={() => {
+            if (onClose) onClose();
+            else if (router.canGoBack()) router.back();
+            else router.replace('/(tabs)');
+          }} />
+          <View style={styles.bottomSheet}>
+            {renderContent()}
+          </View>
+        </View>
+      ) : (
+        <SafeAreaView style={styles.safe}>
+          {renderContent()}
+        </SafeAreaView>
+      )}
+    </>
+  );
+
+  function renderContent() {
+    return (
+      <>
       {/* HEADER */}
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.canGoBack() ? router.back() : null}>
-          <Feather name="arrow-left" size={24} color={colors.text} />
+        <Pressable style={styles.backBtn} onPress={() => {
+          if (isModalComponent && onClose) onClose();
+          else if (router.canGoBack()) router.back();
+        }}>
+          <Feather name={isModalComponent ? "x" : "arrow-left"} size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Choose Location</Text>
         <Pressable style={styles.targetBtn}>
@@ -95,64 +220,79 @@ export default function LocationScreen() {
           </Pressable>
         </View>
 
-        {/* SELECTION FORM */}
-        <View style={styles.formContainer}>
-          {/* District */}
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="office-building" size={20} color={colors.primaryDark} />
+        {/* SELECTION FORM OR GPS */}
+        {mode === 'manual' ? (
+          <View style={styles.formContainer}>
+            {/* District */}
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="office-building" size={20} color={colors.primaryDark} />
+                </View>
+                <View>
+                  <Text style={styles.inputLabel}>District</Text>
+                  <Text style={styles.inputHint}>Select your district</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.inputLabel}>District</Text>
-                <Text style={styles.inputHint}>Select your district</Text>
-              </View>
+              <Pressable style={styles.selectorBox} onPress={() => setShowDistrictModal(true)}>
+                <View style={styles.selectorLeft}>
+                  <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} style={styles.selectorIcon} />
+                  <Text
+                    style={[styles.selectorText, !selectedDistrict && { color: colors.textMuted }]}
+                    numberOfLines={1}
+                  >
+                    {selectedDistrict ? selectedDistrict.name : 'Select a district...'}
+                  </Text>
+                </View>
+                <Feather name="chevron-down" size={20} color={colors.textMuted} />
+              </Pressable>
             </View>
-            <Pressable style={styles.selectorBox} onPress={() => setShowDistrictModal(true)}>
-              <View style={styles.selectorLeft}>
-                <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} style={styles.selectorIcon} />
-                <Text
-                  style={[styles.selectorText, !selectedDistrict && { color: colors.textMuted }]}
-                  numberOfLines={1}
-                >
-                  {selectedDistrict ? selectedDistrict.name : 'Select a district...'}
-                </Text>
-              </View>
-              <Feather name="chevron-down" size={20} color={colors.textMuted} />
-            </Pressable>
-          </View>
 
-          {/* Area */}
-          <View style={styles.inputGroup}>
-            <View style={styles.inputHeader}>
-              <View style={styles.iconCircle}>
-                <MaterialCommunityIcons name="map-marker-radius" size={20} color={colors.primaryDark} />
+            {/* Area */}
+            <View style={styles.inputGroup}>
+              <View style={styles.inputHeader}>
+                <View style={styles.iconCircle}>
+                  <MaterialCommunityIcons name="map-marker-radius" size={20} color={colors.primaryDark} />
+                </View>
+                <View>
+                  <Text style={styles.inputLabel}>Area</Text>
+                  <Text style={styles.inputHint}>Select your area</Text>
+                </View>
               </View>
-              <View>
-                <Text style={styles.inputLabel}>Area</Text>
-                <Text style={styles.inputHint}>Select your area</Text>
-              </View>
+              <Pressable 
+                style={[styles.selectorBox, !selectedDistrict && styles.selectorDisabled]} 
+                onPress={() => selectedDistrict && setShowAreaModal(true)}
+              >
+                <View style={styles.selectorLeft}>
+                  <MaterialCommunityIcons name="office-building-marker" size={20} color={!selectedDistrict ? colors.textMuted : colors.primary} style={styles.selectorIcon} />
+                  <Text
+                    style={[styles.selectorText, !selectedArea && { color: colors.textMuted }]}
+                    numberOfLines={1}
+                  >
+                    {selectedArea ? selectedArea.name : 'Select an area...'}
+                  </Text>
+                </View>
+                <Feather name="chevron-down" size={20} color={colors.textMuted} />
+              </Pressable>
             </View>
-            <Pressable 
-              style={[styles.selectorBox, !selectedDistrict && styles.selectorDisabled]} 
-              onPress={() => selectedDistrict && setShowAreaModal(true)}
-            >
-              <View style={styles.selectorLeft}>
-                <MaterialCommunityIcons name="office-building-marker" size={20} color={!selectedDistrict ? colors.textMuted : colors.primary} style={styles.selectorIcon} />
-                <Text
-                  style={[styles.selectorText, !selectedArea && { color: colors.textMuted }]}
-                  numberOfLines={1}
-                >
-                  {selectedArea ? selectedArea.name : 'Select an area...'}
-                </Text>
-              </View>
-              <Feather name="chevron-down" size={20} color={colors.textMuted} />
+          </View>
+        ) : (
+          <View style={styles.gpsContainer}>
+            <Pressable style={styles.gpsBtn} onPress={handleAutoGPS} disabled={isLocating}>
+              {isLocating ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <>
+                  <Feather name="crosshair" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
+                  <Text style={styles.gpsText}>Use Current Location</Text>
+                </>
+              )}
             </Pressable>
           </View>
-        </View>
+        )}
 
         {/* NEARBY AREAS */}
-        {selectedDistrict && (
+        {mode === 'manual' && selectedDistrict && (
           <View style={styles.nearbySection}>
             <Text style={styles.nearbyTitle}>Nearby areas</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.nearbyScroll}>
@@ -167,7 +307,7 @@ export default function LocationScreen() {
         )}
 
         {/* CONFIRMATION BANNER */}
-        {selectedDistrict && selectedArea && (
+        {mode === 'manual' && selectedDistrict && selectedArea && (
           <View style={styles.confirmBanner}>
             <MaterialCommunityIcons name="store" size={32} color={colors.primaryDark} style={styles.bannerIcon} />
             <View style={styles.bannerTextCol}>
@@ -179,15 +319,17 @@ export default function LocationScreen() {
         )}
 
         {/* CONTINUE BUTTON */}
-        <Pressable 
-          style={[styles.continueBtn, (!selectedDistrict || !selectedArea) && styles.continueDisabled]} 
-          onPress={handleConfirm}
-          disabled={!selectedDistrict || !selectedArea}
-        >
-          <Feather name="map" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
-          <Text style={styles.continueText}>Continue</Text>
-          <Feather name="arrow-right" size={20} color={colors.white} style={{ marginLeft: spacing.sm }} />
-        </Pressable>
+        {mode === 'manual' && (
+          <Pressable 
+            style={[styles.continueBtn, (!selectedDistrict || !selectedArea) && styles.continueDisabled]} 
+            onPress={handleConfirm}
+            disabled={!selectedDistrict || !selectedArea}
+          >
+            <Feather name="map" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
+            <Text style={styles.continueText}>Continue</Text>
+            <Feather name="arrow-right" size={20} color={colors.white} style={{ marginLeft: spacing.sm }} />
+          </Pressable>
+        )}
 
         {/* FOOTER */}
         <View style={styles.footer}>
@@ -261,11 +403,15 @@ export default function LocationScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
-  );
+    </>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
+  modalContainer: { flex: 1, justifyContent: 'flex-end' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },
+  bottomSheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 20 },
   safe: { flex: 1, backgroundColor: '#FAFAFA' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
   backBtn: { padding: spacing.xs },
@@ -298,6 +444,10 @@ const styles = StyleSheet.create({
   selectorLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minWidth: 0, marginRight: spacing.sm },
   selectorIcon: { marginRight: 4 },
   selectorText: { flexShrink: 1, fontSize: 15, lineHeight: 20, fontFamily: fonts.medium, color: colors.text },
+
+  gpsContainer: { marginTop: spacing.md, alignItems: 'center' },
+  gpsBtn: { width: '100%', backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: radius.lg, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  gpsText: { fontSize: 16, fontFamily: fonts.bold, color: colors.white },
 
   nearbySection: { marginTop: spacing.xl },
   nearbyTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.md },

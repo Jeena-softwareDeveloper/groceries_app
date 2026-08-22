@@ -18,9 +18,10 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 import { customerApi, cartApi } from '@/api';
+import { AnimatedLoader } from '@/components/AnimatedLoader';
 import { CategoryCard } from '@/components/CategoryCard';
 import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
@@ -28,6 +29,9 @@ import { ShopCard } from '@/components/ShopCard';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
+import { setShowLoginModal } from '@/store/authSlice';
+import { setShowLocationModal } from '@/store/locationSlice';
+
 
 function SectionHeader({ title, onAction }: { title: string; onAction?: () => void }) {
   return (
@@ -45,39 +49,40 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { districtId, areaId } = useAppSelector((s) => s.location);
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const { districtId, areaId, latitude, longitude } = useAppSelector((s) => s.location);
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
+  const hasAttemptedLogin = useRef(false);
+
   const SCREEN_WIDTH = Dimensions.get('window').width;
-  const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2; // full width minus horizontal padding
-  const BANNER_HEIGHT = Math.round(BANNER_WIDTH * 0.45); // 45% aspect ratio = landscape
+  const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2;
+  const BANNER_HEIGHT = Math.round(BANNER_WIDTH * 0.45);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // Scroll down → header slides up and hides; scroll back → it reappears
   const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [0, -80],
+    inputRange: [0, 68],
+    outputRange: [0, -68],
     extrapolate: 'clamp',
   });
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['homeFeed', districtId, areaId],
-    queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined),
+    queryKey: ['homeFeed', districtId, areaId, latitude, longitude],
+    queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined, latitude, longitude),
     enabled: !!districtId,
     staleTime: 60 * 1000, // 1 minute
   });
 
+  // Show auth modal after landing page data is ready (not before)
   useEffect(() => {
-    if (data) {
-      console.log('UI RENDER DATA:', {
-        trending: data.trendingProducts?.length,
-        nearbyShops: data.nearbyShops?.length,
-        recentlyAdded: data.recentlyAdded?.length,
-        categories: data.categories?.length
-      });
+    if (data && !accessToken && !hasAttemptedLogin.current) {
+      hasAttemptedLogin.current = true;
+      const timer = setTimeout(() => dispatch(setShowLoginModal(true)), 600);
+      return () => clearTimeout(timer);
     }
-  }, [data]);
+  }, [data, accessToken, dispatch]);
 
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
   const [headerHeight, setHeaderHeight] = useState(130); // tracks actual header height for overlay positioning
@@ -133,6 +138,27 @@ export default function HomeScreen() {
     setSelectedCategoryId(prev => prev === catId ? null : catId);
   };
 
+  // If location not yet selected, show blank (location modal will appear)
+  if (!districtId) {
+    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  }
+
+  if (isLoading || !data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <AnimatedLoader size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
+      </View>
+    );
+  }
+
   const activeBanner = data?.banners?.[activeBannerIndex];
   const headerColor = activeBanner?.themeColor || colors.primary;
   const headerColorEnd = activeBanner?.themeColorEnd || headerColor;
@@ -160,7 +186,8 @@ export default function HomeScreen() {
             end={{ x: 0, y: 1 }}
             onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           >
-            <Header showLogo={true} showLocation={true} darkIcons style={{ backgroundColor: 'transparent' }} scrollY={scrollY} />
+                  <Header showLogo={true} showLocation={true} darkIcons style={{ backgroundColor: 'transparent' }} scrollY={scrollY} onLocationPress={() => dispatch(setShowLocationModal(true))} />
+
           </LinearGradient>
         </Animated.View>
 
@@ -215,15 +242,6 @@ export default function HomeScreen() {
           </Animated.View>
         ) : null}
 
-        {isLoading ? (
-          <View style={[styles.centered, { backgroundColor: safeAreaBg }]}>
-            <ActivityIndicator size="large" color={colors.white} />
-          </View>
-        ) : error ? (
-          <View style={styles.centered}>
-            <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
-          </View>
-        ) : (
           <Animated.ScrollView
             refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
             style={{ backgroundColor: colors.background }}
@@ -232,6 +250,25 @@ export default function HomeScreen() {
             onScroll={handleMainScroll}
             scrollEventThrottle={16}
           >
+            {/* NO VENDORS WARNING */}
+            {data?.nearbyShops?.length === 0 && data?.trendingProducts?.length === 0 ? (
+              <View style={{ marginTop: headerHeight + 60, padding: 20, alignItems: 'center' }}>
+                <Feather name="map-pin" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
+                <Text style={{ fontSize: 18, fontFamily: fonts.bold, color: colors.text, textAlign: 'center', marginBottom: 8 }}>
+                  We don't serve your exact area yet.
+                </Text>
+                <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
+                  There are no vendors delivering to your current location at the moment. Please try a different location.
+                </Text>
+                <Pressable
+                  style={{ marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radius.full }}
+                  onPress={() => dispatch(setShowLocationModal(true))}
+                >
+                  <Text style={{ color: colors.white, fontFamily: fonts.bold, fontSize: 14 }}>Change Location</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
             {/* ═══ GRADIENT FADE: sits BEHIND the banners, scrolls up with them ═══ */}
             <View style={{ width: '100%', position: 'relative', zIndex: 0 }}>
               <LinearGradient
@@ -507,9 +544,10 @@ export default function HomeScreen() {
            
             </View>
           ) : null}
-
-        </Animated.ScrollView>
-      )}
+            {/* END OF FEED */}
+            </>
+            )}
+          </Animated.ScrollView>
       </View>
     </SafeAreaView>
   );

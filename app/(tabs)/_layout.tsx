@@ -4,7 +4,8 @@ import { colors , fonts} from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Animated } from 'react-native';
 import { useEffect, useRef } from 'react';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 import { useRouter } from 'expo-router';
 
 const FloatingTabIcon = () => {
@@ -45,12 +46,13 @@ export default function TabLayout() {
   const paddingBottom = Math.max(10, insets.bottom);
   const tabHeight = 64 + paddingBottom;
   const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
   const router = useRouter();
 
   const handleProtectedTabPress = (e: any) => {
     if (!accessToken) {
       e.preventDefault();
-      router.push('/(auth)/login');
+      dispatch(setShowLoginModal(true));
     }
   };
 

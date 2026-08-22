@@ -54,6 +54,7 @@ export default function CartScreen() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [isChangingAddress, setIsChangingAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
 
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [couponCode, setCouponCode] = useState('');
@@ -158,6 +159,21 @@ export default function CartScreen() {
     onError: (e) => Alert.alert('Address failed', e instanceof Error ? e.message : 'Could not save address'),
   });
 
+  const updateAddressMutation = useMutation({
+    mutationFn: (payload: { id: string, data: Partial<typeof addressForm> }) => customerApi.updateAddress(payload.id, payload.data),
+    onSuccess: (newAddress) => {
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      setAddressForm({ label: 'Home', line1: '', city: '', state: '', pincode: '' });
+      setShowAddressForm(false);
+      setEditingAddressId(null);
+      setIsChangingAddress(false);
+      if (newAddress && newAddress.id) {
+        setSelectedAddressId(newAddress.id);
+      }
+    },
+    onError: (e) => Alert.alert('Address failed', e instanceof Error ? e.message : 'Could not update address'),
+  });
+
   function handleSaveAddress() {
     const payload = {
       label: addressForm.label.trim() || 'Home',
@@ -182,7 +198,12 @@ export default function CartScreen() {
       Toast.show({ type: 'error', text1: 'Invalid state', text2: 'Enter a valid state.' });
       return;
     }
-    createAddressMutation.mutate(payload);
+    
+    if (editingAddressId) {
+      updateAddressMutation.mutate({ id: editingAddressId, data: payload });
+    } else {
+      createAddressMutation.mutate(payload);
+    }
   }
 
   function handleApplyCoupon() {
@@ -195,17 +216,18 @@ export default function CartScreen() {
     setShowCouponModal(false);
   }
 
+  useEffect(() => {
+    if (!accessToken) {
+      // Return to home feed and open login modal instead of showing a dedicated Please Login screen
+      router.replace('/(tabs)');
+      setTimeout(() => {
+        router.push('/(auth)/login');
+      }, 100);
+    }
+  }, [accessToken, router]);
+
   if (!accessToken) {
-    return (
-      <View style={styles.safe}>
-        <View style={styles.centered}>
-          <Ionicons name="cart-outline" size={70} color={colors.textMuted} style={{ marginBottom: 16 }} />
-          <Text style={styles.emptyTitle}>Please Login</Text>
-          <Text style={styles.emptyDesc}>Login to view your cart and place orders.</Text>
-          <Button title="Login / Sign Up" onPress={() => router.push('/(auth)/login')} style={{ marginTop: spacing.lg }} />
-        </View>
-      </View>
-    );
+    return <View style={styles.safe} />;
   }
 
   if (isSuccess) {
@@ -336,18 +358,39 @@ export default function CartScreen() {
                >
                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                    <Text style={styles.addrLabel}>{addr.label}</Text>
-                   {addr.id === selectedAddressId && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                     {addr.id === selectedAddressId && (
+                       <TouchableOpacity 
+                         onPress={(e) => {
+                           e.stopPropagation();
+                           setEditingAddressId(addr.id);
+                           setAddressForm({
+                             label: addr.label || 'Home',
+                             line1: addr.line1 || '',
+                             city: addr.city || '',
+                             state: addr.state || '',
+                             pincode: addr.pincode || '',
+                           });
+                           setShowAddressForm(true);
+                         }}
+                         style={{ backgroundColor: '#f0fdf4', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#bbf7d0' }}
+                       >
+                         <Text style={{ fontSize: 12, color: colors.primary, fontFamily: fonts.bold }}>Edit</Text>
+                       </TouchableOpacity>
+                     )}
+                     {addr.id === selectedAddressId && <Ionicons name="checkmark-circle" size={20} color={colors.primary} />}
+                   </View>
                  </View>
                  <Text style={styles.addrLine}>{addr.line1}</Text>
                  <Text style={styles.addrLine}>{addr.city}, {addr.state} – {addr.pincode}</Text>
                </TouchableOpacity>
              ))}
-             {!showAddressForm && (
-               <Button title="+ Add new address" variant="ghost" onPress={() => setShowAddressForm(true)} />
+             {!showAddressForm && (!addressesQuery.data || addressesQuery.data.length === 0) && (
+               <Button title="+ Add new address" variant="ghost" onPress={() => { setEditingAddressId(null); setShowAddressForm(true); }} />
              )}
              {showAddressForm && (
                <View style={styles.addressFormBox}>
-                  <Text style={styles.formTitle}>Add new address</Text>
+                  <Text style={styles.formTitle}>{editingAddressId ? 'Edit address' : 'Add new address'}</Text>
                   <TextInput style={styles.input} placeholder="Address line" value={addressForm.line1} onChangeText={(v) => setAddressForm((f) => ({ ...f, line1: v }))} />
                   <TextInput
                     style={styles.input}
@@ -360,8 +403,8 @@ export default function CartScreen() {
                   <TextInput style={styles.input} placeholder="City" value={addressForm.city} onChangeText={(v) => setAddressForm((f) => ({ ...f, city: v }))} />
                   <TextInput style={styles.input} placeholder="State" value={addressForm.state} onChangeText={(v) => setAddressForm((f) => ({ ...f, state: v }))} />
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                    <Button title="Cancel" variant="ghost" onPress={() => setShowAddressForm(false)} style={{ flex: 1 }} />
-                    <Button title="Save" variant="primary" loading={createAddressMutation.isPending} onPress={handleSaveAddress} style={{ flex: 1 }} />
+                    <Button title="Cancel" variant="ghost" onPress={() => { setShowAddressForm(false); setEditingAddressId(null); }} style={{ flex: 1 }} />
+                    <Button title="Save" variant="primary" loading={createAddressMutation.isPending || updateAddressMutation.isPending} onPress={handleSaveAddress} style={{ flex: 1 }} />
                   </View>
                </View>
              )}
@@ -580,16 +623,19 @@ export default function CartScreen() {
                 );
               })}
 
-              <TouchableOpacity
-                style={styles.modalAddNew}
-                onPress={() => {
-                  setShowCheckoutModal(false);
-                  setShowAddressForm(true);
-                }}
-              >
-                <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontFamily: fonts.medium, marginLeft: 6 }}>Add new address</Text>
-              </TouchableOpacity>
+              {(!addressesQuery.data || addressesQuery.data.length === 0) && (
+                <TouchableOpacity
+                  style={styles.modalAddNew}
+                  onPress={() => {
+                    setShowCheckoutModal(false);
+                    setEditingAddressId(null);
+                    setShowAddressForm(true);
+                  }}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={colors.primary} />
+                  <Text style={{ color: colors.primary, fontFamily: fonts.medium, marginLeft: 6 }}>Add new address</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
 
             {/* Bill summary strip */}

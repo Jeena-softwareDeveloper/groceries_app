@@ -4,12 +4,16 @@ import type { AuthTokens, CustomerProfile } from '@/types/customer';
 import { getDeviceSignature } from '@/utils/deviceInfo';
 
 export const authApi = {
-  requestOtp: (phone: string) =>
-    unwrap<{ message: string; otp?: string }>(api.post(ENDPOINTS.AUTH.OTP_REQUEST, { phone })),
+  requestOtp: async (phone: string) => {
+    const device = await getDeviceSignature();
+    return unwrap<{ message: string; otp?: string; autoLogin?: boolean; tokens?: AuthTokens }>(
+      api.post(ENDPOINTS.AUTH.OTP_REQUEST, { phone, ...device })
+    );
+  },
 
   verifyOtp: async (phone: string, otp: string) => {
     const device = await getDeviceSignature();
-    return unwrap<AuthTokens>(api.post(ENDPOINTS.AUTH.OTP_VERIFY, { phone, otp, ...device }));
+    return unwrap<AuthTokens & { isNewUser?: boolean }>(api.post(ENDPOINTS.AUTH.OTP_VERIFY, { phone, otp, ...device }));
   },
 
   getMe: () =>

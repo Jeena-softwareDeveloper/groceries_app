@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextStyle } from 'react-native';
+import { StyleSheet, Text, TextStyle, View } from 'react-native';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -20,6 +20,10 @@ import { setItemCount } from '@/store/cartSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { CustomSplashScreen } from '@/components/CustomSplashScreen';
 import Toast from 'react-native-toast-message';
+import LoginScreen from '@/app/(auth)/login';
+import LocationScreen from '@/app/location';
+import { setShowLoginModal } from '@/store/authSlice';
+import { setShowLocationModal } from '@/store/locationSlice';
 
 // Keep the native splash screen visible until we are ready to replace it
 SplashScreen.preventAutoHideAsync();
@@ -44,8 +48,16 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const { ready } = useBootstrap();
   const { accessToken, user } = useAppSelector((s) => s.auth);
-  const { districtId } = useAppSelector((s) => s.location);
+  const { districtId, locationResolved } = useAppSelector((s) => s.location);
+  const dispatch = useAppDispatch();
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+
+  // After splash exits: if no location, open location modal
+  useEffect(() => {
+    if (!isSplashVisible && locationResolved && !districtId) {
+      dispatch(setShowLocationModal(true));
+    }
+  }, [isSplashVisible, locationResolved, districtId, dispatch]);
 
   useEffect(() => {
     if (!ready) return;
@@ -74,18 +86,6 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
         router.replace('/(tabs)');
         return;
       }
-    }
-
-    // If logged in but no location selected, force location picker
-    if (accessToken && !districtId && !onLocation && !inAuth) {
-      router.replace('/location');
-      return;
-    }
-
-    // If NOT logged in and no district set, redirect to location picker
-    // Do NOT auto-redirect to login — guests can browse the app freely
-    if (!accessToken && !inAuth && !onLocation && !districtId) {
-      router.replace('/location');
     }
   }, [ready, accessToken, districtId, segments, router, user]);
 
@@ -138,6 +138,28 @@ function RootNavigator() {
   );
 }
 
+function GlobalAuthOverlay() {
+  const { showLoginModal } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
+  if (!showLoginModal) return null;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999 }}>
+      <LoginScreen isModalComponent={true} onClose={() => dispatch(setShowLoginModal(false))} />
+    </View>
+  );
+}
+
+function GlobalLocationOverlay() {
+  const { showLocationModal } = useAppSelector((s) => s.location);
+  const dispatch = useAppDispatch();
+  if (!showLocationModal) return null;
+  return (
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9998 }}>
+      <LocationScreen isModalComponent={true} onClose={() => dispatch(setShowLocationModal(false))} />
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     Roboto_400Regular,
@@ -154,6 +176,8 @@ export default function RootLayout() {
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
           <RootNavigator />
+          <GlobalLocationOverlay />
+          <GlobalAuthOverlay />
           <Toast />
         </QueryClientProvider>
       </Provider>

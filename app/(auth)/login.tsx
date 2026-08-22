@@ -23,7 +23,9 @@ import { Feather } from '@expo/vector-icons';
 
 import { Typography, Button, Input } from '@/components/ui';
 
-export default function LoginScreen() {
+export default function LoginScreen(props: any = {}) {
+  const isModalComponent = props?.isModalComponent || false;
+  const onClose = props?.onClose;
   const router = useRouter();
   const dispatch = useAppDispatch();
   const insets = useSafeAreaInsets();
@@ -31,9 +33,9 @@ export default function LoginScreen() {
   
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [step, setStep] = useState<'phone' | 'otp' | 'role'>('phone');
   const [loading, setLoading] = useState(false);
-  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [tempAuth, setTempAuth] = useState<{ tokens: any; user: any } | null>(null);
 
   const androidKeyboardHeight = useRef(new Animated.Value(0)).current;
 
@@ -61,8 +63,33 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const result = await authApi.requestOtp(normalized);
-      setDevOtp(__DEV__ ? (result.otp ?? null) : null);
-      setStep('otp');
+      if (result.autoLogin && result.tokens) {
+        // Trusted device bypass!
+        await persistAuth(result.tokens.accessToken, result.tokens.refreshToken);
+        const user = await authApi.getMe();
+        
+        if (user.role === 'VENDOR') {
+          dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
+          dispatch(setUser(user));
+          if (isModalComponent && onClose) {
+            onClose();
+            router.replace('/(vendor)');
+          } else {
+            router.replace('/(vendor)');
+          }
+        } else {
+          // Auto login means existing user, so never show role selection
+          dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
+          dispatch(setUser(user));
+          if (isModalComponent && onClose) {
+            onClose();
+          } else {
+            router.replace('/(tabs)');
+          }
+        }
+      } else {
+        setStep('otp');
+      }
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Failed to send OTP' });
     } finally {
@@ -83,11 +110,30 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const tokens = await authApi.verifyOtp(normalized, otp);
+      
+      // FIX: Persist auth to local storage so axios interceptor can use it for getMe()
       await persistAuth(tokens.accessToken, tokens.refreshToken);
-      dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
+      
       const user = await authApi.getMe();
-      dispatch(setUser(user));
-      router.replace(districtId ? '/(tabs)' : '/location');
+      
+      if (user.role === 'VENDOR') {
+        dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
+        dispatch(setUser(user));
+        router.replace('/(vendor)');
+      } else {
+        if (tokens.isNewUser) {
+          setTempAuth({ tokens, user });
+          setStep('role');
+        } else {
+          dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
+          dispatch(setUser(user));
+          if (isModalComponent && onClose) {
+            onClose();
+          } else {
+            router.replace('/(tabs)');
+          }
+        }
+      }
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Verification failed' });
     } finally {
@@ -112,7 +158,11 @@ export default function LoginScreen() {
   function renderContent() {
     return (
       <>
-        <Pressable style={styles.overlay} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} />
+        <Pressable style={styles.overlay} onPress={() => {
+          if (isModalComponent && onClose) onClose();
+          else if (router.canGoBack()) router.back();
+          else router.replace('/(tabs)');
+        }} />
 
         {/* Bottom Sheet */}
         <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom + spacing.sm, spacing.lg) }]}>
@@ -124,17 +174,25 @@ export default function LoginScreen() {
                 </TouchableOpacity>
                 <Typography style={styles.sheetTitle}>Verify number</Typography>
               </View>
+            ) : step === 'role' ? (
+              <Typography style={styles.sheetTitle}>Choose your role</Typography>
             ) : (
               <Typography style={styles.sheetTitle}>Get started</Typography>
             )}
-            <Pressable onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={styles.closeBtn}>
+              <TouchableOpacity onPress={() => {
+                if (isModalComponent && onClose) onClose();
+                else if (router.canGoBack()) router.back();
+                else router.replace('/(tabs)');
+              }} style={styles.closeBtn}>
               <Feather name="x" size={24} color="#64748b" />
-            </Pressable>
+            </TouchableOpacity>
           </View>
           <Typography style={[styles.sheetSubtitle, step === 'otp' && { marginLeft: 44 }]}>
             {step === 'phone'
               ? 'Enter your phone number to continue'
-              : `OTP sent to +91 ${phone}`}
+              : step === 'otp'
+              ? `OTP sent to +91 ${phone}`
+              : 'How would you like to continue?'}
           </Typography>
 
         {step === 'phone' ? (
@@ -165,14 +223,46 @@ export default function LoginScreen() {
               Continue
             </Button>
           </>
-        ) : (
+        ) : step === 'role' ? (
+          <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
+            <Button
+              variant="primary"
+              size="lg"
+              onPress={async () => {
+                if (tempAuth) {
+                  await persistAuth(tempAuth.tokens.accessToken, tempAuth.tokens.refreshToken);
+                  dispatch(setTokens(tempAuth.tokens));
+                  dispatch(setUser(tempAuth.user));
+                  // NavigationGuard will automatically push them to /(tabs)
+                  // if they need districtId, index.tsx will auto fetch it
+                }
+              }}
+              style={styles.primaryBtn}
+            >
+              Continue as Customer
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onPress={async () => {
+                if (tempAuth) {
+                  // Navigate first so when tokens are saved, it triggers layout guard correctly
+                  router.replace('/vendor-request');
+                  setTimeout(async () => {
+                    await persistAuth(tempAuth.tokens.accessToken, tempAuth.tokens.refreshToken);
+                    dispatch(setTokens(tempAuth.tokens));
+                    dispatch(setUser(tempAuth.user));
+                  }, 100);
+                }
+              }}
+              style={{ ...styles.primaryBtn, backgroundColor: colors.white, borderColor: colors.primary, borderWidth: 1 }}
+              textStyle={{ color: colors.primary }}
+            >
+              Register as Vendor
+            </Button>
+          </View>
+        ) : step === 'otp' ? (
           <>
-            {__DEV__ && devOtp ? (
-              <Typography variant="subtitle2" color="#16a34a" style={{ marginBottom: spacing.sm }}>
-                Dev OTP: {devOtp}
-              </Typography>
-            ) : null}
-
             <Input
               placeholder="------"
               keyboardType="number-pad"
@@ -201,7 +291,7 @@ export default function LoginScreen() {
               </Pressable>
             </View>
           </>
-        )}
+        ) : null}
 
         {/* Minimalist Trust Badges */}
         <View style={styles.trustBanner}>

@@ -4,16 +4,16 @@ import type { District, Area } from '@shared/types';
 import type { HomeFeed, Shop, Address, Product, CustomerProfile } from '@/types/customer';
 
 export const customerApi = {
-  fetchHomeFeed: (districtId: string, areaId?: string) =>
-    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId } })).then(res => {
+  fetchHomeFeed: (districtId: string, areaId?: string, lat?: number | null, lng?: number | null) =>
+    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId, lat, lng } })).then(res => {
       console.log('--- HOME FEED RESPONSE ---');
       console.log(JSON.stringify(res, null, 2));
       console.log('--------------------------');
       return res;
     }),
 
-  fetchShops: (districtId: string, areaId?: string, categoryId?: string) =>
-    unwrap<Shop[]>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BASE, { params: { districtId, areaId, categoryId } })),
+  fetchShops: (districtId: string, areaId?: string, categoryId?: string, lat?: number | null, lng?: number | null) =>
+    unwrap<Shop[]>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BASE, { params: { districtId, areaId, categoryId, lat, lng } })),
 
   fetchShop: (id: string) =>
     unwrap<Shop & { area?: { district?: { name: string } } }>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BY_ID(id))),
@@ -29,6 +29,9 @@ export const customerApi = {
 
   createAddress: (data: Omit<Address, 'id'>) =>
     unwrap<Address>(api.post(ENDPOINTS.CUSTOMER.ADDRESSES, data)),
+
+  updateAddress: (id: string, data: Partial<Omit<Address, 'id'>>) =>
+    unwrap<Address>(api.put(`${ENDPOINTS.CUSTOMER.ADDRESSES}/${id}`, data)),
 
   fetchWishlist: () =>
     unwrap<Array<{ id: string; product: Product }>>(api.get(ENDPOINTS.CUSTOMER.WISHLIST.BASE)),

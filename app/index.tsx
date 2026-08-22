@@ -12,7 +12,7 @@ export default function Index() {
   // but this prevents premature redirects with stale pre-hydration state
   if (!ready) return null;
 
-  if (!districtId) return <Redirect href="/location" />;
+  if (!districtId) return <Redirect href="/(tabs)" />;
   if (accessToken && user?.role === 'VENDOR') return <Redirect href="/(vendor)" />;
   return <Redirect href="/(tabs)" />;
 }

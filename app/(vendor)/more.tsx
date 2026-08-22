@@ -15,12 +15,14 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
 import { wipeAuth, persistAuth } from '@/hooks/useBootstrap';
 import Toast from 'react-native-toast-message';
+import * as Location from 'expo-location';
 
 // ─── Modals ───────────────────────────────────────────────────────────────────
 
 function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose: () => void; profile: any }) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const [form, setForm] = useState({
     shopName: profile?.shopName ?? '',
     description: profile?.description ?? '',
@@ -28,17 +30,19 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
     address: profile?.address ?? '',
     districtId: profile?.districtId ?? '',
     areaId: profile?.areaId ?? '',
+    latitude: profile?.latitude ?? null,
+    longitude: profile?.longitude ?? null,
   });
 
   const { data: districts } = useQuery({
     queryKey: ['districts'],
-    queryFn: customerApi.getDistricts,
+    queryFn: customerApi.fetchDistricts,
     enabled: visible,
   });
 
   const { data: areas } = useQuery({
     queryKey: ['areas', form.districtId],
-    queryFn: () => customerApi.getAreas(form.districtId!),
+    queryFn: () => customerApi.fetchAreas(form.districtId!),
     enabled: visible && !!form.districtId,
   });
 
@@ -51,6 +55,8 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
         address: profile?.address ?? '',
         districtId: profile?.districtId ?? '',
         areaId: profile?.areaId ?? '',
+        latitude: profile?.latitude ?? null,
+        longitude: profile?.longitude ?? null,
       });
     }
   }, [profile, visible]);
@@ -67,6 +73,58 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
       Toast.show({ type: 'error', text1: 'Error', text2: e.message ?? 'Failed to update profile' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGetLocation = async () => {
+    try {
+      setGpsLoading(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Location permission is required.' });
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      const [addressData] = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      
+      let addrString = '';
+      if (addressData) {
+        const parts = [addressData.street, addressData.name, addressData.city, addressData.subregion, addressData.region, addressData.postalCode];
+        addrString = Array.from(new Set(parts.filter(Boolean))).join(', ');
+      }
+
+      // Fallback for Web where Expo geocoding might return empty
+      if (!addrString) {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.coords.latitude}&lon=${loc.coords.longitude}`);
+          const data = await res.json();
+          if (data?.display_name) {
+            addrString = data.display_name;
+          }
+        } catch (err) {
+          console.log('OSM fallback failed', err);
+        }
+      }
+
+      // If still empty, preserve the old address
+      if (!addrString) {
+        addrString = form.address;
+      }
+      
+      setForm(f => ({
+        ...f,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        address: addrString,
+      }));
+      Toast.show({ type: 'success', text1: 'Location Captured', text2: 'Your exact shop location has been recorded.' });
+    } catch (e: any) {
+      Toast.show({ type: 'error', text1: 'GPS Error', text2: 'Failed to get location' });
+    } finally {
+      setGpsLoading(false);
     }
   };
 
@@ -96,7 +154,20 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
             onSelect={(val) => setForm(f => ({ ...f, areaId: val }))}
             options={areas?.map(a => ({ label: a.name, value: a.id })) ?? []}
           />
-          <Input label="Shop Address" value={form.address} onChangeText={(t) => setForm(f => ({ ...f, address: t }))} multiline style={{ height: 60 }} />
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.xs }}>
+            <Text style={{ fontSize: 14, fontFamily: fonts.medium, color: colors.text }}>Shop Address & Location</Text>
+            <Pressable onPress={handleGetLocation} disabled={gpsLoading} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0f2fe', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full }}>
+              {gpsLoading ? <ActivityIndicator size="small" color="#0284c7" /> : <Feather name="map-pin" size={14} color="#0284c7" />}
+              <Text style={{ fontSize: 12, fontFamily: fonts.bold, color: '#0284c7', marginLeft: 4 }}>Get GPS</Text>
+            </Pressable>
+          </View>
+          <Input value={form.address} onChangeText={(t) => setForm(f => ({ ...f, address: t }))} multiline style={{ height: 60 }} />
+          {!!(form.latitude && form.longitude) && (
+            <Text style={{ fontSize: 12, color: colors.primary, fontFamily: fonts.medium, marginTop: -4, marginBottom: spacing.sm }}>✓ Exact GPS Coordinates Recorded</Text>
+          )}
+
+
           <Input label="Description" value={form.description} onChangeText={(t) => setForm(f => ({ ...f, description: t }))} multiline style={{ height: 80 }} />
         </ScrollView>
         <View style={modalStyles.footer}>
