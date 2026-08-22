@@ -6,13 +6,29 @@ import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 
 export default function DevicesScreen() {
   const queryClient = useQueryClient();
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
   const { data: sessions, isLoading } = useQuery({ 
     queryKey: ['sessions'], 
-    queryFn: authApi.getSessions 
+    queryFn: authApi.getSessions,
+    enabled: !!accessToken,
   });
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <InnerHeader title="Devices" showBack showSearch={false} showCart={false} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const revokeMutation = useMutation({
     mutationFn: authApi.revokeSession,

@@ -7,12 +7,27 @@ import { InnerHeader } from '@/components/InnerHeader';
 import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import Toast from 'react-native-toast-message';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 
 export default function SupportScreen() {
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <InnerHeader title="Help & Support" showBack showSearch={false} showCart={false} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
 
   async function handleSubmit() {

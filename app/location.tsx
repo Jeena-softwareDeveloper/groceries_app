@@ -1,477 +1,617 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
-  Image,
+  Animated,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Area, District } from '@shared/types';
 import { customerApi } from '@/api';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
-import { persistLocation } from '@/hooks/useBootstrap';
+import { persistLocation, persistGPSLocation } from '@/hooks/useBootstrap';
 import { useAppDispatch } from '@/store/hooks';
-import { setLocation } from '@/store/locationSlice';
+import { setLocation, setGPSLocation } from '@/store/locationSlice';
 import * as Location from 'expo-location';
+import { resolveAddressFromCoords } from '@/utils/geocode';
 
-const mapIllustration = require('@/assets/images/map-illustration.jpg');
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-export default function LocationScreen(props: any = {}) {
-  const isModalComponent = props?.isModalComponent || false;
-  const onClose = props?.onClose;
+interface LocationScreenProps {
+  isModalComponent?: boolean;
+  onClose?: () => void;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function LocationScreen({ isModalComponent = false, onClose }: LocationScreenProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+
+  // State
+  const [step, setStep] = useState<'home' | 'district' | 'area'>('home');
   const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
   const [selectedArea, setSelectedArea] = useState<Area | null>(null);
-  const [mode, setMode] = useState<'manual' | 'current'>('manual');
-  
-  const [showDistrictModal, setShowDistrictModal] = useState(false);
-  const [showAreaModal, setShowAreaModal] = useState(false);
+  const [districtSearch, setDistrictSearch] = useState('');
+  const [areaSearch, setAreaSearch] = useState('');
+  const [isLocating, setIsLocating] = useState(false);
+  const [gpsResult, setGpsResult] = useState<{ districtName: string; areaName: string } | null>(null);
+  const [gpsError, setGpsError] = useState('');
 
-  const districtsQuery = useQuery({ queryKey: ['districts'], queryFn: customerApi.fetchDistricts });
+  // Slide-up animation for the sheet
+  const slideAnim = useRef(new Animated.Value(400)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 10,
+    }).start();
+  }, []);
+
+  // Queries
+  const districtsQuery = useQuery({
+    queryKey: ['districts'],
+    queryFn: customerApi.fetchDistricts,
+  });
   const areasQuery = useQuery({
     queryKey: ['areas', selectedDistrict?.id],
     queryFn: () => customerApi.fetchAreas(selectedDistrict!.id),
     enabled: !!selectedDistrict,
   });
 
-  const [isLocating, setIsLocating] = useState(false);
+  // Filtered lists
+  const filteredDistricts = (districtsQuery.data || []).filter((d) =>
+    d.name.toLowerCase().includes(districtSearch.toLowerCase())
+  );
+  const filteredAreas = (areasQuery.data || []).filter((a) =>
+    a.name.toLowerCase().includes(areaSearch.toLowerCase())
+  );
 
-  async function handleConfirm() {
-    if (!selectedDistrict || !selectedArea) return;
+  // ─── Actions ────────────────────────────────────────────────────────────────
+
+  function handleClose() {
+    if (onClose) onClose();
+    else if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
+  }
+
+  async function handleConfirm(district: District, area: Area) {
     const payload = {
-      districtId: selectedDistrict.id,
-      districtName: selectedDistrict.name,
-      areaId: selectedArea.id,
-      areaName: selectedArea.name,
+      districtId: district.id,
+      districtName: district.name,
+      areaId: area.id,
+      areaName: area.name,
     };
     await persistLocation(payload);
     dispatch(setLocation(payload));
-    if (isModalComponent && onClose) {
-      onClose();
-    } else {
-      router.replace('/(tabs)');
-    }
+    handleClose();
   }
 
-  async function handleAutoGPS() {
+  async function handleGPS() {
     setIsLocating(true);
+    setGpsError('');
+    setGpsResult(null);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        alert('Location permission is required to find nearby stores.');
+        setGpsError('Location permission denied. Please select manually.');
+        setIsLocating(false);
         return;
       }
-      const location = await Location.getCurrentPositionAsync({});
-      let [addressData] = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+
+      // Check if location services are turned on in device settings
+      const isLocationEnabled = await Location.hasServicesEnabledAsync();
+      if (!isLocationEnabled) {
+        setGpsError('Please turn on GPS/Location services in device settings.');
+        setIsLocating(false);
+        return;
+      }
+
+      // Request fresh GPS satellite fix
+      let loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.BestForNavigation,
+      }).catch(async () => {
+        // Fallback to highest if BestForNavigation takes too long
+        return await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Highest,
+        });
       });
 
-      let address: any = addressData;
-      if (!addressData) {
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.coords.latitude}&lon=${location.coords.longitude}`);
-          const data = await res.json();
-          if (data?.address) {
-            address = {
-              city: data.address.city || data.address.town || data.address.village || '',
-              subregion: data.address.county || data.address.state_district || '',
-              region: data.address.state || '',
-              street: data.address.road || data.address.neighbourhood || '',
-              name: data.address.suburb || '',
-              district: data.address.city_district || ''
-            };
-          }
-        } catch (err) {}
-      }
+      const userLat = loc.coords.latitude;
+      const userLng = loc.coords.longitude;
 
-      if (!address || Object.keys(address).length === 0) {
-        return;
-      }
+      console.log('[GPS Raw Coordinates]', {
+        lat: userLat,
+        lng: userLng,
+        accuracyMeters: loc.coords.accuracy,
+      });
 
-      const districts = await customerApi.fetchDistricts();
-      const userCity = (address.city || address.subregion || address.region || '').toLowerCase();
-      
-      const matchedDistrict = districts.find(d => 
-        d.name.toLowerCase() === userCity || 
-        userCity.includes(d.name.toLowerCase()) ||
-        d.name.toLowerCase().includes(userCity)
-      );
+      // ── Step 1: Reverse geocode to get the exact town/district name ─────────
+      const displayName = await resolveAddressFromCoords(userLat, userLng);
+      console.log('[GPS Resolved Location]', displayName);
 
-      const isFallback = !matchedDistrict;
-      const finalDistrict = matchedDistrict || districts[0];
-
-      if (!finalDistrict) {
-        alert("No districts found in the database.");
-        return;
-      }
-
-      const areas = await customerApi.fetchAreas(finalDistrict.id);
-      const userStreet = (address.street || address.name || address.district || '').toLowerCase();
-      
-      const matchedArea = areas.find(a => 
-        a.name.toLowerCase() === userStreet ||
-        userStreet.includes(a.name.toLowerCase()) ||
-        a.name.toLowerCase().includes(userStreet) ||
-        a.name.toLowerCase().includes(userCity)
-      ) || areas[0];
-
-      if (!matchedArea) {
-        alert("No areas found in the database.");
-        return;
-      }
-
-      const payload = {
-        districtId: finalDistrict.id,
-        districtName: finalDistrict.name,
-        areaId: matchedArea.id,
-        areaName: matchedArea.name,
-        latitude: isFallback ? undefined : location.coords.latitude,
-        longitude: isFallback ? undefined : location.coords.longitude,
-      };
-      
-      await persistLocation(payload);
-      dispatch(setLocation(payload));
-      if (isModalComponent && onClose) {
-        onClose();
-      } else {
-        router.replace('/(tabs)');
-      }
-    } catch (e: any) {
-      console.log('Auto GPS failed:', e);
+      // ── Step 2: Store GPS location directly (no DB lookup needed) ──────────
+      await persistGPSLocation({ latitude: userLat, longitude: userLng, displayName });
+      dispatch(setGPSLocation({ latitude: userLat, longitude: userLng, displayName }));
+      setGpsResult({ districtName: '', areaName: displayName });
+      setTimeout(() => handleClose(), 1200);
+    } catch (e) {
+      console.error('[GPS Error]', e);
+      setGpsError('GPS detection failed. Please select manually.');
     } finally {
       setIsLocating(false);
     }
   }
 
-  return (
-    <>
-      {isModalComponent ? (
-        <View style={styles.modalContainer}>
-          <Pressable style={styles.overlay} onPress={() => {
-            if (onClose) onClose();
-            else if (router.canGoBack()) router.back();
-            else router.replace('/(tabs)');
-          }} />
-          <View style={styles.bottomSheet}>
-            {renderContent()}
-          </View>
-        </View>
-      ) : (
-        <SafeAreaView style={styles.safe}>
-          {renderContent()}
-        </SafeAreaView>
-      )}
-    </>
-  );
+  // ─── Sub-screens ─────────────────────────────────────────────────────────────
 
-  function renderContent() {
+
+
+
+  function renderHome() {
     return (
-      <>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => {
-          if (isModalComponent && onClose) onClose();
-          else if (router.canGoBack()) router.back();
-        }}>
-          <Feather name={isModalComponent ? "x" : "arrow-left"} size={24} color={colors.text} />
+      <View style={styles.sheetBody}>
+        {/* Title */}
+        <View style={styles.sheetHeader}>
+          <View>
+            <Text style={styles.sheetTitle}>Delivery Location</Text>
+            <Text style={styles.sheetSubtitle}>Where should we deliver?</Text>
+          </View>
+          <Pressable onPress={handleClose} style={styles.closeBtn}>
+            <Feather name="x" size={20} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
+        {/* GPS Button */}
+        <Pressable
+          style={[styles.gpsBtn, isLocating && { opacity: 0.7 }]}
+          onPress={handleGPS}
+          disabled={isLocating}
+        >
+          {isLocating ? (
+            <ActivityIndicator color={colors.white} size="small" />
+          ) : gpsResult ? (
+            <Ionicons name="checkmark-circle" size={22} color={colors.white} />
+          ) : (
+            <Ionicons name="locate" size={22} color={colors.white} />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.gpsBtnText}>
+              {isLocating
+                ? 'Detecting your location…'
+                : gpsResult
+                ? `${gpsResult.areaName}, ${gpsResult.districtName}`
+                : 'Use Current Location'}
+            </Text>
+            {!isLocating && !gpsResult && (
+              <Text style={styles.gpsBtnSub}>Auto-detect via GPS</Text>
+            )}
+          </View>
+          {!isLocating && !gpsResult && (
+            <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.7)" />
+          )}
         </Pressable>
-        <Text style={styles.headerTitle}>Choose Location</Text>
-        <Pressable style={styles.targetBtn}>
-          <Feather name="crosshair" size={20} color={colors.primaryDark} />
+
+        {gpsError ? (
+          <Text style={styles.gpsError}>{gpsError}</Text>
+        ) : null}
+
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>or select manually</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* District selector */}
+        <Text style={styles.fieldLabel}>District</Text>
+        <Pressable
+          style={styles.selectorBox}
+          onPress={() => { setDistrictSearch(''); setStep('district'); }}
+        >
+          <Ionicons name="location-outline" size={18} color={colors.primary} />
+          <Text style={[styles.selectorText, !selectedDistrict && styles.placeholder]}>
+            {selectedDistrict ? selectedDistrict.name : 'Select district…'}
+          </Text>
+          <Feather name="chevron-down" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        {/* Area selector */}
+        <Text style={[styles.fieldLabel, { marginTop: spacing.md }]}>Area / Locality</Text>
+        <Pressable
+          style={[styles.selectorBox, !selectedDistrict && styles.selectorDisabled]}
+          onPress={() => {
+            if (!selectedDistrict) return;
+            setAreaSearch('');
+            setStep('area');
+          }}
+        >
+          <MaterialCommunityIcons
+            name="map-marker-radius-outline"
+            size={18}
+            color={selectedDistrict ? colors.primary : colors.textMuted}
+          />
+          <Text style={[styles.selectorText, !selectedArea && styles.placeholder]}>
+            {selectedArea ? selectedArea.name : 'Select area…'}
+          </Text>
+          <Feather name="chevron-down" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        {/* Confirm button */}
+        <Pressable
+          style={[
+            styles.confirmBtn,
+            (!selectedDistrict || !selectedArea) && styles.confirmDisabled,
+          ]}
+          onPress={() => selectedDistrict && selectedArea && handleConfirm(selectedDistrict, selectedArea)}
+          disabled={!selectedDistrict || !selectedArea}
+        >
+          <Text style={styles.confirmText}>
+            {selectedDistrict && selectedArea
+              ? `Deliver to ${selectedArea.name}, ${selectedDistrict.name}`
+              : 'Confirm Location'}
+          </Text>
+          <Feather name="arrow-right" size={18} color={colors.white} />
         </Pressable>
       </View>
-
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* HERO SECTION */}
-        <View style={styles.heroRow}>
-          <View style={styles.heroTextCol}>
-            <Text style={styles.heroTitle}>Where should{"\n"}we <Text style={{ color: colors.primary }}>deliver?</Text></Text>
-            <Text style={styles.heroSubtitle}>Select your district and area to see nearby stores</Text>
-          </View>
-          <View style={styles.heroImgCol}>
-            <Image source={mapIllustration} style={styles.heroImg} resizeMode="contain" />
-          </View>
-        </View>
-
-        {/* SEGMENTED TOGGLE */}
-        <View style={styles.toggleContainer}>
-          <Pressable 
-            style={[styles.toggleBtn, mode === 'manual' && styles.toggleBtnActive]}
-            onPress={() => setMode('manual')}
-          >
-            <Feather name="map" size={16} color={mode === 'manual' ? colors.white : colors.text} />
-            <Text style={[styles.toggleText, mode === 'manual' && styles.toggleTextActive]}>By Location</Text>
-          </Pressable>
-          <Pressable 
-            style={[styles.toggleBtn, mode === 'current' && styles.toggleBtnActive]}
-            onPress={() => setMode('current')}
-          >
-            <Feather name="map-pin" size={16} color={mode === 'current' ? colors.white : colors.text} />
-            <Text style={[styles.toggleText, mode === 'current' && styles.toggleTextActive]}>By Current Location</Text>
-          </Pressable>
-        </View>
-
-        {/* SELECTION FORM OR GPS */}
-        {mode === 'manual' ? (
-          <View style={styles.formContainer}>
-            {/* District */}
-            <View style={styles.inputGroup}>
-              <View style={styles.inputHeader}>
-                <View style={styles.iconCircle}>
-                  <MaterialCommunityIcons name="office-building" size={20} color={colors.primaryDark} />
-                </View>
-                <View>
-                  <Text style={styles.inputLabel}>District</Text>
-                  <Text style={styles.inputHint}>Select your district</Text>
-                </View>
-              </View>
-              <Pressable style={styles.selectorBox} onPress={() => setShowDistrictModal(true)}>
-                <View style={styles.selectorLeft}>
-                  <MaterialCommunityIcons name="map-marker" size={20} color={colors.primary} style={styles.selectorIcon} />
-                  <Text
-                    style={[styles.selectorText, !selectedDistrict && { color: colors.textMuted }]}
-                    numberOfLines={1}
-                  >
-                    {selectedDistrict ? selectedDistrict.name : 'Select a district...'}
-                  </Text>
-                </View>
-                <Feather name="chevron-down" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            {/* Area */}
-            <View style={styles.inputGroup}>
-              <View style={styles.inputHeader}>
-                <View style={styles.iconCircle}>
-                  <MaterialCommunityIcons name="map-marker-radius" size={20} color={colors.primaryDark} />
-                </View>
-                <View>
-                  <Text style={styles.inputLabel}>Area</Text>
-                  <Text style={styles.inputHint}>Select your area</Text>
-                </View>
-              </View>
-              <Pressable 
-                style={[styles.selectorBox, !selectedDistrict && styles.selectorDisabled]} 
-                onPress={() => selectedDistrict && setShowAreaModal(true)}
-              >
-                <View style={styles.selectorLeft}>
-                  <MaterialCommunityIcons name="office-building-marker" size={20} color={!selectedDistrict ? colors.textMuted : colors.primary} style={styles.selectorIcon} />
-                  <Text
-                    style={[styles.selectorText, !selectedArea && { color: colors.textMuted }]}
-                    numberOfLines={1}
-                  >
-                    {selectedArea ? selectedArea.name : 'Select an area...'}
-                  </Text>
-                </View>
-                <Feather name="chevron-down" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </View>
-        ) : (
-          <View style={styles.gpsContainer}>
-            <Pressable style={styles.gpsBtn} onPress={handleAutoGPS} disabled={isLocating}>
-              {isLocating ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <>
-                  <Feather name="crosshair" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
-                  <Text style={styles.gpsText}>Use Current Location</Text>
-                </>
-              )}
-            </Pressable>
-          </View>
-        )}
-
-        {/* NEARBY AREAS */}
-        {mode === 'manual' && selectedDistrict && (
-          <View style={styles.nearbySection}>
-            <Text style={styles.nearbyTitle}>Nearby areas</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.nearbyScroll}>
-              {(areasQuery.data || []).slice(0, 4).map(a => (
-                <Pressable key={a.id} style={styles.nearbyChip} onPress={() => setSelectedArea(a)}>
-                  <MaterialCommunityIcons name="map-marker" size={14} color={colors.primaryDark} />
-                  <Text style={styles.nearbyChipText}>{a.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* CONFIRMATION BANNER */}
-        {mode === 'manual' && selectedDistrict && selectedArea && (
-          <View style={styles.confirmBanner}>
-            <MaterialCommunityIcons name="store" size={32} color={colors.primaryDark} style={styles.bannerIcon} />
-            <View style={styles.bannerTextCol}>
-              <Text style={styles.bannerSubtitle}>Showing stores that deliver to</Text>
-              <Text style={styles.bannerTitle}>{selectedDistrict.name}, {selectedArea.name}</Text>
-            </View>
-            <MaterialCommunityIcons name="check-circle" size={24} color={colors.primaryDark} />
-          </View>
-        )}
-
-        {/* CONTINUE BUTTON */}
-        {mode === 'manual' && (
-          <Pressable 
-            style={[styles.continueBtn, (!selectedDistrict || !selectedArea) && styles.continueDisabled]} 
-            onPress={handleConfirm}
-            disabled={!selectedDistrict || !selectedArea}
-          >
-            <Feather name="map" size={20} color={colors.white} style={{ marginRight: spacing.sm }} />
-            <Text style={styles.continueText}>Continue</Text>
-            <Feather name="arrow-right" size={20} color={colors.white} style={{ marginLeft: spacing.sm }} />
-          </Pressable>
-        )}
-
-        {/* FOOTER */}
-        <View style={styles.footer}>
-          <Feather name="shield" size={16} color={colors.primary} />
-          <Text style={styles.footerText}>We'll help you find the best shops near you</Text>
-        </View>
-      </ScrollView>
-
-      {/* MODALS */}
-      <Modal visible={showDistrictModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select District</Text>
-              <Pressable onPress={() => setShowDistrictModal(false)}>
-                <Feather name="x" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            {districtsQuery.isLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
-            ) : (
-              <ScrollView>
-                {districtsQuery.data?.map(d => (
-                  <Pressable 
-                    key={d.id} 
-                    style={styles.modalItem} 
-                    onPress={() => {
-                      setSelectedDistrict(d);
-                      setSelectedArea(null);
-                      setShowDistrictModal(false);
-                    }}
-                  >
-                    <Text style={[styles.modalItemText, selectedDistrict?.id === d.id && { color: colors.primary, fontFamily: fonts.bold }]}>{d.name}</Text>
-                    {selectedDistrict?.id === d.id && <Feather name="check" size={20} color={colors.primary} />}
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-
-      <Modal visible={showAreaModal} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Area</Text>
-              <Pressable onPress={() => setShowAreaModal(false)}>
-                <Feather name="x" size={24} color={colors.text} />
-              </Pressable>
-            </View>
-            {areasQuery.isLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
-            ) : (
-              <ScrollView>
-                {areasQuery.data?.map(a => (
-                  <Pressable 
-                    key={a.id} 
-                    style={styles.modalItem} 
-                    onPress={() => {
-                      setSelectedArea(a);
-                      setShowAreaModal(false);
-                    }}
-                  >
-                    <Text style={[styles.modalItemText, selectedArea?.id === a.id && { color: colors.primary, fontFamily: fonts.bold }]}>{a.name}</Text>
-                    {selectedArea?.id === a.id && <Feather name="check" size={20} color={colors.primary} />}
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
-    </>
     );
   }
+
+  function renderDistrictPicker() {
+    return (
+      <View style={styles.pickerSheet}>
+        <View style={styles.pickerHeader}>
+          <Pressable onPress={() => setStep('home')} style={styles.backBtn}>
+            <Feather name="arrow-left" size={20} color={colors.text} />
+          </Pressable>
+          <Text style={styles.pickerTitle}>Select District</Text>
+        </View>
+        <View style={styles.searchBox}>
+          <Feather name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search district…"
+            placeholderTextColor={colors.textMuted}
+            value={districtSearch}
+            onChangeText={setDistrictSearch}
+            autoFocus
+          />
+        </View>
+        {districtsQuery.isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {filteredDistricts.map((d) => (
+              <Pressable
+                key={d.id}
+                style={styles.listItem}
+                onPress={() => {
+                  setSelectedDistrict(d);
+                  setSelectedArea(null);
+                  setStep('home');
+                }}
+              >
+                <Ionicons
+                  name="location-outline"
+                  size={18}
+                  color={selectedDistrict?.id === d.id ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.listItemText,
+                    selectedDistrict?.id === d.id && { color: colors.primary, fontFamily: fonts.bold },
+                  ]}
+                >
+                  {d.name}
+                </Text>
+                {selectedDistrict?.id === d.id && (
+                  <Feather name="check" size={18} color={colors.primary} />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
+  function renderAreaPicker() {
+    return (
+      <View style={styles.pickerSheet}>
+        <View style={styles.pickerHeader}>
+          <Pressable onPress={() => setStep('home')} style={styles.backBtn}>
+            <Feather name="arrow-left" size={20} color={colors.text} />
+          </Pressable>
+          <Text style={styles.pickerTitle}>Select Area</Text>
+        </View>
+        <View style={styles.searchBox}>
+          <Feather name="search" size={16} color={colors.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search area…"
+            placeholderTextColor={colors.textMuted}
+            value={areaSearch}
+            onChangeText={setAreaSearch}
+            autoFocus
+          />
+        </View>
+        {areasQuery.isLoading ? (
+          <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
+        ) : (
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {filteredAreas.map((a) => (
+              <Pressable
+                key={a.id}
+                style={styles.listItem}
+                onPress={() => {
+                  setSelectedArea(a);
+                  setStep('home');
+                }}
+              >
+                <MaterialCommunityIcons
+                  name="map-marker-radius-outline"
+                  size={18}
+                  color={selectedArea?.id === a.id ? colors.primary : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.listItemText,
+                    selectedArea?.id === a.id && { color: colors.primary, fontFamily: fonts.bold },
+                  ]}
+                >
+                  {a.name}
+                </Text>
+                {selectedArea?.id === a.id && (
+                  <Feather name="check" size={18} color={colors.primary} />
+                )}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
+
+  const content =
+    step === 'district'
+      ? renderDistrictPicker()
+      : step === 'area'
+      ? renderAreaPicker()
+      : renderHome();
+
+  if (isModalComponent) {
+    return (
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
+          {content}
+        </Animated.View>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeFull}>
+      {content}
+    </SafeAreaView>
+  );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  modalContainer: { flex: 1, justifyContent: 'flex-end' },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.2)' },
-  bottomSheet: { backgroundColor: '#ffffff', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 20 },
-  safe: { flex: 1, backgroundColor: '#FAFAFA' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm },
-  backBtn: { padding: spacing.xs },
-  headerTitle: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
-  targetBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  container: { padding: spacing.lg, paddingBottom: 60 },
-  
-  heroRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl },
-  heroTextCol: { flex: 1, paddingRight: spacing.md },
-  heroTitle: { fontSize: 26, fontFamily: fonts.bold, color: colors.text, lineHeight: 32 },
-  heroSubtitle: { fontSize: 13, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 18, fontFamily: fonts.regular },
-  heroImgCol: { width: 140, height: 120 },
-  heroImg: { width: '100%', height: '100%' },
+  overlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '92%',
+    overflow: 'hidden',
+  },
+  safeFull: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
 
-  toggleContainer: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderRadius: radius.full, padding: 4, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.xl },
-  toggleBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: radius.full, gap: spacing.sm },
-  toggleBtnActive: { backgroundColor: colors.primary },
-  toggleText: { fontSize: 14, fontFamily: fonts.medium, color: colors.text },
-  toggleTextActive: { color: colors.white },
+  // ── Home step ──
+  sheetBody: {
+    padding: spacing.lg,
+    paddingBottom: 36,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontFamily: fonts.bold,
+    color: colors.text,
+  },
+  sheetSubtitle: {
+    fontSize: 13,
+    fontFamily: fonts.regular,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  closeBtn: {
+    padding: 6,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 20,
+  },
 
-  formContainer: { gap: spacing.xl },
-  inputGroup: {},
-  inputHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md, gap: spacing.md },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  inputLabel: { fontSize: 16, fontFamily: fonts.bold, color: colors.text },
-  inputHint: { fontSize: 13, color: colors.textMuted, marginTop: 2, fontFamily: fonts.regular },
-  
-  selectorBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
-  selectorDisabled: { opacity: 0.5 },
-  selectorLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, minWidth: 0, marginRight: spacing.sm },
-  selectorIcon: { marginRight: 4 },
-  selectorText: { flexShrink: 1, fontSize: 15, lineHeight: 20, fontFamily: fonts.medium, color: colors.text },
+  // GPS
+  gpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  gpsBtnText: {
+    fontSize: 15,
+    fontFamily: fonts.bold,
+    color: '#fff',
+  },
+  gpsBtnSub: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 1,
+  },
+  gpsError: {
+    fontSize: 13,
+    color: colors.error,
+    fontFamily: fonts.regular,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
 
-  gpsContainer: { marginTop: spacing.md, alignItems: 'center' },
-  gpsBtn: { width: '100%', backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: radius.lg, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
-  gpsText: { fontSize: 16, fontFamily: fonts.bold, color: colors.white },
+  // Divider
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: spacing.lg,
+    gap: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontSize: 12,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+  },
 
-  nearbySection: { marginTop: spacing.xl },
-  nearbyTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.md },
-  nearbyScroll: { gap: spacing.sm, paddingRight: spacing.lg },
-  nearbyChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.full, gap: 6 },
-  nearbyChipText: { fontSize: 12, fontFamily: fonts.medium, color: colors.text },
+  // Selector
+  fieldLabel: {
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
+  selectorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 14,
+    gap: spacing.sm,
+    backgroundColor: '#FAFAFA',
+  },
+  selectorDisabled: {
+    opacity: 0.45,
+  },
+  selectorText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: colors.text,
+  },
+  placeholder: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+  },
 
-  confirmBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', borderRadius: radius.lg, padding: spacing.md, marginTop: spacing.xl },
-  bannerIcon: { marginRight: spacing.md },
-  bannerTextCol: { flex: 1 },
-  bannerSubtitle: { fontSize: 12, color: colors.text, fontFamily: fonts.medium },
-  bannerTitle: { fontSize: 15, color: colors.primaryDark, fontFamily: fonts.bold, marginTop: 2 },
+  // Confirm button
+  confirmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: 16,
+    marginTop: spacing.xl,
+    gap: spacing.sm,
+    elevation: 2,
+  },
+  confirmDisabled: {
+    opacity: 0.4,
+  },
+  confirmText: {
+    fontSize: 16,
+    fontFamily: fonts.bold,
+    color: '#fff',
+  },
 
-  continueBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: 16, marginTop: spacing.xl },
-  continueDisabled: { opacity: 0.5 },
-  continueText: { fontSize: 16, color: colors.white, fontFamily: fonts.bold },
-
-  footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.xl, gap: spacing.sm },
-  footerText: { fontSize: 13, color: colors.textMuted, fontFamily: fonts.medium },
-
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, maxHeight: '70%', minHeight: '40%' },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalTitle: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
-  modalItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  modalItemText: { fontSize: 16, fontFamily: fonts.medium, color: colors.text },
+  // ── Picker steps ──
+  pickerSheet: {
+    flex: 1,
+    minHeight: 400,
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.md,
+  },
+  backBtn: {
+    padding: 4,
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontFamily: fonts.bold,
+    color: colors.text,
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    margin: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: radius.md,
+    gap: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: colors.text,
+  },
+  listItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: spacing.md,
+  },
+  listItemText: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: fonts.medium,
+    color: colors.text,
+  },
 });

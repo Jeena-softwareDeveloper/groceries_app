@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -38,6 +38,7 @@ export default function CategoryProductsScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [page, setPage] = useState(1);
   const LIMIT = 20;
+  const [allProducts, setAllProducts] = useState<any[]>([]);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['categoryProducts', id, sort, page, districtId],
@@ -52,6 +53,20 @@ export default function CategoryProductsScreen() {
     enabled: !!id,
     staleTime: 60_000,
   });
+
+  useEffect(() => {
+    if (data?.products) {
+      if (page === 1) {
+        setAllProducts(data.products);
+      } else {
+        setAllProducts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newItems = data.products.filter(p => !existingIds.has(p.id));
+          return [...prev, ...newItems];
+        });
+      }
+    }
+  }, [data, page]);
 
   const addToCartMutation = useMutation({
     mutationFn: (productId: string) => cartApi.addToCart(productId, 1),
@@ -174,7 +189,7 @@ export default function CategoryProductsScreen() {
         </View>
       ) : (
         <FlatList
-          data={data?.products ?? []}
+          data={allProducts}
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={styles.grid}

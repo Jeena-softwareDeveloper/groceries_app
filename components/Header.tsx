@@ -36,7 +36,7 @@ export function Header({
   onLocationPress,
 }: HeaderProps) {
   const router = useRouter();
-  const { districtName, areaName } = useAppSelector((s) => s.location);
+  const { districtName, areaName, displayName } = useAppSelector((s) => s.location);
   const itemCount = useAppSelector((s) => s.cart.itemCount);
 
   // Micro-animations for Cart and Search
@@ -63,7 +63,7 @@ export function Header({
 
   const locationLabel = isLocating
     ? 'Fetching location...'
-    : (districtName && areaName ? `${areaName}, ${districtName}` : 'Select delivery location');
+    : displayName || (districtName && areaName ? `${areaName}, ${districtName}` : 'Select delivery location');
 
   const iconColor = darkIcons ? 'rgba(0,0,0,0.75)' : colors.white;
   const textColor = darkIcons ? '#111827' : colors.white;

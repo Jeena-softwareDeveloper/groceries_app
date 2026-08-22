@@ -21,7 +21,7 @@ import { useAppSelector } from '@/store/hooks';
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ q?: string }>();
-  const { districtId } = useAppSelector((s) => s.location);
+  const { districtId, latitude, longitude } = useAppSelector((s) => s.location);
   const [query, setQuery] = useState(params.q ?? '');
   const [debounced, setDebounced] = useState(query);
 
@@ -31,8 +31,8 @@ export default function SearchScreen() {
   }, [query]);
 
   const { data, isFetching } = useQuery({
-    queryKey: ['search', debounced, districtId],
-    queryFn: () => productApi.searchProducts(debounced, districtId ?? undefined),
+    queryKey: ['search', debounced, districtId, latitude, longitude],
+    queryFn: () => productApi.searchProducts(debounced, districtId ?? undefined, undefined, latitude, longitude),
     enabled: debounced.trim().length >= 2,
   });
 

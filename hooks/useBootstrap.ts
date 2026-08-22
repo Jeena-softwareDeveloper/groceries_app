@@ -11,6 +11,7 @@ import {
 } from '@/store/authSlice';
 import {
   setLocation,
+  setGPSLocation,
   setHydrated,
   clearLocation,
   setLocationResolved,
@@ -18,12 +19,16 @@ import {
 import { fetchAppSettings } from '@/api/config.api';
 import { setAppSettings } from '@/store/configSlice';
 import * as Location from 'expo-location';
+import { getDeviceId } from '@/utils/deviceId';
 
 const LOCATION_KEYS = {
   districtId: 'districtId',
   districtName: 'districtName',
   areaId: 'areaId',
   areaName: 'areaName',
+  latitude: 'loc_lat',
+  longitude: 'loc_lng',
+  displayName: 'loc_displayName',
 } as const;
 
 /** Tries GPS auto-detect and resolves a location from DB. Returns true on success. */
@@ -149,18 +154,31 @@ export function useBootstrap() {
           }
         }
 
-        // If saved location exists, load it (locationResolved is set by setLocation in the slice)
+        // Restore saved location
         if (districtId && districtName && areaId && areaName) {
-          dispatch(setLocation({ districtId, districtName, areaId, areaName }));
+          // Manual selection restored
+          const lat = await getItemAsync(LOCATION_KEYS.latitude);
+          const lng = await getItemAsync(LOCATION_KEYS.longitude);
+          dispatch(setLocation({
+            districtId, districtName, areaId, areaName,
+            latitude: lat ? parseFloat(lat) : null,
+            longitude: lng ? parseFloat(lng) : null,
+          }));
         } else {
-          // No saved location → try GPS auto-detect silently during splash
-          const gpsSuccess = await tryGPSAutoDetect(dispatch);
-          if (!mounted) return;
-          if (!gpsSuccess) {
-            // GPS failed or denied — mark resolved so splash can exit, location modal will open
+          // Try restoring GPS location (lat/lng + displayName)
+          const lat = await getItemAsync(LOCATION_KEYS.latitude);
+          const lng = await getItemAsync(LOCATION_KEYS.longitude);
+          const displayName = await getItemAsync(LOCATION_KEYS.displayName);
+          if (lat && lng && displayName) {
+            dispatch(setGPSLocation({
+              latitude: parseFloat(lat),
+              longitude: parseFloat(lng),
+              displayName,
+            }));
+          } else {
+            // No saved location — let modal open
             dispatch(setLocationResolved(true));
           }
-          // If GPS succeeded, setLocation() already set locationResolved=true in the slice
         }
 
         try {
@@ -219,14 +237,63 @@ export async function persistLocation(data: {
   districtName: string;
   areaId: string;
   areaName: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }) {
+  const displayName = `${data.areaName}, ${data.districtName}`;
   await Promise.all([
     setItemAsync(LOCATION_KEYS.districtId, data.districtId),
     setItemAsync(LOCATION_KEYS.districtName, data.districtName),
     setItemAsync(LOCATION_KEYS.areaId, data.areaId),
     setItemAsync(LOCATION_KEYS.areaName, data.areaName),
+    data.latitude != null ? setItemAsync(LOCATION_KEYS.latitude, String(data.latitude)) : Promise.resolve(),
+    data.longitude != null ? setItemAsync(LOCATION_KEYS.longitude, String(data.longitude)) : Promise.resolve(),
+    setItemAsync(LOCATION_KEYS.displayName, displayName),
   ]);
+
+  // Sync to database table for this mobile device
+  if (data.latitude != null && data.longitude != null) {
+    getDeviceId().then((deviceId) => {
+      customerApi.saveLocation({
+        deviceId,
+        displayName,
+        latitude: data.latitude!,
+        longitude: data.longitude!,
+        districtId: data.districtId,
+        areaId: data.areaId,
+      }).catch((err) => console.warn('[persistLocation] DB sync error:', err));
+    }).catch(() => {});
+  }
 }
+
+/** Persist GPS-detected location (no DB IDs — just coordinates + display name) */
+export async function persistGPSLocation(data: {
+  latitude: number;
+  longitude: number;
+  displayName: string;
+}) {
+  // Clear any old manual district/area keys
+  await Promise.all([
+    deleteItemAsync(LOCATION_KEYS.districtId),
+    deleteItemAsync(LOCATION_KEYS.districtName),
+    deleteItemAsync(LOCATION_KEYS.areaId),
+    deleteItemAsync(LOCATION_KEYS.areaName),
+    setItemAsync(LOCATION_KEYS.latitude, String(data.latitude)),
+    setItemAsync(LOCATION_KEYS.longitude, String(data.longitude)),
+    setItemAsync(LOCATION_KEYS.displayName, data.displayName),
+  ]);
+
+  // Sync to database table for this mobile device
+  getDeviceId().then((deviceId) => {
+    customerApi.saveLocation({
+      deviceId,
+      displayName: data.displayName,
+      latitude: data.latitude,
+      longitude: data.longitude,
+    }).catch((err) => console.warn('[persistGPSLocation] DB sync error:', err));
+  }).catch(() => {});
+}
+
 
 export async function wipeLocation() {
   await Promise.all(Object.values(LOCATION_KEYS).map((key) => deleteItemAsync(key)));

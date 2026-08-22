@@ -18,7 +18,7 @@ export default function ProfileScreen() {
   const dispatch = useAppDispatch();
   const { user, refreshToken, accessToken } = useAppSelector((s) => s.auth);
   const isLoggedIn = !!accessToken;
-  const { districtName, areaName } = useAppSelector((s) => s.location);
+  const { districtName, areaName, displayName } = useAppSelector((s) => s.location);
 
   const { data: vendorRequest } = useQuery({
     queryKey: ['vendorRequest', user?.id],
@@ -158,7 +158,7 @@ export default function ProfileScreen() {
             <View style={styles.rowTextCol}>
               <Text style={styles.rowTitle}>Delivery location</Text>
               <Text style={styles.rowSub} numberOfLines={1}>
-                {areaName && districtName ? `${areaName}, ${districtName}` : 'Select your location'}
+                {areaName && districtName ? `${areaName}, ${districtName}` : displayName || 'Select your location'}
               </Text>
             </View>
             <Pressable style={styles.changeLocBtn} onPress={handleChangeLocation}>

@@ -11,6 +11,7 @@ export const ENDPOINTS = {
   },
   CUSTOMER: {
     HOME_FEED: '/customer/home/feed',
+    HOME_FEED_BY_LOCATION: '/customer/home/feed/bylocation',
     CATEGORIES: '/customer/categories',
     SHOPS: {
       BASE: '/customer/shops',

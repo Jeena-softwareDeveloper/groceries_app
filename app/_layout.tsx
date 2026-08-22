@@ -48,16 +48,17 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const { ready } = useBootstrap();
   const { accessToken, user } = useAppSelector((s) => s.auth);
-  const { districtId, locationResolved } = useAppSelector((s) => s.location);
+  const { districtId, locationResolved, latitude } = useAppSelector((s) => s.location);
   const dispatch = useAppDispatch();
   const [isSplashVisible, setIsSplashVisible] = useState(true);
 
-  // After splash exits: if no location, open location modal
+  // After splash exits: open location modal only if neither manual nor GPS location is set
   useEffect(() => {
-    if (!isSplashVisible && locationResolved && !districtId) {
+    const hasLocation = !!districtId || !!latitude;
+    if (!isSplashVisible && locationResolved && !hasLocation) {
       dispatch(setShowLocationModal(true));
     }
-  }, [isSplashVisible, locationResolved, districtId, dispatch]);
+  }, [isSplashVisible, locationResolved, districtId, latitude, dispatch]);
 
   useEffect(() => {
     if (!ready) return;
@@ -67,7 +68,8 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
 
     // If logged in and on auth screen, redirect out
     if (accessToken && inAuth) {
-      if (!districtId) {
+      const hasLoc = !!districtId || !!latitude;
+      if (!hasLoc) {
         router.replace('/location');
       } else {
         router.replace(user?.role === 'VENDOR' ? '/(vendor)' : '/(tabs)');

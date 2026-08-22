@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { orderApi } from '@/api';
 import { Button } from '@/components/Button';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -15,9 +15,18 @@ export default function OrderDetailScreen() {
     enabled: !!id,
   });
 
+  const queryClient = useQueryClient();
+  
   async function cancel() {
-    await orderApi.cancelOrder(id, 'Customer cancelled');
-    router.back();
+    try {
+      await orderApi.cancelOrder(id, 'Customer cancelled');
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      Alert.alert('Cancelled', 'Your order has been cancelled.');
+      router.back();
+    } catch (e) {
+      Alert.alert('Cancel Failed', e instanceof Error ? e.message : 'Could not cancel order. Please try again.');
+    }
   }
 
   if (isLoading || !order) {

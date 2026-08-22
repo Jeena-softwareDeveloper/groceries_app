@@ -4,10 +4,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { notificationApi } from '@/api';
 import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 
 export default function NotificationsScreen() {
   const queryClient = useQueryClient();
-  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.fetchNotifications });
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
+  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.fetchNotifications, enabled: !!accessToken });
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <InnerHeader title="Notifications" showBack showSearch={false} showCart={false} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const readMutation = useMutation({
     mutationFn: notificationApi.markNotificationRead,

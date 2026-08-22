@@ -14,4 +14,10 @@ export const cartApi = {
 
   removeFromCart: (productId: string) =>
     unwrap(api.delete(ENDPOINTS.CUSTOMER.CART.BY_ID(productId))),
+
+  applyCoupon: (code: string) =>
+    unwrap(api.post(ENDPOINTS.CUSTOMER.CART.BASE + '/coupon', { code })),
+
+  removeCoupon: () =>
+    unwrap(api.delete(ENDPOINTS.CUSTOMER.CART.BASE + '/coupon')),
 };

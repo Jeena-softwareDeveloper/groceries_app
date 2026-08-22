@@ -256,7 +256,6 @@ export default function LoginScreen(props: any = {}) {
                 }
               }}
               style={{ ...styles.primaryBtn, backgroundColor: colors.white, borderColor: colors.primary, borderWidth: 1 }}
-              textStyle={{ color: colors.primary }}
             >
               Register as Vendor
             </Button>

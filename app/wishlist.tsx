@@ -5,11 +5,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
 import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 
 export default function WishlistScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: customerApi.fetchWishlist });
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
+  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: customerApi.fetchWishlist, enabled: !!accessToken });
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <InnerHeader title="Wishlist" showBack showSearch={false} showCart={false} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const removeMutation = useMutation({
     mutationFn: customerApi.removeFromWishlist,

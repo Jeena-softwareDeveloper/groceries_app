@@ -14,6 +14,6 @@ export const productApi = {
       api.get(ENDPOINTS.CUSTOMER.PRODUCTS.LIST, { params })
     ),
 
-  searchProducts: (q: string, districtId?: string, scope?: string) =>
-    unwrap<SearchResults>(api.get(ENDPOINTS.CUSTOMER.SEARCH, { params: { q, districtId, scope } })),
+  searchProducts: (q: string, districtId?: string, scope?: string, latitude?: number | null, longitude?: number | null) =>
+    unwrap<SearchResults>(api.get(ENDPOINTS.CUSTOMER.SEARCH, { params: { q, districtId, scope, latitude, longitude } })),
 };

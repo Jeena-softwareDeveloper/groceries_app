@@ -5,12 +5,11 @@ import type { HomeFeed, Shop, Address, Product, CustomerProfile } from '@/types/
 
 export const customerApi = {
   fetchHomeFeed: (districtId: string, areaId?: string, lat?: number | null, lng?: number | null) =>
-    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId, lat, lng } })).then(res => {
-      console.log('--- HOME FEED RESPONSE ---');
-      console.log(JSON.stringify(res, null, 2));
-      console.log('--------------------------');
-      return res;
-    }),
+    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED, { params: { districtId, areaId, lat, lng } })),
+
+  fetchHomeFeedByLocation: (lat: number, lng: number) =>
+    unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED_BY_LOCATION, { params: { lat, lng } })),
+
 
   fetchShops: (districtId: string, areaId?: string, categoryId?: string, lat?: number | null, lng?: number | null) =>
     unwrap<Shop[]>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BASE, { params: { districtId, areaId, categoryId, lat, lng } })),
@@ -56,4 +55,19 @@ export const customerApi = {
 
   lookupPincode: (pincode: string) =>
     unwrap<{ district: string; state: string }>(api.get(`/customer/pincode/${pincode}`)),
+
+  reverseGeocode: (lat: number, lng: number) =>
+    unwrap<{ displayName: string; locality: string; district: string }>(
+      api.get('/customer/reverse-geocode', { params: { lat, lng } }),
+    ),
+
+  saveLocation: (data: {
+    deviceId: string;
+    displayName: string;
+    latitude: number;
+    longitude: number;
+    districtId?: string;
+    areaId?: string;
+  }) => unwrap(api.post('/customer/location', data)),
 };
+

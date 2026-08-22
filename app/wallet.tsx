@@ -4,9 +4,24 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { walletApi } from '@/api';
 import { InnerHeader } from '@/components/InnerHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { setShowLoginModal } from '@/store/authSlice';
 
 export default function WalletScreen() {
-  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: walletApi.fetchWallet });
+  const { accessToken } = useAppSelector((s) => s.auth);
+  const dispatch = useAppDispatch();
+  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: walletApi.fetchWallet, enabled: !!accessToken });
+
+  if (!accessToken) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <InnerHeader title="Wallet" showBack showSearch={false} showCart={false} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>

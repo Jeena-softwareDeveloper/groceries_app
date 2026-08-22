@@ -50,10 +50,14 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { accessToken } = useAppSelector((s) => s.auth);
-  const { districtId, areaId, latitude, longitude } = useAppSelector((s) => s.location);
+  const { districtId, areaId, latitude, longitude, displayName } = useAppSelector((s) => s.location);
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const hasAttemptedLogin = useRef(false);
+
+  // True when user chose GPS (no districtId) and we have coordinates
+  const isGPSMode = !districtId && !!latitude && !!longitude;
+  const hasLocation = !!districtId || isGPSMode;
 
   const SCREEN_WIDTH = Dimensions.get('window').width;
   const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2;
@@ -68,12 +72,23 @@ export default function HomeScreen() {
     extrapolate: 'clamp',
   });
 
-  const { data, isLoading, error, refetch, isRefetching } = useQuery({
+  // GPS mode: use bylocation API (no districtId needed)
+  const gpsFeedQuery = useQuery({
+    queryKey: ['homeFeedGPS', latitude, longitude],
+    queryFn: () => customerApi.fetchHomeFeedByLocation(latitude!, longitude!),
+    enabled: isGPSMode,
+    staleTime: 60 * 1000,
+  });
+
+  // Manual mode: use regular districtId-based feed
+  const manualFeedQuery = useQuery({
     queryKey: ['homeFeed', districtId, areaId, latitude, longitude],
     queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined, latitude, longitude),
     enabled: !!districtId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000,
   });
+
+  const { data, isLoading, error, refetch, isRefetching } = isGPSMode ? gpsFeedQuery : manualFeedQuery;
 
   // Show auth modal after landing page data is ready (not before)
   useEffect(() => {
@@ -103,6 +118,14 @@ export default function HomeScreen() {
     },
     onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Could not add to cart'),
   });
+
+  const handleAddToCart = (productId: string) => {
+    if (!accessToken) {
+      dispatch(setShowLoginModal(true));
+      return;
+    }
+    addToCartMutation.mutate(productId);
+  };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     // Banner index tracking
@@ -138,8 +161,8 @@ export default function HomeScreen() {
     setSelectedCategoryId(prev => prev === catId ? null : catId);
   };
 
-  // If location not yet selected, show blank (location modal will appear)
-  if (!districtId) {
+  // No location selected yet → show blank (location modal will appear via _layout)
+  if (!hasLocation) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
 
@@ -158,6 +181,35 @@ export default function HomeScreen() {
       </View>
     );
   }
+
+  // ── "We don't serve your area" screen ────────────────────────────────────────
+  if ((data as any).serviced === false) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Feather name="map-pin" size={64} color={colors.primary} style={{ marginBottom: 24 }} />
+        <Text style={{ fontSize: 22, fontFamily: fonts.bold, color: colors.text, textAlign: 'center', marginBottom: 12 }}>
+          We're not here yet!
+        </Text>
+        <Text style={{ fontSize: 15, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 8 }}>
+          Sorry, we don't have any stores serving{'\n'}
+          <Text style={{ fontFamily: fonts.bold, color: colors.primary }}>
+            {displayName || 'your area'}
+          </Text>{' '}right now.
+        </Text>
+        <Text style={{ fontSize: 13, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', marginBottom: 32 }}>
+          We're expanding soon! Try selecting a nearby area manually.
+        </Text>
+        <Pressable
+          style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 30, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          onPress={() => dispatch(setShowLocationModal(true))}
+        >
+          <Feather name="map" size={18} color="#fff" />
+          <Text style={{ fontSize: 16, fontFamily: fonts.bold, color: '#fff' }}>Change Location</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
 
   const activeBanner = data?.banners?.[activeBannerIndex];
   const headerColor = activeBanner?.themeColor || colors.primary;
@@ -388,7 +440,6 @@ export default function HomeScreen() {
             const filtered = selectedCategoryId
               ? (data?.trendingProducts ?? []).filter((p: any) => p.categoryId === selectedCategoryId)
               : (data?.trendingProducts ?? []);
-            console.log('RENDERING BEST SELLERS, filtered length:', filtered.length, 'selectedCategoryId:', selectedCategoryId);
             return filtered.length ? (
               <>
                 <SectionHeader title={selectedCategoryId ? (data?.categories?.find((c: any) => c.id === selectedCategoryId)?.name ?? 'Products') : 'Best Sellers'} onAction={() => {}} />
@@ -398,7 +449,7 @@ export default function HomeScreen() {
                       key={p.id}
                       product={p}
                       onPress={() => router.push(`/product/${p.id}`)}
-                      onAddToCart={() => addToCartMutation.mutate(p.id)}
+                      onAddToCart={() => handleAddToCart(p.id)}
                     />
                   ))}
                 </ScrollView>
@@ -471,7 +522,7 @@ export default function HomeScreen() {
                         product={p}
                         compact={true}
                         onPress={() => router.push(`/product/${p.id}`)}
-                        onAddToCart={() => addToCartMutation.mutate(p.id)}
+                        onAddToCart={() => handleAddToCart(p.id)}
                       />
                     </View>
                   ))}

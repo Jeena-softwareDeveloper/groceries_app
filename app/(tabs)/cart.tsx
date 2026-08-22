@@ -23,6 +23,7 @@ import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setItemCount } from '@/store/cartSlice';
+import { setShowLoginModal } from '@/store/authSlice';
 import Toast from 'react-native-toast-message';
 
 import type { Address } from '@/types/customer';
@@ -206,25 +207,28 @@ export default function CartScreen() {
     }
   }
 
-  function handleApplyCoupon() {
+  async function handleApplyCoupon() {
     if (!couponCode.trim()) {
       Toast.show({ type: 'error', text1: 'Empty Coupon', text2: 'Please enter a coupon code.' });
       return;
     }
-    Toast.show({ type: 'error', text1: 'Invalid Coupon', text2: 'This coupon code is not valid or expired.' });
-    setCouponCode('');
-    setShowCouponModal(false);
+    try {
+      const result = await cartApi.applyCoupon(couponCode.trim()) as { message?: string; discount?: number };
+      Toast.show({ type: 'success', text1: 'Coupon Applied!', text2: result.message || `You save ₹${result.discount ?? 0}` });
+      setCouponCode('');
+      setShowCouponModal(false);
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    } catch (e) {
+      Toast.show({ type: 'error', text1: 'Invalid Coupon', text2: e instanceof Error ? e.message : 'This coupon code is not valid or expired.' });
+    }
   }
 
   useEffect(() => {
     if (!accessToken) {
-      // Return to home feed and open login modal instead of showing a dedicated Please Login screen
+      dispatch(setShowLoginModal(true));
       router.replace('/(tabs)');
-      setTimeout(() => {
-        router.push('/(auth)/login');
-      }, 100);
     }
-  }, [accessToken, router]);
+  }, [accessToken, router, dispatch]);
 
   if (!accessToken) {
     return <View style={styles.safe} />;
