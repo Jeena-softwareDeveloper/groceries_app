@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -271,7 +273,7 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     return (
       <View style={styles.pickerSheet}>
         <View style={styles.pickerHeader}>
-          <Pressable onPress={() => setStep('home')} style={styles.backBtn}>
+          <Pressable onPress={() => setStep('home')} style={styles.backBtn} hitSlop={10}>
             <Feather name="arrow-left" size={20} color={colors.text} />
           </Pressable>
           <Text style={styles.pickerTitle}>Select District</Text>
@@ -285,12 +287,24 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
             value={districtSearch}
             onChangeText={setDistrictSearch}
             autoFocus
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
+          {districtSearch.length > 0 && (
+            <Pressable onPress={() => setDistrictSearch('')} hitSlop={8}>
+              <Feather name="x-circle" size={16} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
         {districtsQuery.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={styles.listContent}
+          >
             {filteredDistricts.map((d) => (
               <Pressable
                 key={d.id}
@@ -319,6 +333,11 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
                 )}
               </Pressable>
             ))}
+            {filteredDistricts.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No districts found for "{districtSearch}"</Text>
+              </View>
+            )}
           </ScrollView>
         )}
       </View>
@@ -329,26 +348,43 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     return (
       <View style={styles.pickerSheet}>
         <View style={styles.pickerHeader}>
-          <Pressable onPress={() => setStep('home')} style={styles.backBtn}>
+          <Pressable onPress={() => setStep('home')} style={styles.backBtn} hitSlop={10}>
             <Feather name="arrow-left" size={20} color={colors.text} />
           </Pressable>
-          <Text style={styles.pickerTitle}>Select Area</Text>
+          <View>
+            <Text style={styles.pickerTitle}>Select Area</Text>
+            {selectedDistrict && (
+              <Text style={styles.pickerSubtitle}>in {selectedDistrict.name}</Text>
+            )}
+          </View>
         </View>
         <View style={styles.searchBox}>
           <Feather name="search" size={16} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search area…"
+            placeholder={`Search area in ${selectedDistrict?.name || ''}…`}
             placeholderTextColor={colors.textMuted}
             value={areaSearch}
             onChangeText={setAreaSearch}
             autoFocus
+            returnKeyType="search"
+            clearButtonMode="while-editing"
           />
+          {areaSearch.length > 0 && (
+            <Pressable onPress={() => setAreaSearch('')} hitSlop={8}>
+              <Feather name="x-circle" size={16} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
         {areasQuery.isLoading ? (
           <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
         ) : (
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={styles.listContent}
+          >
             {filteredAreas.map((a) => (
               <Pressable
                 key={a.id}
@@ -376,6 +412,11 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
                 )}
               </Pressable>
             ))}
+            {filteredAreas.length === 0 && (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No areas found for "{areaSearch}"</Text>
+              </View>
+            )}
           </ScrollView>
         )}
       </View>
@@ -395,19 +436,36 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     return (
       <View style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY: slideAnim }] }]}>
-          {content}
-        </Animated.View>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoid}
+        >
+          <Animated.View
+            style={[
+              styles.sheet,
+              step !== 'home' && styles.sheetExpanded,
+              { transform: [{ translateY: slideAnim }] },
+            ]}
+          >
+            {content}
+          </Animated.View>
+        </KeyboardAvoidingView>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeFull}>
-      {content}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+      >
+        {content}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
@@ -417,12 +475,21 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
+  keyboardAvoid: {
+    width: '100%',
+    justifyContent: 'flex-end',
+  },
   sheet: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '92%',
     overflow: 'hidden',
+  },
+
+  sheetExpanded: {
+    height: '88%',
+    maxHeight: '92%',
   },
   safeFull: {
     flex: 1,
@@ -565,7 +632,7 @@ const styles = StyleSheet.create({
   // ── Picker steps ──
   pickerSheet: {
     flex: 1,
-    minHeight: 400,
+    minHeight: 450,
   },
   pickerHeader: {
     flexDirection: 'row',
@@ -583,6 +650,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.text,
   },
+  pickerSubtitle: {
+    fontSize: 12,
+    fontFamily: fonts.regular,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -599,6 +672,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     color: colors.text,
   },
+  listContent: {
+    paddingBottom: 60,
+  },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -614,4 +690,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     color: colors.text,
   },
+  emptyState: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontFamily: fonts.regular,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
 });
+
