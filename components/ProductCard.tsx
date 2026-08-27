@@ -1,5 +1,7 @@
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import type { Product } from '@/types/customer';
 
@@ -15,7 +17,7 @@ function formatPrice(value: number | string) {
   return `₹${Number(value).toFixed(0)}`;
 }
 
-export function ProductCard({ product, onPress, onAddToCart, isAdding, compact }: ProductCardProps) {
+export const ProductCard = React.memo(({ product, onPress, onAddToCart, isAdding, compact }: ProductCardProps) => {
   const imageUrl = product.images?.[0]?.url;
   const mrp = product.mrp ? Number(product.mrp) : null;
   const price = Number(product.sellingPrice);
@@ -25,7 +27,7 @@ export function ProductCard({ product, onPress, onAddToCart, isAdding, compact }
     <Pressable style={[styles.card, compact && styles.compact]} onPress={onPress}>
       <View style={styles.imageWrap}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
+          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
         ) : (
           <View style={[styles.image, styles.placeholder]}>
             <Text style={styles.placeholderText}>No image</Text>
@@ -60,7 +62,7 @@ export function ProductCard({ product, onPress, onAddToCart, isAdding, compact }
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

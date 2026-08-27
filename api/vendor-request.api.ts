@@ -27,6 +27,7 @@ export interface VendorRequest {
   districtId?: string;
   areaId?: string;
   address?: string;
+  landmark?: string;
   latitude?: number;
   longitude?: number;
   deliveryRadius?: number;

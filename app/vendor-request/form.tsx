@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { vendorRequestApi, type VendorRequest } from '@/api/vendor-request.api';
 import { api } from '@/api/client';
 import { colors, spacing, radius, fonts, typography } from '@/constants/theme';
@@ -53,11 +54,8 @@ function DocUploader({
     setUploading(true);
     try {
       const asset = result.assets[0];
-      // 1. Get signature from backend
-      const sigRes = await api.get<{ data: { signature: string; timestamp: number; cloudName: string; apiKey: string; folder: string } }>('/upload/signature?folder=districtmart/vendors');
-      const { signature, timestamp, cloudName, apiKey, folder: uploadFolder } = sigRes.data.data;
 
-      // 2. Prepare form data for Cloudinary
+      // 1. Prepare form data for our backend
       const form = new FormData();
       if (Platform.OS === 'web') {
         const response = await fetch(asset.uri);
@@ -66,23 +64,18 @@ function DocUploader({
       } else {
         form.append('file', { uri: asset.uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
       }
-      form.append('api_key', apiKey);
-      form.append('timestamp', timestamp.toString());
-      form.append('signature', signature);
-      form.append('folder', uploadFolder);
+      form.append('folder', 'districtmart/vendors');
 
-      // 3. Upload directly to Cloudinary
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: form,
+      // 2. Upload directly to our backend server
+      const uploadRes = await api.post('/upload', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      if (!uploadRes.ok) {
-        throw new Error('Cloudinary upload failed');
+      if (!uploadRes.data.success) {
+        throw new Error('Upload failed');
       }
 
-      const uploadData = await uploadRes.json();
-      onChange(uploadData.secure_url);
+      onChange(uploadRes.data.data.url);
     } catch (e) {
       if (Platform.OS === 'web') window.alert('Could not upload the image. Please try again.');
       else Toast.show({ type: 'error', text1: 'Upload Failed', text2: 'Could not upload the image. Please try again.' });
@@ -299,6 +292,49 @@ export default function VendorRequestFormScreen() {
   }
 
 
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+  async function handleDetectLocation() {
+    setIsDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Please allow location access in your device settings.' });
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      const lat = location.coords.latitude;
+      const lng = location.coords.longitude;
+      
+      set('latitude', lat);
+      set('longitude', lng);
+
+      // Attempt reverse geocoding via standard Expo location or backend
+      const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+      if (geocode && geocode.length > 0) {
+        const place = geocode[0];
+        const addrParts = [];
+        if (place.name) addrParts.push(place.name);
+        if (place.street) addrParts.push(place.street);
+        if (place.subregion) addrParts.push(place.subregion);
+        if (place.city) addrParts.push(place.city);
+        if (place.region) addrParts.push(place.region);
+        if (place.postalCode) addrParts.push(place.postalCode);
+        
+        if (addrParts.length > 0) {
+           set('address', addrParts.join(', '));
+        }
+      }
+      
+      Toast.show({ type: 'success', text1: 'Location Detected', text2: 'Coordinates and address fetched successfully.' });
+    } catch (error) {
+      Toast.show({ type: 'error', text1: 'Location Error', text2: 'Could not fetch your current location.' });
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  }
+
   function renderStep2() {
     return (
       <>
@@ -320,6 +356,15 @@ export default function VendorRequestFormScreen() {
   function renderStep3() {
     return (
       <>
+        <View style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
+          <Button 
+            title={isDetectingLocation ? "Detecting..." : "Detect My Location (GPS)"} 
+            onPress={handleDetectLocation} 
+            disabled={isDetectingLocation}
+            icon="map-pin"
+          />
+        </View>
+
         <Select 
           label="District" 
           placeholder="Select a District"
@@ -337,6 +382,7 @@ export default function VendorRequestFormScreen() {
           />
         )}
         <Input label="Complete Shop Address" value={form.address ?? ''} onChangeText={(v) => set('address', v)} multiline />
+        <Input label="Landmark (Optional)" value={form.landmark ?? ''} onChangeText={(v) => set('landmark', v)} />
         <Input label="Latitude (Optional)" value={form.latitude?.toString() ?? ''} onChangeText={(v) => set('latitude', parseFloat(v) || undefined)} keyboardType="decimal-pad" />
         <Input label="Longitude (Optional)" value={form.longitude?.toString() ?? ''} onChangeText={(v) => set('longitude', parseFloat(v) || undefined)} keyboardType="decimal-pad" />
         <Input label="Delivery Radius (km)" value={form.deliveryRadius?.toString() ?? '5'} onChangeText={(v) => set('deliveryRadius', parseFloat(v) || 5)} keyboardType="decimal-pad" />

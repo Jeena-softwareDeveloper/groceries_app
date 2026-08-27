@@ -116,20 +116,16 @@ function ProductFormModal({
       }
       setLoading(true);
 
-      // Upload images to Cloudinary
+      // Upload images to our backend (FTP)
       const uploadedImages = [];
       if (images.length > 0) {
-        let sigData: any = null;
         for (let i = 0; i < images.length; i++) {
           const uri = images[i];
           if (uri.startsWith('http')) {
             uploadedImages.push({ id: '', url: uri, isPrimary: i === primaryIndex });
             continue;
           }
-          if (!sigData) {
-            const sigRes = await api.get<{ data: { signature: string; timestamp: number; cloudName: string; apiKey: string; folder: string } }>('/upload/signature?folder=districtmart/products');
-            sigData = sigRes.data.data;
-          }
+
           const formBody = new FormData();
           if (Platform.OS === 'web') {
             const response = await fetch(uri);
@@ -138,18 +134,14 @@ function ProductFormModal({
           } else {
             formBody.append('file', { uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
           }
-          formBody.append('api_key', sigData.apiKey);
-          formBody.append('timestamp', sigData.timestamp.toString());
-          formBody.append('signature', sigData.signature);
-          formBody.append('folder', sigData.folder);
+          formBody.append('folder', 'districtmart/products');
 
-          const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sigData.cloudName}/image/upload`, {
-            method: 'POST',
-            body: formBody,
+          const uploadRes = await api.post('/upload', formBody, {
+            headers: { 'Content-Type': 'multipart/form-data' },
           });
-          if (!uploadRes.ok) throw new Error('Cloudinary upload failed');
-          const uploadData = await uploadRes.json();
-          uploadedImages.push({ id: '', url: uploadData.secure_url, isPrimary: i === primaryIndex });
+          
+          if (!uploadRes.data.success) throw new Error('Image upload failed');
+          uploadedImages.push({ id: '', url: uploadRes.data.data.url, isPrimary: i === primaryIndex });
         }
       }
 

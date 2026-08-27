@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { getItemAsync, setItemAsync, deleteItemAsync } from '../utils/storage';
 import type { ApiResponse } from '@shared/types';
 import { store } from '../store';
-import { clearAuth } from '../store/authSlice';
+import { clearAuth, setTokens } from '../store/authSlice';
 
 export const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? '';
 
@@ -13,40 +13,51 @@ export const api = axios.create({
   baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
-    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
   },
   timeout: 20000,
 });
 
+
 // ── Request interceptor: attach access token ─────────────────────────────────
 api.interceptors.request.use(async (config) => {
   config.url = `/api/v1${config.url}`;
-  const token = await getItemAsync(TOKEN_KEY);
+  
+  // Try Redux first (in-memory, instant)
+  let token = store.getState().auth.accessToken;
+  
+  // Fallback to SecureStore
+  if (!token) {
+    token = await getItemAsync(TOKEN_KEY);
+  }
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// ── Refresh queue ─────────────────────────────────────────────────────────────
+// ── Refresh queue ─────────────────────────────────────────────────────
 let isRefreshing = false;
-type QueueItem = { resolve: (token: string) => void; reject: (err: unknown) => void };
-let refreshQueue: QueueItem[] = [];
+type QueueCallback = (token: string | null) => void;
+let refreshQueue: QueueCallback[] = [];
 
-function processQueue(error: unknown, token: string | null) {
-  refreshQueue.forEach((item) => {
-    if (error) {
-      item.reject(error);
-    } else {
-      item.resolve(token!);
-    }
-  });
+function processQueue(token: string | null) {
+  refreshQueue.forEach((cb) => cb(token));
   refreshQueue = [];
 }
 
-// ── Response interceptor: handle 401 → refresh ───────────────────────────────
+// ── Response interceptor: handle 401 → refresh and fix localhost URLs ────────
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Fix localhost URLs for images/videos when running on physical device
+    if (response.data && typeof response.data === 'object' && API_BASE) {
+      const str = JSON.stringify(response.data);
+      if (str.includes('http://localhost:4000')) {
+        response.data = JSON.parse(str.replace(/http:\/\/localhost:4000/g, API_BASE));
+      }
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
@@ -73,12 +84,13 @@ api.interceptors.response.use(
     // If already refreshing, queue this request
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
-        refreshQueue.push({
-          resolve: (token) => {
+        refreshQueue.push((token: string | null) => {
+          if (token) {
             originalRequest.headers.Authorization = `Bearer ${token}`;
             resolve(api(originalRequest));
-          },
-          reject,
+          } else {
+            reject(error);
+          }
         });
       });
     }
@@ -86,7 +98,11 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const refreshToken = await getItemAsync(REFRESH_KEY);
+      let refreshToken = store.getState().auth.refreshToken;
+      if (!refreshToken) {
+        refreshToken = await getItemAsync(REFRESH_KEY);
+      }
+      
       if (!refreshToken) {
         throw new Error('No refresh token stored');
       }
@@ -103,15 +119,16 @@ api.interceptors.response.use(
       }
 
       const { accessToken: newAccess, refreshToken: newRefresh } = res.data.data;
+      store.dispatch(setTokens({ accessToken: newAccess, refreshToken: newRefresh }));
       await saveTokens(newAccess, newRefresh);
 
       // Resolve all queued requests with the new token
-      processQueue(null, newAccess);
+      processQueue(newAccess);
 
       originalRequest.headers.Authorization = `Bearer ${newAccess}`;
       return api(originalRequest);
     } catch (refreshErr: any) {
-      processQueue(refreshErr, null);
+      processQueue(null);
 
       // Only hard-logout on explicit auth rejection (401/403) or truly missing token.
       // Network timeouts, 500s, etc. should NOT log the user out.

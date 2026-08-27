@@ -44,11 +44,17 @@ export interface Shop {
   slug: string;
   logoUrl?: string | null;
   bannerUrl?: string | null;
+  phone?: string;
   rating?: number | null;
+  ratingCount?: number;
   minOrderValue?: number | null;
   isOpen?: boolean;
   address?: string | null;
   area?: { id: string; name: string };
+  _count?: { products: number };
+  reviews?: { id: string; rating: number; comment?: string; createdAt: string; customer?: { name: string } }[];
+  distance?: number;
+  inDeliveryRadius?: boolean;
 }
 
 export interface ProductImage {

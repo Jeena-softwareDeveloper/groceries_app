@@ -1,11 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Animated,
   Dimensions,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,16 +13,17 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
-  RefreshControl
+  RefreshControl,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import LottieView from 'lottie-react-native';
 import { customerApi, cartApi } from '@/api';
 import { AnimatedLoader } from '@/components/AnimatedLoader';
 import { CategoryCard } from '@/components/CategoryCard';
-import { Header } from '@/components/Header';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
@@ -32,17 +32,25 @@ import { setItemCount } from '@/store/cartSlice';
 import { setShowLoginModal } from '@/store/authSlice';
 import { setShowLocationModal } from '@/store/locationSlice';
 
+import { useEvent } from 'expo';
 
-function SectionHeader({ title, onAction }: { title: string; onAction?: () => void }) {
+function VideoBanner({ url, style, onReady }: { url: string, style: any, onReady?: () => void }) {
+  const player = useVideoPlayer(url, (player) => {
+    player.loop = true;
+    player.muted = true;
+    player.play();
+  });
+  const { status } = useEvent(player, 'statusChange', { status: player.status });
+
+  useEffect(() => {
+    if (status === 'readyToPlay' && onReady) {
+      onReady();
+    }
+  }, [status, onReady]);
+
   return (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {onAction ? (
-        <Pressable onPress={onAction} style={styles.viewAllRow}>
-          <Text style={styles.viewAll}>View all</Text>
-          <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-        </Pressable>
-      ) : null}
+    <View style={[style, { position: 'relative' }]}>
+      <VideoView style={StyleSheet.absoluteFill} player={player} nativeControls={false} contentFit="cover" />
     </View>
   );
 }
@@ -50,63 +58,43 @@ function SectionHeader({ title, onAction }: { title: string; onAction?: () => vo
 export default function HomeScreen() {
   const router = useRouter();
   const { accessToken } = useAppSelector((s) => s.auth);
-  const { districtId, areaId, latitude, longitude, displayName } = useAppSelector((s) => s.location);
+  const { districtId, areaId, latitude, longitude, displayName, areaName, districtName } = useAppSelector((s) => s.location);
+  const itemCount = useAppSelector((s) => s.cart.itemCount);
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const hasAttemptedLogin = useRef(false);
 
-  // True when user chose GPS (no districtId) and we have coordinates
   const isGPSMode = !districtId && !!latitude && !!longitude;
   const hasLocation = !!districtId || isGPSMode;
 
   const SCREEN_WIDTH = Dimensions.get('window').width;
-  const BANNER_WIDTH = SCREEN_WIDTH - spacing.md * 2;
-  const BANNER_HEIGHT = Math.round(BANNER_WIDTH * 0.45);
+  const VIDEO_HEIGHT = Math.round(SCREEN_WIDTH * 0.48); // Reduced from 16:9ish
 
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  const handleVideoReady = useCallback(() => setIsVideoReady(true), []);
 
-  // Scroll down → header slides up and hides; scroll back → it reappears
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 68],
-    outputRange: [0, -68],
-    extrapolate: 'clamp',
-  });
-
-  // GPS mode: use bylocation API (no districtId needed)
-  const gpsFeedQuery = useQuery({
-    queryKey: ['homeFeedGPS', latitude, longitude],
-    queryFn: () => customerApi.fetchHomeFeedByLocation(latitude!, longitude!),
-    enabled: isGPSMode,
-    staleTime: 60 * 1000,
-  });
-
-  // Manual mode: use regular districtId-based feed
-  const manualFeedQuery = useQuery({
+  const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['homeFeed', districtId, areaId, latitude, longitude],
-    queryFn: () => customerApi.fetchHomeFeed(districtId!, areaId ?? undefined, latitude, longitude),
-    enabled: !!districtId,
+    queryFn: () => customerApi.fetchHomeFeed(districtId ?? '', areaId ?? undefined, latitude, longitude),
+    enabled: hasLocation,
     staleTime: 60 * 1000,
   });
 
-  const { data, isLoading, error, refetch, isRefetching } = isGPSMode ? gpsFeedQuery : manualFeedQuery;
+  const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
+  const hasVideo = row1Banner?.type === 'VIDEO' && !!row1Banner.videoUrl;
+  const isPageLoading = !hasLocation || isLoading || !data;
+  const showVideoLoader = hasVideo && !isVideoReady;
+  const showOverlay = isPageLoading || showVideoLoader;
 
-  // Show auth modal after landing page data is ready (not before)
   useEffect(() => {
-    if (data && !accessToken && !hasAttemptedLogin.current) {
+    if (data && !showOverlay && !accessToken && !hasAttemptedLogin.current) {
       hasAttemptedLogin.current = true;
-      const timer = setTimeout(() => dispatch(setShowLoginModal(true)), 600);
+      const timer = setTimeout(() => dispatch(setShowLoginModal(true)), 2000);
       return () => clearTimeout(timer);
     }
-  }, [data, accessToken, dispatch]);
+  }, [data, showOverlay, accessToken, dispatch]);
 
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
-  const [headerHeight, setHeaderHeight] = useState(130); // tracks actual header height for overlay positioning
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [catBarVisible, setCatBarVisible] = useState(false);
-  const catBarY = useRef(0); // Y position of the categories row in the scroll view
-  const catTabAnim = useRef(new Animated.Value(0)).current; // animated underline position
-  const catBarOpacity = useRef(new Animated.Value(0)).current;
-  const catBarTranslateY = useRef(new Animated.Value(-48)).current;
 
   const addToCartMutation = useMutation({
     mutationFn: (productId: string) => cartApi.addToCart(productId, 1),
@@ -120,256 +108,152 @@ export default function HomeScreen() {
   });
 
   const handleAddToCart = (productId: string) => {
-    if (!accessToken) {
-      dispatch(setShowLoginModal(true));
-      return;
-    }
+    if (!accessToken) { dispatch(setShowLoginModal(true)); return; }
     addToCartMutation.mutate(productId);
   };
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // Banner index tracking
-    if (data?.banners?.length) {
-      const scrollX = event.nativeEvent.contentOffset.x;
-      const itemWidth = BANNER_WIDTH + spacing.sm;
-      const index = Math.round(scrollX / itemWidth);
-      const safeIndex = Math.min(Math.max(index, 0), data.banners.length - 1);
-      if (safeIndex !== activeBannerIndex) setActiveBannerIndex(safeIndex);
-    }
-  };
+  const locationLabel = areaName && districtName
+    ? `${areaName}, ${districtName}`
+    : displayName || 'Select location';
 
-  // Show/hide sticky cat bar based on scroll
-  const handleMainScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-    {
-      useNativeDriver: true,
-      listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-        const y = e.nativeEvent.contentOffset.y;
-        const shouldShow = catBarY.current > 0 && y > catBarY.current - headerHeight - 10;
-        if (shouldShow !== catBarVisible) {
-          setCatBarVisible(shouldShow);
-          Animated.parallel([
-            Animated.spring(catBarOpacity, { toValue: shouldShow ? 1 : 0, useNativeDriver: true, tension: 80, friction: 10 }),
-            Animated.spring(catBarTranslateY, { toValue: shouldShow ? 0 : -48, useNativeDriver: true, tension: 80, friction: 10 }),
-          ]).start();
-        }
-      }
-    }
-  );
 
-  const handleCategorySelect = (catId: string, _index: number) => {
-    setSelectedCategoryId(prev => prev === catId ? null : catId);
-  };
-
-  // No location selected yet → show blank (location modal will appear via _layout)
-  if (!hasLocation) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
-  }
-
-  if (isLoading || !data) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
-        <AnimatedLoader size="large" />
-      </View>
-    );
-  }
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <Text style={{ color: colors.error, textAlign: 'center', fontFamily: fonts.regular }}>
+          {error instanceof Error ? error.message : 'Failed to load'}
+        </Text>
       </View>
     );
   }
 
-  // ── "We don't serve your area" screen ────────────────────────────────────────
-  if ((data as any).serviced === false) {
+  if (data && (data as any).serviced === false) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-        <Feather name="map-pin" size={64} color={colors.primary} style={{ marginBottom: 24 }} />
-        <Text style={{ fontSize: 22, fontFamily: fonts.bold, color: colors.text, textAlign: 'center', marginBottom: 12 }}>
-          We're not here yet!
-        </Text>
-        <Text style={{ fontSize: 15, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 8 }}>
-          Sorry, we don't have any stores serving{'\n'}
-          <Text style={{ fontFamily: fonts.bold, color: colors.primary }}>
-            {displayName || 'your area'}
-          </Text>{' '}right now.
-        </Text>
-        <Text style={{ fontSize: 13, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', marginBottom: 32 }}>
-          We're expanding soon! Try selecting a nearby area manually.
-        </Text>
-        <Pressable
-          style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 30, flexDirection: 'row', alignItems: 'center', gap: 8 }}
-          onPress={() => dispatch(setShowLocationModal(true))}
-        >
-          <Feather name="map" size={18} color="#fff" />
-          <Text style={{ fontSize: 16, fontFamily: fonts.bold, color: '#fff' }}>Change Location</Text>
-        </Pressable>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Feather name="map-pin" size={64} color={colors.primary} style={{ marginBottom: 24 }} />
+          <Text style={{ fontSize: 22, fontFamily: fonts.bold, color: colors.text, textAlign: 'center', marginBottom: 12 }}>
+            We're not here yet!
+          </Text>
+          <Text style={{ fontSize: 15, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
+            Sorry, we don't have stores in {displayName || 'your area'} yet.
+          </Text>
+          <Pressable
+            style={{ backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            onPress={() => dispatch(setShowLocationModal(true))}
+          >
+            <Feather name="map" size={18} color="#fff" />
+            <Text style={{ fontSize: 16, fontFamily: fonts.bold, color: '#fff' }}>Change Location</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     );
   }
 
+  // ── Banner helpers ─────────────────────────────────────────────────────────
+  const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
+  const row3Banner = data?.banners?.find((b: any) => b.row === 3);
 
-  const activeBanner = data?.banners?.[activeBannerIndex];
-  const headerColor = activeBanner?.themeColor || colors.primary;
-  const headerColorEnd = activeBanner?.themeColorEnd || headerColor;
+  console.log('[HomeScreen] row1Banner:', row1Banner);
+  console.log('[HomeScreen] row2Banners count:', row2Banners.length);
+  console.log('[HomeScreen] row3Banner:', row3Banner);
 
-  // SafeAreaView bg matches the START color of the gradient
-  const safeAreaBg = headerColor;
+  const halfW = (SCREEN_WIDTH - spacing.md * 2 - spacing.sm) / 2;
+  const row2H = Math.round(halfW * 0.95);
+  const row3H = Math.round((SCREEN_WIDTH - spacing.md * 2) * 0.44);
 
-  // Gradient: solid top → gradual transition to end color → slow fade to transparent near banner bottom
-  const headerGradientColors: [string, string, string, string, string] = [
-    headerColor,           // solid at top (app name)
-    headerColor,           // solid through search bar
-    headerColorEnd,        // end color at location row
-    headerColorEnd + '44', // 27% opacity — deep into banner, slow fade
-    'transparent',         // fully gone near banner bottom
-  ] as any;
-
+  // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: safeAreaBg }]} edges={['top']}>
-      <View style={{ flex: 1, position: 'relative' }}>
-        {/* ═══ STICKY HEADER ═══ */}
-        <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, transform: [{ translateY: headerTranslateY }] }}>
-          <LinearGradient
-            colors={[headerColor, headerColorEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
-          >
-                  <Header showLogo={true} showLocation={true} darkIcons style={{ backgroundColor: 'transparent' }} scrollY={scrollY} onLocationPress={() => dispatch(setShowLocationModal(true))} />
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* ═══════════════════════════════════════════════════════════
+          STICKY HEADER: Logo | Location | Bell + Cart
+      ═══════════════════════════════════════════════════════════ */}
+      <View style={styles.header}>
+        {/* Logo */}
+        <Pressable style={styles.logoRow} onPress={() => {}}>
+          <Image source={require('@/assets/images/logo.png')} style={styles.logoImg} contentFit="contain" />
+          <View>
+            <Text style={[styles.logoText, { color: '#0f5132' }]}>ALL TIME</Text>
+            <Text style={[styles.logoText, { color: '#ea580c' }]}>MARKET</Text>
+          </View>
+        </Pressable>
 
-          </LinearGradient>
-        </Animated.View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {/* Location pill */}
+          <Pressable style={styles.locationPill} onPress={() => dispatch(setShowLocationModal(true))}>
+            <Ionicons name="location" size={13} color={colors.text} />
+            <Text style={styles.locationPillText} numberOfLines={1}>{locationLabel}</Text>
+            <Ionicons name="chevron-down" size={12} color={colors.textMuted} />
+          </Pressable>
 
-        {/* ═══ STICKY CATEGORY TAB BAR — slides in below search bar when scrolled past categories ═══ */}
-        {data?.categories?.length ? (
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: headerHeight,
-              left: 0,
-              right: 0,
-              zIndex: 9,
-              opacity: catBarOpacity,
-              transform: [
-                { translateY: catBarTranslateY },
-                { translateY: headerTranslateY }, // follows header when it hides
-              ],
-              backgroundColor: colors.white,
-              borderBottomWidth: 1,
-              borderBottomColor: '#f0f0f0',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 6,
-              elevation: 4,
-            }}
-          >
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: spacing.md, paddingVertical: 8, gap: 8 }}
-            >
-              {/* All pill */}
-              <Pressable
-                onPress={() => setSelectedCategoryId(null)}
-                style={[styles.catPill, !selectedCategoryId && styles.catPillActive]}
-              >
-                <Text style={[styles.catPillText, !selectedCategoryId && styles.catPillTextActive]}>All</Text>
-              </Pressable>
-              {data.categories.map((cat) => (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => router.push(`/category/${cat.id}?name=${encodeURIComponent(cat.name)}`)}
-                  style={[styles.catPill, selectedCategoryId === cat.id && styles.catPillActive]}
-                >
-                  <Text style={[styles.catPillText, selectedCategoryId === cat.id && styles.catPillTextActive]}>
-                    {cat.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        ) : null}
+          {/* Bell */}
+          <Pressable style={styles.headerIconBtn} onPress={() => router.push('/notifications')}>
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
+            <View style={styles.bellDot} />
+          </Pressable>
+        </View>
+      </View>
 
-          <Animated.ScrollView
-            refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
-            style={{ backgroundColor: colors.background }}
-            contentContainerStyle={[styles.scroll, { paddingTop: headerHeight > 0 ? headerHeight : 120 }]}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleMainScroll}
-            scrollEventThrottle={16}
-          >
-            {/* NO VENDORS WARNING */}
-            {data?.nearbyShops?.length === 0 && data?.trendingProducts?.length === 0 ? (
-              <View style={{ marginTop: headerHeight + 60, padding: 20, alignItems: 'center' }}>
-                <Feather name="map-pin" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
-                <Text style={{ fontSize: 18, fontFamily: fonts.bold, color: colors.text, textAlign: 'center', marginBottom: 8 }}>
-                  We don't serve your exact area yet.
-                </Text>
-                <Text style={{ fontSize: 14, fontFamily: fonts.regular, color: colors.textMuted, textAlign: 'center' }}>
-                  There are no vendors delivering to your current location at the moment. Please try a different location.
-                </Text>
-                <Pressable
-                  style={{ marginTop: 20, backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: radius.full }}
-                  onPress={() => dispatch(setShowLocationModal(true))}
-                >
-                  <Text style={{ color: colors.white, fontFamily: fonts.bold, fontSize: 14 }}>Change Location</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <>
-            {/* ═══ GRADIENT FADE: sits BEHIND the banners, scrolls up with them ═══ */}
-            <View style={{ width: '100%', position: 'relative', zIndex: 0 }}>
-              <LinearGradient
-                colors={[headerColorEnd, headerColorEnd + '00']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: BANNER_HEIGHT * 0.9, // Fades perfectly past the middle of the banner
-                }}
-                pointerEvents="none"
-              />
+      {/* ═══════════════════════════════════════════════════════════
+          SCROLLABLE CONTENT
+      ═══════════════════════════════════════════════════════════ */}
+      {!isPageLoading && (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        >
+          {/* ── ROW 1: VIDEO OR IMAGE BANNER ── */}
+          {row1Banner?.videoUrl ? (
+            <View style={styles.videoBannerWrap}>
+              <VideoBanner url={row1Banner.videoUrl} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
             </View>
-          {/* Banners: normal flow, renders ON TOP of the gradient background */}
-          {data?.banners?.length ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.bannersList}
-              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}
-              decelerationRate="fast"
-              snapToAlignment="start"
-              snapToInterval={BANNER_WIDTH + spacing.sm}
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-            >
-              {data.banners.map((banner: any) => (
-                <View key={banner.id} style={[styles.bannerItem, { width: BANNER_WIDTH, height: BANNER_HEIGHT }]}>
-                  <Image source={{ uri: banner.imageUrl }} style={styles.bannerItemImage} />
-                </View>
-              ))}
-            </ScrollView>
+          ) : row1Banner?.imageUrl ? (
+            <View style={styles.videoBannerWrap}>
+              <Image source={{ uri: row1Banner.imageUrl }} style={styles.videoBannerImg as any} contentFit="cover" />
+            </View>
           ) : null}
 
-          {/* Categories — scroll-into-view row: tap → go to search/product list page */}
+        {/* ── WHITE CONTENT AREA (BELOW VIDEO) ── */}
+        <View style={styles.bottomContentWrap}>
+          {/* ── SEARCH BAR (below video) ── */}
+          <View style={styles.searchWrap}>
+            <Pressable style={styles.searchBar} onPress={() => router.push('/(tabs)/search')}>
+              <Ionicons name="search-outline" size={20} color="#64748b" />
+              <Text style={styles.searchPlaceholder}>Search groceries, products...</Text>
+              <View style={styles.qrBtn}>
+                <Ionicons name="scan" size={20} color={colors.primary} />
+              </View>
+            </Pressable>
+          </View>
+
+          {/* ── ROW 2: HORIZONTAL BANNERS ── */}
+          {row2Banners.length > 0 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row2Wrap}>
+              {row2Banners.slice(0, 2).map((b: any, idx: number) => (
+                <Pressable key={b.id} style={[styles.row2Card, { height: row2H, width: SW * 0.7 }]}>
+                  <Image source={{ uri: b.imageUrl }} style={styles.row2Img} contentFit="cover" />
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* ── SHOP BY CATEGORIES ── */}
           {data?.categories?.length ? (
-            <View
-              onLayout={(e) => {
-                catBarY.current = e.nativeEvent.layout.y;
-              }}
-            >
+            <View style={{ marginTop: spacing.md }}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Shop by Categories</Text>
+                <Pressable style={styles.viewAllRow} onPress={() => router.push('/(tabs)/categories')}>
+                  <Text style={styles.viewAll}>View all</Text>
+                  <Ionicons name="arrow-forward" size={14} color={colors.primary} />
+                </Pressable>
+              </View>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                style={[styles.hList, { marginTop: spacing.md }]}
-                contentContainerStyle={{ paddingHorizontal: spacing.md }}
+                contentContainerStyle={{ paddingHorizontal: spacing.md, gap: 4 }}
               >
                 {data.categories.map((cat) => (
                   <CategoryCard
@@ -383,536 +267,343 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* Free Delivery Banner */}
-          {data?.deliveryRule?.freeAbove || data?.layout?.freeDelivery ? (
-            <Pressable style={{ marginHorizontal: spacing.md, marginTop: spacing.md, overflow: 'hidden', borderRadius: radius.md, elevation: 3, shadowColor: '#3b1c0a', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6 }}>
-              <LinearGradient
-                colors={['#4a2107', '#783810', '#4a2107']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' }}
-              >
-                {/* Glossy Overlay for shiny wrapper effect */}
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '45%', backgroundColor: 'rgba(255,255,255,0.06)' }} />
-                
-                {/* Scalloped edges (left) to look like a wrapper cut */}
-                <View style={{ position: 'absolute', left: -8, top: 0, bottom: 0, width: 16, justifyContent: 'space-evenly', paddingVertical: 4 }}>
-                  {[1, 2, 3, 4, 5, 6, 7].map(i => <View key={`l-${i}`} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.background }} />)}
-                </View>
-                
-                {/* Scalloped edges (right) */}
-                <View style={{ position: 'absolute', right: -8, top: 0, bottom: 0, width: 16, justifyContent: 'space-evenly', paddingVertical: 4 }}>
-                  {[1, 2, 3, 4, 5, 6, 7].map(i => <View key={`r-${i}`} style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.background }} />)}
-                </View>
-
-                {/* Icon Left */}
-                <View style={{ marginLeft: 16, marginRight: spacing.md }}>
-                  {data?.deliveryRule?.bannerIcon?.includes('.json') ? (
-                    <LottieView
-                      source={{ uri: data.deliveryRule.bannerIcon }}
-                      autoPlay loop style={{ width: 44, height: 44 }}
-                    />
-                  ) : (
-                    <Ionicons name="gift" size={38} color="#FFD700" />
-                  )}
-                </View>
-
-                {/* Text Center */}
-                <View style={{ flex: 1, zIndex: 1 }}>
-                  <Text style={{ ...typography.h4, color: '#FFD700', fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, textShadowColor: 'rgba(0,0,0,0.3)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 }}>
-                    {data?.deliveryRule?.bannerTitle || data?.layout?.freeDelivery?.title || 'FREE DELIVERY'}
-                  </Text>
-                  <Text style={{ ...typography.subtitle2, color: '#FFECA1', fontSize: 11.5, marginTop: 2, fontWeight: '500', opacity: 0.9 }}>
-                    {data?.deliveryRule?.bannerSubtitle || data?.layout?.freeDelivery?.subtitle || `On all orders above ₹199`}
-                  </Text>
-                </View>
-
-                {/* Arrow Right */}
-                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,215,0,0.15)', alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 1, borderColor: 'rgba(255,215,0,0.3)' }}>
-                  <Ionicons name="chevron-forward" size={16} color="#FFD700" />
-                </View>
-              </LinearGradient>
+          {/* ── ROW 3: WIDE FULL-WIDTH IMAGE ── */}
+          {row3Banner && (
+            <Pressable style={[styles.row3Card, { height: row3H, marginTop: spacing.md }]}>
+              <Image source={{ uri: row3Banner.imageUrl }} style={styles.row3Img} contentFit="cover" />
             </Pressable>
-          ) : null}
-
-          {/* Best Sellers (Products) */}
-          {(() => {
-            const filtered = selectedCategoryId
-              ? (data?.trendingProducts ?? []).filter((p: any) => p.categoryId === selectedCategoryId)
-              : (data?.trendingProducts ?? []);
-            return filtered.length ? (
-              <>
-                <SectionHeader title={selectedCategoryId ? (data?.categories?.find((c: any) => c.id === selectedCategoryId)?.name ?? 'Products') : 'Best Sellers'} onAction={() => {}} />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hList} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
-                  {filtered.map((p: any) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      onPress={() => router.push(`/product/${p.id}`)}
-                      onAddToCart={() => handleAddToCart(p.id)}
-                    />
-                  ))}
-                </ScrollView>
-              </>
-            ) : null;
-          })()}
-
-          {/* Bulk Orders Banner */}
-          {data?.layout?.bulkOrders ? (
-            <View style={styles.bulkBanner}>
-              <View style={styles.bulkContent}>
-                <Text style={styles.bulkTitle}>{data.layout.bulkOrders.title}</Text>
-                <Text style={styles.bulkSub}>{data.layout.bulkOrders.subtitle}</Text>
-                <Pressable style={styles.bulkBtn}>
-                  <Text style={styles.bulkBtnText}>{data.layout.bulkOrders.buttonText || 'Order Now'}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={colors.primaryDark} />
-                </Pressable>
-              </View>
-              <Ionicons name="cube" size={64} color="#bbf7d0" style={styles.bulkIcon} />
-            </View>
-          ) : null}
-
-          {/* Top Sellers (Shops) */}
-          {data?.nearbyShops?.length ? (
-            <>
-              <SectionHeader title="Top Sellers" onAction={() => {}} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hList} contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}>
-                {data.nearbyShops.map((shop) => (
-                  <ShopCard
-                    key={shop.id}
-                    shop={shop}
-                    horizontal={true}
-                    onPress={() => router.push(`/shop/${shop.id}`)}
-                  />
-                ))}
-              </ScrollView>
-            </>
-          ) : null}
-
-          {/* Features Row */}
-          {data?.layout?.features && data.layout.features.length > 0 ? (
-            <View style={styles.featuresRow}>
-              {data.layout.features.map((feature: any, index: number) => (
-                <View key={index} style={{ flexDirection: 'row', flex: 1 }}>
-                  <View style={styles.featureItem}>
-                    <Ionicons name={feature.icon as any} size={20} color={colors.primary} />
-                    <Text style={styles.featureItemText}>{feature.text}</Text>
-                  </View>
-                  {index < (data.layout!.features!.length - 1) ? (
-                    <View style={styles.featureDivider} />
-                  ) : null}
-                </View>
-              ))}
-            </View>
-          ) : null}
-
-          {/* All Products Grid */}
-          {(() => {
-            const allProds = data?.recentlyAdded ?? [];
-            const filtered = selectedCategoryId
-              ? allProds.filter((p: any) => p.categoryId === selectedCategoryId)
-              : allProds;
-            return filtered.length ? (
-              <>
-                <SectionHeader title={selectedCategoryId ? 'Category Products' : 'All Products'} onAction={() => {}} />
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.md, justifyContent: 'space-between' }}>
-                  {filtered.map((p: any) => (
-                    <View key={p.id} style={{ width: '48%', marginBottom: spacing.md }}>
-                      <ProductCard
-                        product={p}
-                        compact={true}
-                        onPress={() => router.push(`/product/${p.id}`)}
-                        onAddToCart={() => handleAddToCart(p.id)}
-                      />
-                    </View>
-                  ))}
-                </View>
-                {filtered.length === 0 && (
-                  <View style={{ alignItems: 'center', padding: spacing.xl }}>
-                    <Ionicons name="cube-outline" size={48} color={colors.textMuted} />
-                    <Text style={{ color: colors.textMuted, marginTop: 8 }}>No products in this category</Text>
-                  </View>
-                )}
-              </>
-            ) : null;
-          })()}
-
-          {/* Why Shop With Us? */}
-          {data?.layout?.whyShopWithUs && data.layout.whyShopWithUs.length > 0 ? (
-            <>
-              <SectionHeader title="Why Shop With Us?" />
-              <View style={styles.whyList}>
-                {data.layout.whyShopWithUs.map((item: any, index: number) => (
-                  <View key={index} style={styles.whyItem}>
-                    <View style={styles.whyIcon}><Ionicons name={item.icon as any} size={20} color={colors.primary} /></View>
-                    <View style={styles.whyTextCol}>
-                      <Text style={styles.whyTitle}>{item.title}</Text>
-                      <Text style={styles.whySub}>{item.subtitle}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </>
-          ) : null}
-
-          {/* Refer & Earn */}
-          {data?.layout?.referEarn ? (
-            <View style={styles.referBanner}>
-              <View style={styles.referContent}>
-                <Text style={styles.referTitle}>{data.layout.referEarn.title}</Text>
-                <Text style={styles.referSub}>{data.layout.referEarn.subtitle}</Text>
-                <Pressable style={styles.referBtn}>
-                  <Text style={styles.referBtnText}>{data.layout.referEarn.buttonText || 'Refer Now'}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-                </Pressable>
-              </View>
-              <Ionicons name="gift-outline" size={64} color="#ef4444" style={styles.referIcon} />
-            </View>
-          ) : null}
+          )}
+          
+        </View>
 
 
 
-          {/* Desktop/Expanded Footer */}
-          {data?.layout?.footer ? (
-            <View style={styles.footer}>
-              <View style={styles.footerHero}>
-                <Text style={styles.footerTitle}>{data.layout.footer.title}</Text>
-                <Text style={styles.footerSub}>{data.layout.footer.subtitle}</Text>
-              </View>
-              {data.layout.footer.stats ? (
-                <View style={styles.footerStatsRow}>
-                  {data.layout.footer.stats.map((stat: any, index: number) => (
-                    <View key={index} style={styles.footerStat}>
-                      <Ionicons name={stat.icon as any} size={24} color={colors.primary} />
-                      <View>
-                        <Text style={styles.footerStatNum}>{stat.number}</Text>
-                        <Text style={styles.footerStatLabel}>{stat.label}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-           
-            </View>
-          ) : null}
-            {/* END OF FEED */}
-            </>
-            )}
-          </Animated.ScrollView>
-      </View>
+        {/* ── CART FAB ── */}
+        {itemCount > 0 && (
+          <View style={{ height: 80 }} />
+        )}
+      </ScrollView>
+      )}
+
+      {/* ── FLOATING CART BUTTON ── */}
+      {itemCount > 0 && (
+        <Pressable
+          style={styles.cartFab}
+          onPress={() => router.push('/(tabs)/cart')}
+        >
+          <Ionicons name="cart" size={22} color="#fff" />
+          <Text style={styles.cartFabText}>{itemCount} item{itemCount > 1 ? 's' : ''} in cart</Text>
+          <View style={styles.cartFabBadge}>
+            <Text style={styles.cartFabBadgeText}>{itemCount}</Text>
+          </View>
+        </Pressable>
+      )}
+
+      {showOverlay && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', zIndex: 999 }]}>
+          <AnimatedLoader size="large" />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  scroll: { paddingBottom: 120 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
-  error: { color: colors.error, textAlign: 'center' },
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 
-  // ─── Gradient overlay strip above banners (absolutely no header inside) ───
-  heroZone: {
-    paddingTop: 0,     // gradient starts from very top of banner
-    paddingBottom: 0,  // overridden inline with BANNER_HEIGHT * 0.80
-    marginBottom: 0,
+const { width: SW } = Dimensions.get('window');
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
+
+  // ── HEADER ──
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: '#f0fdf4',
+    borderBottomWidth: 0,
   },
-  
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  logoImg: { width: 68, height: 68, resizeMode: 'contain' },
+  logoText: { fontSize: 16, fontFamily: fonts.bold, letterSpacing: -0.2, lineHeight: 18 },
+  locationPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 10, paddingVertical: 6,
+    backgroundColor: '#fff',
+    borderRadius: radius.full,
+    borderWidth: 1, borderColor: '#e2e8f0',
+    maxWidth: 140,
+  },
+  locationPillText: { fontSize: 12, fontFamily: fonts.medium, color: colors.text, flex: 1 },
+  headerIconBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: '#fff',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: '#e2e8f0',
+    position: 'relative',
+  },
+  bellDot: {
+    position: 'absolute', top: 6, right: 6,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#ef4444',
+    borderWidth: 1.5, borderColor: '#fff',
+  },
+
+  // ── SCROLL ──
+  scroll: { flex: 1 },
+  scrollContent: { paddingBottom: 0 }, // Changed to 0 since padding is handled by bottomContentWrap
+
+  bottomContentWrap: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: spacing.sm,
+    paddingBottom: 100, // Increased padding to allow scrolling past the tab bar
+  },
+
+  // ── VIDEO BANNER ──
+  videoBannerWrap: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+  },
+  videoBannerImg: {
+    width: '100%',
+    height: Math.round(SW * 0.48), // Reduced from 0.56
+  },
+  playBtnWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playBtn: {
+    width: 64, height: 64, borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)',
+  },
+  videoBannerContent: {
+    position: 'absolute',
+    bottom: 40,
+    left: 0, right: 0,
+    padding: spacing.md,
+  },
+  videoBannerTitle: {
+    color: '#fff',
+    fontFamily: fonts.bold,
+    fontSize: 22,
+    lineHeight: 28,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  videoBannerSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    marginTop: 2,
+    marginBottom: 8,
+  },
+  shopNowBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 18, paddingVertical: 9,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    elevation: 2,
+  },
+  shopNowText: { color: '#fff', fontFamily: fonts.bold, fontSize: 13 },
+  videoControls: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingBottom: 10,
+    paddingTop: 6,
+  },
+  videoTime: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.regular, fontSize: 11 },
+  progressTrack: {
+    flex: 1, height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 2,
+  },
+  progressFill: {
+    width: '30%', height: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: 2,
+  },
+
+  // ── SEARCH BAR ──
+  searchWrap: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingRight: 6,
+    height: 48,
+    backgroundColor: '#fff',
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  searchPlaceholder: {
+    fontSize: 15, fontFamily: fonts.medium,
+    color: '#94a3b8', flex: 1,
+  },
+  qrBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#f0fdf4',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── ROW 2 (dual images) ──
+  row2Wrap: {
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  row2Card: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginRight: spacing.sm,
+  },
+  row2Img: { width: '100%', height: '100%', resizeMode: 'cover' },
+  row2Overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  row2Content: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: spacing.sm,
+  },
+  row2Title: {
+    color: '#1e293b', fontFamily: fonts.bold, fontSize: 13,
+  },
+  row2Subtitle: {
+    color: '#475569', fontFamily: fonts.regular, fontSize: 11, marginTop: 1,
+  },
+  row2Tag: {
+    color: '#ea580c', fontFamily: fonts.bold, fontSize: 12, marginTop: 1,
+  },
+  row2Btn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: radius.full,
+    alignSelf: 'flex-start', marginTop: 6,
+  },
+  row2BtnAlt: { backgroundColor: '#ea580c' },
+  row2BtnText: { color: '#fff', fontFamily: fonts.bold, fontSize: 10 },
+
+  // ── ROW 3 (wide image) ──
+  row3Card: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  row3Img: { width: '100%', height: '100%', resizeMode: 'cover' },
+  row3Overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  row3Content: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: spacing.md,
+  },
+  row3Title: { color: '#1e293b', fontFamily: fonts.bold, fontSize: 18 },
+  row3Subtitle: { color: '#475569', fontFamily: fonts.regular, fontSize: 13, marginTop: 2 },
+  row3Tag: { color: '#64748b', fontFamily: fonts.regular, fontSize: 11, marginTop: 2 },
+
+  // ── SECTION HEADER ──
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
     paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
+  sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.text },
+  viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  viewAll: { fontSize: 13, fontFamily: fonts.medium, color: colors.primary },
+
+  // ── FREE DELIVERY ──
+  freeDeliveryBanner: {
+    marginHorizontal: spacing.md, marginTop: spacing.md,
+    borderRadius: radius.md, overflow: 'hidden',
+    elevation: 3, shadowColor: '#3b1c0a', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6,
   },
-  catPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    backgroundColor: '#f3f4f6',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  freeDeliveryGradient: {
+    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+    flexDirection: 'row', alignItems: 'center',
   },
-  catPillActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+
+  // ── WHY SHOP WITH US ──
+  whyList: {
+    backgroundColor: '#fff', marginHorizontal: spacing.md,
+    borderRadius: radius.lg, borderWidth: 1, borderColor: '#f1f5f9', overflow: 'hidden',
   },
-  catPillText: {
-    fontSize: 13,
-    fontFamily: fonts.medium,
-    color: colors.textMuted,
-  },
-  catPillTextActive: {
-    color: colors.white,
-    fontFamily: fonts.bold,
-  },
-  viewAllRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  viewAll: {
-    ...typography.subtitle2,
-    color: colors.primary,
-  },
-  hList: { paddingBottom: spacing.xs, overflow: 'visible' },
-  bannersList: {
-    marginTop: spacing.sm,
-    marginBottom: 0,
-  },
-  bannerItem: {
-    // width and height set dynamically from BANNER_WIDTH / BANNER_HEIGHT
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    position: 'relative',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  bannerItemImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  bannerItemOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.1)',
-  },
-  bannerItemTitle: {
+  whyItem: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, gap: spacing.md },
+  whyDivider: { borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  whyIcon: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center' },
+  whyTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, marginBottom: 2 },
+  whySub: { fontSize: 12, fontFamily: fonts.regular, color: colors.textMuted },
+
+  // ── FLOATING CART FAB ──
+  cartFab: {
     position: 'absolute',
-    top: spacing.md,
+    bottom: 90,
     left: spacing.md,
     right: spacing.md,
-    color: '#fff',
-    fontFamily: fonts.bold,
-    fontSize: typography.h2.fontSize,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10
-  },
-  
-  // Free Delivery Banner
-  heroBanner: {
-    backgroundColor: '#15803d',
-    borderRadius: radius.xl,
-    padding: spacing.md, // Decreased from lg
-    paddingVertical: spacing.md, 
-    flexDirection: 'row',
-    overflow: 'hidden',
-    position: 'relative',
-    marginTop: spacing.sm,
-  },
-  heroContent: { flex: 1, zIndex: 2 },
-  heroTrust: { color: '#bbf7d0', ...typography.caption, fontFamily: fonts.medium, marginBottom: 8 },
-  heroTitle: { color: colors.white, ...typography.h1, marginBottom: 8 },
-  heroSub: { color: '#dcfce7', ...typography.subtitle2, marginBottom: 16 },
-  heroBtn: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    backgroundColor: colors.primary,
     borderRadius: radius.full,
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-  },
-  heroBtnText: { color: colors.text, ...typography.button, fontSize: 13 },
-  heroImage: {
-    position: 'absolute',
-    right: -20,
-    bottom: -20,
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    opacity: 0.9,
-  },
-
-  // Free Delivery
-  freeDeliveryBanner: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
-  },
-  cornerTopLeft: {
-    position: 'absolute', top: -12, left: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.background, zIndex: 10,
-  },
-  cornerTopRight: {
-    position: 'absolute', top: -12, right: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.background, zIndex: 10,
-  },
-  cornerBottomLeft: {
-    position: 'absolute', bottom: -12, left: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.background, zIndex: 10,
-  },
-  cornerBottomRight: {
-    position: 'absolute', bottom: -12, right: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.background, zIndex: 10,
-  },
-  freeDeliveryContent: { flex: 1, zIndex: 1 },
-  freeDeliveryTitle: { ...typography.h4, color: colors.text, marginBottom: 2 },
-  freeDeliverySub: { ...typography.subtitle2, color: colors.textMuted },
-  freeDeliveryIcon: { marginRight: 8 },
-
-  bulkBanner: {
-    backgroundColor: '#16a34a',
-    borderRadius: 0,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  bulkContent: { flex: 1 },
-  bulkTitle: { ...typography.h3, color: colors.white, marginBottom: 4 },
-  bulkSub: { ...typography.subtitle2, color: '#dcfce7', marginBottom: 12, paddingRight: 40 },
-  bulkBtn: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-  },
-  bulkBtnText: { color: colors.primaryDark, ...typography.button, fontSize: 13 },
-  bulkIcon: { position: 'absolute', right: 0, bottom: -10, opacity: 0.4, transform: [{ rotate: '-15deg' }] },
-
-  // Features Row
-  featuresRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f0fdf4',
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-  },
-  featureItem: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, justifyContent: 'center' },
-  featureItemText: { ...typography.caption, fontFamily: fonts.medium, color: colors.text, lineHeight: 14 },
-  featureDivider: { width: 1, height: 24, backgroundColor: '#bbf7d0' },
-
-  // Why Shop With Us
-  whyList: { backgroundColor: colors.white, borderRadius: radius.lg, borderWidth: 1, borderColor: '#f3f4f6', overflow: 'hidden' },
-  whyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    gap: spacing.md,
-  },
-  whyIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#f0fdf4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  whyTextCol: { flex: 1 },
-  whyTitle: { ...typography.subtitle1, fontFamily: fonts.bold, color: colors.text, marginBottom: 2 },
-  whySub: { ...typography.caption, color: colors.textMuted },
-
-  // Refer & Earn
-  referBanner: {
-    backgroundColor: '#f0fdf4',
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  referContent: { flex: 1, zIndex: 2 },
-  referTitle: { ...typography.h4, color: '#15803d', marginBottom: 4 },
-  referSub: { ...typography.subtitle2, color: '#166534', marginBottom: 12, paddingRight: 60 },
-  referBtn: {
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-    gap: 6,
-  },
-  referBtnText: { color: colors.primary, ...typography.button, fontSize: 12 },
-  referIcon: { position: 'absolute', right: 10, bottom: -10, transform: [{ rotate: '10deg' }] },
-
-  // Popular Searches
-  pillsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  pill: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  pillText: { ...typography.subtitle2, color: colors.text },
-
-  // Desktop Footer
-  footer: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    marginTop: spacing.xl,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  footerHero: { marginBottom: spacing.lg },
-  footerTitle: { ...typography.h2, color: colors.text, marginBottom: 8, lineHeight: 26 },
-  footerSub: { ...typography.subtitle2, color: colors.textMuted, lineHeight: 20 },
-  footerStatsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xl },
-  footerStat: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  footerStatNum: { ...typography.subtitle1, fontFamily: fonts.bold, color: colors.text },
-  footerStatLabel: { ...typography.caption, fontSize: 10, color: colors.textMuted },
-  downloadBox: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  downloadContent: {},
-  downloadTitle: { ...typography.subtitle1, fontFamily: fonts.bold, color: colors.text, marginBottom: 2 },
-  downloadSub: { ...typography.caption, fontSize: 11, color: colors.textMuted, marginBottom: 12 },
-  downloadButtons: { flexDirection: 'row', gap: 8 },
-  storeBtn: {
-    backgroundColor: colors.text,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
     gap: 8,
-    flex: 1,
+    elevation: 8,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
-  storeBtnSub: { ...typography.caption, fontSize: 8, color: colors.white, opacity: 0.8 },
-  storeBtnTitle: { ...typography.caption, fontFamily: fonts.bold, fontSize: 11, color: colors.white },
+  cartFabText: { flex: 1, color: '#fff', fontFamily: fonts.bold, fontSize: 14 },
+  cartFabBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 10, minWidth: 20, height: 20,
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  cartFabBadgeText: { color: '#fff', fontFamily: fonts.bold, fontSize: 11 },
 });

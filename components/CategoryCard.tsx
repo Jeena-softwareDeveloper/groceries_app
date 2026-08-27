@@ -1,4 +1,6 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import React from 'react';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import type { Category } from '@/types/customer';
 
@@ -20,7 +22,7 @@ function hashIndex(id: string) {
   return id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % GRADIENTS.length;
 }
 
-export function CategoryCard({ category, onPress, isSelected }: CategoryCardProps) {
+export const CategoryCard = React.memo(({ category, onPress, isSelected }: CategoryCardProps) => {
   const [from] = GRADIENTS[hashIndex(category.id)];
   const imageUrl = (category as any).imageUrl || null;
 
@@ -28,7 +30,7 @@ export function CategoryCard({ category, onPress, isSelected }: CategoryCardProp
     <Pressable style={[styles.card, isSelected && styles.cardSelected]} onPress={onPress}>
       <View style={[styles.imageWrap, !imageUrl && { backgroundColor: from }]}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" />
+          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="contain" />
         ) : (
           <Text style={styles.initial}>{category.name.charAt(0).toUpperCase()}</Text>
         )}
@@ -38,7 +40,7 @@ export function CategoryCard({ category, onPress, isSelected }: CategoryCardProp
       </Text>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

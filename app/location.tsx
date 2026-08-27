@@ -20,7 +20,7 @@ import type { Area, District } from '@shared/types';
 import { customerApi } from '@/api';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistLocation, persistGPSLocation } from '@/hooks/useBootstrap';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setLocation, setGPSLocation } from '@/store/locationSlice';
 import * as Location from 'expo-location';
 import { resolveAddressFromCoords } from '@/utils/geocode';
@@ -37,6 +37,7 @@ interface LocationScreenProps {
 export default function LocationScreen({ isModalComponent = false, onClose }: LocationScreenProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { latitude, longitude, displayName } = useAppSelector((s) => s.location);
 
   // State
   const [step, setStep] = useState<'home' | 'district' | 'area'>('home');
@@ -47,6 +48,8 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
   const [isLocating, setIsLocating] = useState(false);
   const [gpsResult, setGpsResult] = useState<{ districtName: string; areaName: string } | null>(null);
   const [gpsError, setGpsError] = useState('');
+  const [manualAddress, setManualAddress] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   // Slide-up animation for the sheet
   const slideAnim = useRef(new Animated.Value(400)).current;
@@ -97,6 +100,29 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     await persistLocation(payload);
     dispatch(setLocation(payload));
     handleClose();
+  }
+
+  async function handleManualAddressConfirm() {
+    const trimmed = manualAddress.trim();
+    if (!trimmed) return;
+    
+    setIsLocating(true);
+    setGpsError('');
+    try {
+      const results = await Location.geocodeAsync(trimmed);
+      if (results && results.length > 0) {
+        const { latitude, longitude } = results[0];
+        await persistGPSLocation({ latitude, longitude, displayName: trimmed });
+        dispatch(setGPSLocation({ latitude, longitude, displayName: trimmed }));
+        handleClose();
+      } else {
+        setGpsError('Could not find this address. Please try again.');
+      }
+    } catch (e) {
+      setGpsError('Network error. Please select from the list.');
+    } finally {
+      setIsLocating(false);
+    }
   }
 
   async function handleGPS() {
@@ -162,7 +188,7 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
 
   function renderHome() {
     return (
-      <View style={styles.sheetBody}>
+      <ScrollView contentContainerStyle={styles.sheetBody} style={{ flexGrow: 0 }} showsVerticalScrollIndicator={false}>
         {/* Title */}
         <View style={styles.sheetHeader}>
           <View>
@@ -207,6 +233,53 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
         {gpsError ? (
           <Text style={styles.gpsError}>{gpsError}</Text>
         ) : null}
+
+        {latitude && longitude && displayName && !isLocating && !gpsResult && !gpsError ? (
+          <View style={styles.currentLocationBox}>
+            <Ionicons name="location" size={16} color={colors.primary} />
+            <Text style={styles.currentLocationText} numberOfLines={2}>
+              {displayName}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Manual Address Input */}
+        {!showManualInput ? (
+          <Pressable
+            style={styles.manualAddressToggle}
+            onPress={() => setShowManualInput(true)}
+          >
+            <Feather name="edit-2" size={16} color={colors.primary} />
+            <Text style={styles.manualAddressToggleText}>Type your address manually</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.manualAddressBox}>
+            <Text style={styles.fieldLabel}>Your Address</Text>
+            <View style={styles.manualInputRow}>
+              <TextInput
+                style={styles.manualInput}
+                placeholder="e.g. Anna Nagar, Chennai"
+                placeholderTextColor={colors.textMuted}
+                value={manualAddress}
+                onChangeText={setManualAddress}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleManualAddressConfirm}
+              />
+              {manualAddress.length > 0 && (
+                <Pressable
+                  style={styles.manualConfirmBtn}
+                  onPress={handleManualAddressConfirm}
+                >
+                  <Feather name="check" size={18} color="#fff" />
+                </Pressable>
+              )}
+            </View>
+            <Pressable onPress={() => { setShowManualInput(false); setManualAddress(''); }}>
+              <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 6, fontFamily: fonts.regular }}>Cancel</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Divider */}
         <View style={styles.dividerRow}>
@@ -265,7 +338,7 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
           </Text>
           <Feather name="arrow-right" size={18} color={colors.white} />
         </Pressable>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -557,6 +630,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
+  currentLocationBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ebfdf5', // slight green tint
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  currentLocationText: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    fontSize: 13,
+    fontFamily: fonts.medium,
+    color: '#065f46',
+  },
 
   // Divider
   dividerRow: {
@@ -702,5 +792,54 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     textAlign: 'center',
   },
+  
+  // Manual Address Input Styles
+  manualAddressToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  manualAddressToggleText: {
+    fontSize: 14,
+    fontFamily: fonts.medium,
+    color: colors.primary,
+  },
+  manualAddressBox: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 4,
+  },
+  manualInput: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontFamily: fonts.regular,
+    color: colors.text,
+  },
+  manualConfirmBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
 });
 

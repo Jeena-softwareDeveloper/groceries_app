@@ -36,8 +36,19 @@ export default function LoginScreen(props: any = {}) {
   const [step, setStep] = useState<'phone' | 'otp' | 'role'>('phone');
   const [loading, setLoading] = useState(false);
   const [tempAuth, setTempAuth] = useState<{ tokens: any; user: any } | null>(null);
+  const [resendTimer, setResendTimer] = useState(0);
 
   const androidKeyboardHeight = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let interval: any;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   useEffect(() => {
     if (Platform.OS === 'android') {
@@ -66,10 +77,10 @@ export default function LoginScreen(props: any = {}) {
       if (result.autoLogin && result.tokens) {
         // Trusted device bypass!
         await persistAuth(result.tokens.accessToken, result.tokens.refreshToken);
+        dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
         const user = await authApi.getMe();
         
         if (user.role === 'VENDOR') {
-          dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
           dispatch(setUser(user));
           if (isModalComponent && onClose) {
             onClose();
@@ -79,7 +90,6 @@ export default function LoginScreen(props: any = {}) {
           }
         } else {
           // Auto login means existing user, so never show role selection
-          dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
           dispatch(setUser(user));
           if (isModalComponent && onClose) {
             onClose();
@@ -89,6 +99,7 @@ export default function LoginScreen(props: any = {}) {
         }
       } else {
         setStep('otp');
+        setResendTimer(30);
       }
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Failed to send OTP' });
@@ -113,11 +124,11 @@ export default function LoginScreen(props: any = {}) {
       
       // FIX: Persist auth to local storage so axios interceptor can use it for getMe()
       await persistAuth(tokens.accessToken, tokens.refreshToken);
+      dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
       
       const user = await authApi.getMe();
       
       if (user.role === 'VENDOR') {
-        dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
         dispatch(setUser(user));
         router.replace('/(vendor)');
       } else {
@@ -125,7 +136,6 @@ export default function LoginScreen(props: any = {}) {
           setTempAuth({ tokens, user });
           setStep('role');
         } else {
-          dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
           dispatch(setUser(user));
           if (isModalComponent && onClose) {
             onClose();
@@ -233,8 +243,12 @@ export default function LoginScreen(props: any = {}) {
                   await persistAuth(tempAuth.tokens.accessToken, tempAuth.tokens.refreshToken);
                   dispatch(setTokens(tempAuth.tokens));
                   dispatch(setUser(tempAuth.user));
-                  // NavigationGuard will automatically push them to /(tabs)
-                  // if they need districtId, index.tsx will auto fetch it
+                  
+                  if (isModalComponent && onClose) {
+                    onClose();
+                  } else {
+                    router.replace('/(tabs)');
+                  }
                 }
               }}
               style={styles.primaryBtn}
@@ -246,7 +260,9 @@ export default function LoginScreen(props: any = {}) {
               size="lg"
               onPress={async () => {
                 if (tempAuth) {
-                  // Navigate first so when tokens are saved, it triggers layout guard correctly
+                  if (isModalComponent && onClose) {
+                    onClose();
+                  }
                   router.replace('/vendor-request');
                   setTimeout(async () => {
                     await persistAuth(tempAuth.tokens.accessToken, tempAuth.tokens.refreshToken);
@@ -284,10 +300,16 @@ export default function LoginScreen(props: any = {}) {
             </Button>
 
             <View style={styles.otpActions}>
-              <Typography style={styles.resendText}>Didn't receive code?</Typography>
-              <Pressable onPress={handleRequestOtp} disabled={loading}>
-                <Typography style={styles.resendLink}>Resend OTP</Typography>
-              </Pressable>
+              {resendTimer > 0 ? (
+                <Typography style={styles.resendText}>Resend code in {resendTimer}s</Typography>
+              ) : (
+                <>
+                  <Typography style={styles.resendText}>Didn't receive code?</Typography>
+                  <Pressable onPress={handleRequestOtp} disabled={loading}>
+                    <Typography style={styles.resendLink}>Resend OTP</Typography>
+                  </Pressable>
+                </>
+              )}
             </View>
           </>
         ) : null}

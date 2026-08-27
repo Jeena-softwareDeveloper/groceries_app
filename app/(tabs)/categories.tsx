@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { InnerHeader } from '@/components/InnerHeader';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
@@ -50,20 +51,18 @@ export default function CategoriesScreen() {
                   >
                     <View style={styles.parentIconBox}>
                       {cat.imageUrl ? (
-                        <Image source={{ uri: cat.imageUrl }} style={styles.parentIcon} resizeMode="contain" />
+                        <Image source={{ uri: cat.imageUrl }} style={styles.parentIcon} contentFit="contain" />
                       ) : (
-                        <Ionicons name="basket-outline" size={24} color={isSelected ? colors.primary : colors.textMuted} />
+                        <Ionicons name="basket-outline" size={32} color={isSelected ? colors.primary : colors.textMuted} />
                       )}
                     </View>
                     <Text
                       style={[styles.parentName, isSelected && styles.parentNameSelected]}
                       numberOfLines={2}
+                      textAlign="center"
                     >
                       {cat.name}
                     </Text>
-                    {isSelected && (
-                      <Ionicons name="chevron-forward" size={16} color={colors.primary} style={styles.chevron} />
-                    )}
                   </Pressable>
                 );
               })}
@@ -86,7 +85,7 @@ export default function CategoriesScreen() {
                   >
                     <View style={styles.subImageBox}>
                       {sub.imageUrl ? (
-                        <Image source={{ uri: sub.imageUrl }} style={styles.subImage} resizeMode="contain" />
+                        <Image source={{ uri: sub.imageUrl }} style={styles.subImage} contentFit="contain" />
                       ) : (
                         <Ionicons name="image-outline" size={32} color={colors.border} />
                       )}
@@ -127,8 +126,9 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // Added to clear bottom tabs
   },
   parentItem: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
     paddingHorizontal: spacing.sm,
     borderLeftWidth: 3,
@@ -136,34 +136,30 @@ const styles = StyleSheet.create({
   },
   parentItemSelected: {
     backgroundColor: '#f0fdf4', // light green
+    borderLeftColor: colors.primary,
   },
   parentIconBox: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     backgroundColor: '#f8fafc',
-    borderRadius: 16,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginBottom: 6,
   },
   parentIcon: {
-    width: 20,
-    height: 20,
+    width: 32,
+    height: 32,
   },
   parentName: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 14,
     fontFamily: fonts.semiBold,
     color: colors.text,
+    textAlign: 'center',
   },
   parentNameSelected: {
     color: colors.primary,
-  },
-  chevron: {
-    marginLeft: 4,
   },
 
   // Main Content

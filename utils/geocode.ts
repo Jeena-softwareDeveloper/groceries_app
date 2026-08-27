@@ -18,7 +18,22 @@ export async function resolveAddressFromCoords(lat: number, lng: number): Promis
     console.warn('[Geocode] Server reverse-geocode failed, trying client fallbacks...', e);
   }
 
-  // Strategy 2: BigDataCloud Client API
+  // Strategy 2: Native Expo Geocoder (Highly accurate, uses OS Google Play Services)
+  try {
+    const [addr] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
+    if (addr) {
+      const local = addr.city || (addr as any).subLocality || addr.district || addr.name || '';
+      const dist = (addr.subregion || addr.region || '').replace(/ district/i, '').trim();
+      if (local && dist && local.toLowerCase() !== dist.toLowerCase()) {
+        return `${local}, ${dist}`;
+      }
+      if (local || dist) return local || dist;
+    }
+  } catch (e) {
+    console.warn('[Geocode] Native geocode fallback failed...', e);
+  }
+
+  // Strategy 3: BigDataCloud Client API (Inaccurate rural fallback)
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 4000);
@@ -59,21 +74,6 @@ export async function resolveAddressFromCoords(lat: number, lng: number): Promis
     }
   } catch (e) {
     console.warn('[Geocode] BigDataCloud fallback failed...', e);
-  }
-
-  // Strategy 3: Native Expo Geocoder fallback
-  try {
-    const [addr] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-    if (addr) {
-      const local = addr.city || (addr as any).subLocality || addr.district || addr.name || '';
-      const dist = (addr.subregion || addr.region || '').replace(/ district/i, '').trim();
-      if (local && dist && local.toLowerCase() !== dist.toLowerCase()) {
-        return `${local}, ${dist}`;
-      }
-      return local || dist || 'Current Location';
-    }
-  } catch (e) {
-    console.warn('[Geocode] Native geocode fallback failed...', e);
   }
 
   return 'Current Location';

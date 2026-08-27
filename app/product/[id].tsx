@@ -49,6 +49,7 @@ export default function ProductScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
+  const { latitude, longitude } = useAppSelector((s) => s.location);
   const insets = useSafeAreaInsets();
   const cartCount = useAppSelector((s) => s.cart.itemCount);
   const user = useAppSelector((s) => s.auth.user);
@@ -68,8 +69,15 @@ export default function ProductScreen() {
 
   const { data: similarData } = useQuery({
     queryKey: ['products', 'similar', product?.category?.id],
-    queryFn: () => productApi.fetchProducts({ categoryId: product?.category?.id, limit: 12 }),
-    enabled: !!product?.category?.id,
+    queryFn: async () => {
+      let res = await productApi.fetchProducts({ categoryId: product?.category?.id, limit: 12, lat: latitude, lng: longitude });
+      if (!res?.products || res.products.length <= 1) {
+        // Fallback to recent products
+        res = await productApi.fetchProducts({ limit: 12, lat: latitude, lng: longitude });
+      }
+      return res;
+    },
+    enabled: !!product,
   });
   const similarProducts = (similarData?.products ?? []).filter((p) => p.id !== id);
 
@@ -293,10 +301,17 @@ export default function ProductScreen() {
           <>
             <View style={s.section}>
               <Text style={s.sectionTitle}>Select Size</Text>
-              <View style={s.chipsRow}>
+              <View style={[s.chipsRow, { justifyContent: 'space-between', alignItems: 'center' }]}>
                 <View style={[s.sizeChip, s.sizeChipActive]}>
                   <Text style={s.sizeChipTextActive}>
                     {product.weight ? `${product.weight}${product.unit}` : product.unit}
+                  </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={[s.stockDot, { backgroundColor: stock > 0 ? '#16a34a' : '#ef4444' }]} />
+                  <Text style={[s.stockText, { color: stock > 0 ? '#16a34a' : '#ef4444' }]}>
+                    {stock > 20 ? 'In Stock' : stock > 0 ? `Only ${stock} left` : 'Out of Stock'}
                   </Text>
                 </View>
               </View>
@@ -327,17 +342,7 @@ export default function ProductScreen() {
 
         <View style={s.divider} />
 
-        {/* ── Stock Status ── */}
-        <View style={[s.section, { paddingVertical: 10 }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <View style={[s.stockDot, { backgroundColor: stock > 0 ? '#16a34a' : '#ef4444' }]} />
-            <Text style={[s.stockText, { color: stock > 0 ? '#16a34a' : '#ef4444' }]}>
-              {stock > 20 ? 'In Stock' : stock > 0 ? `Only ${stock} left — order soon!` : 'Out of Stock'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={s.divider} />
+        {/* Moved stock to size section */}
 
         {/* ── Product Description ── */}
         {product.description ? (

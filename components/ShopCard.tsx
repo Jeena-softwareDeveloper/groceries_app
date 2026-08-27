@@ -1,5 +1,7 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import type { Shop } from '@/types/customer';
 
@@ -9,7 +11,7 @@ interface ShopCardProps {
   horizontal?: boolean;
 }
 
-export function ShopCard({ shop, onPress, horizontal }: ShopCardProps) {
+export const ShopCard = React.memo(({ shop, onPress, horizontal }: ShopCardProps) => {
   // Use logoUrl first (shop logo), then bannerUrl; treat empty strings as falsy
   const banner = shop.logoUrl || shop.bannerUrl || null;
 
@@ -17,7 +19,7 @@ export function ShopCard({ shop, onPress, horizontal }: ShopCardProps) {
     <Pressable style={[styles.card, horizontal && styles.horizontalCard]} onPress={onPress}>
       <View style={styles.imageContainer}>
         {banner ? (
-          <Image source={{ uri: banner }} style={styles.banner} resizeMode="cover" />
+          <Image source={{ uri: banner }} style={styles.banner} contentFit="cover" />
         ) : (
           <View style={[styles.banner, styles.bannerPlaceholder]}>
             <View style={styles.initialsCircle}>
@@ -48,19 +50,39 @@ export function ShopCard({ shop, onPress, horizontal }: ShopCardProps) {
               <Text style={styles.metaText}>{Number(shop.rating).toFixed(1)}</Text>
             </View>
           ) : null}
-          {shop.minOrderValue != null ? (
+          {shop._count?.products != null ? (
+            <Text style={styles.metaText}>{shop._count.products} products</Text>
+          ) : shop.minOrderValue != null ? (
             <Text style={styles.metaText}>Min ₹{Number(shop.minOrderValue)}</Text>
           ) : null}
         </View>
 
         <View style={styles.timeRow}>
-          <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-          <Text style={styles.timeText}>30-40 mins</Text>
+          {shop.distance != null ? (
+            <>
+              <Ionicons name="location-outline" size={14} color={shop.inDeliveryRadius === false ? colors.error : colors.textMuted} />
+              <Text style={[styles.timeText, shop.inDeliveryRadius === false && { color: colors.error }]}>
+                {shop.distance.toFixed(1)} km away
+              </Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
+              <Text style={styles.timeText}>30-40 mins</Text>
+            </>
+          )}
         </View>
+        {shop.inDeliveryRadius === false && (
+          <View style={{ marginTop: 4 }}>
+            <Text style={{ fontSize: 10, color: colors.error, fontFamily: fonts.medium }}>
+              Nearest Area (Out of Delivery Radius)
+            </Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
