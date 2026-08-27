@@ -76,7 +76,7 @@ export interface Product {
   images?: ProductImage[];
   inventory?: { stock: number } | null;
   category?: Category | null;
-  vendor?: { id: string; shopName: string; slug?: string };
+  vendor?: { id: string; shopName: string; slug?: string; distance?: number; inDeliveryRadius?: boolean };
   reviews?: { rating: number; comment?: string | null }[];
   relatedProducts?: Product[];
 }

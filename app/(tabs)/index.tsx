@@ -74,8 +74,19 @@ export default function HomeScreen() {
   const handleVideoReady = useCallback(() => setIsVideoReady(true), []);
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['homeFeed', districtId, areaId, latitude, longitude],
-    queryFn: () => customerApi.fetchHomeFeed(districtId ?? '', areaId ?? undefined, latitude, longitude),
+    queryKey: ['homeFeed', districtId, areaId, latitude, longitude, isGPSMode],
+    queryFn: () =>
+      isGPSMode
+        ? customerApi.fetchHomeFeedByLocation(latitude!, longitude!)
+        : customerApi.fetchHomeFeed(districtId ?? '', areaId ?? undefined, latitude, longitude),
+    enabled: hasLocation,
+    staleTime: 60 * 1000,
+  });
+
+  const { data: nearbyShops } = useQuery({
+    queryKey: ['nearbyShops', districtId, areaId, latitude, longitude],
+    queryFn: () =>
+      customerApi.fetchShops(districtId ?? undefined, areaId ?? undefined, undefined, latitude, longitude),
     enabled: hasLocation,
     staleTime: 60 * 1000,
   });
@@ -154,10 +165,6 @@ export default function HomeScreen() {
   // ── Banner helpers ─────────────────────────────────────────────────────────
   const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
   const row3Banner = data?.banners?.find((b: any) => b.row === 3);
-
-  console.log('[HomeScreen] row1Banner:', row1Banner);
-  console.log('[HomeScreen] row2Banners count:', row2Banners.length);
-  console.log('[HomeScreen] row3Banner:', row3Banner);
 
   const halfW = (SCREEN_WIDTH - spacing.md * 2 - spacing.sm) / 2;
   const row2H = Math.round(halfW * 0.95);
@@ -239,6 +246,30 @@ export default function HomeScreen() {
               ))}
             </ScrollView>
           )}
+
+          {/* ── NEARBY VENDORS ── */}
+          {nearbyShops && nearbyShops.length > 0 ? (
+            <View style={{ marginTop: spacing.md }}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Vendors</Text>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: spacing.md }}
+              >
+                {nearbyShops.map((shop, index) => (
+                  <ShopCard
+                    key={shop.id}
+                    shop={shop}
+                    horizontal
+                    isNearest={index === 0 && shop.distance != null}
+                    onPress={() => router.push(`/shop/${shop.id}`)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
 
           {/* ── SHOP BY CATEGORIES ── */}
           {data?.categories?.length ? (

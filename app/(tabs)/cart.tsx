@@ -41,6 +41,7 @@ export default function CartScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const appSettings = useAppSelector((s) => s.config.appSettings);
+  const { latitude, longitude } = useAppSelector((s) => s.location);
   const [showCheckout, setShowCheckout] = useState(true);
   const [isSuccess, setIsSuccess] = useState(false);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
@@ -182,6 +183,7 @@ export default function CartScreen() {
       city: addressForm.city.trim(),
       state: addressForm.state.trim(),
       pincode: addressForm.pincode.replace(/\D/g, ''),
+      ...(latitude != null && longitude != null ? { lat: latitude, lng: longitude } : {}),
     };
     if (payload.line1.length < 3) {
       Alert.alert('Invalid address', 'Enter a valid address line.');

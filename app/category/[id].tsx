@@ -26,8 +26,8 @@ export default function CategoryShopsScreen() {
   const { data: shops, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['categoryShops', id, districtId, latitude, longitude],
     queryFn: () =>
-      customerApi.fetchShops(districtId!, undefined, id, latitude, longitude),
-    enabled: !!id,
+      customerApi.fetchShops(districtId ?? undefined, undefined, id, latitude, longitude),
+    enabled: !!id && (!!districtId || (!!latitude && !!longitude)),
     staleTime: 60_000,
   });
 
@@ -94,6 +94,7 @@ export default function CategoryShopsScreen() {
             <View style={styles.listItem}>
               <ShopCard
                 shop={item}
+                isNearest={!!latitude && !!longitude && shops?.[0]?.id === item.id}
                 onPress={() => router.push(`/shop/${item.id}`)}
               />
             </View>

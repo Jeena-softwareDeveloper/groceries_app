@@ -15,15 +15,17 @@ import { Image } from 'expo-image';
 import { customerApi, productApi } from '@/api';
 import { ProductCard } from '@/components/ProductCard';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
+import { useAppSelector } from '@/store/hooks';
 
 export default function ShopScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { latitude, longitude } = useAppSelector((s) => s.location);
   const [activeTab, setActiveTab] = useState<'products' | 'reviews'>('products');
 
   const shopQuery = useQuery({
-    queryKey: ['shop', id],
-    queryFn: () => customerApi.fetchShop(id!),
+    queryKey: ['shop', id, latitude, longitude],
+    queryFn: () => customerApi.fetchShop(id!, latitude, longitude),
     enabled: !!id,
   });
 
@@ -62,6 +64,12 @@ export default function ShopScreen() {
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{shop.shopName}</Text>
           {shop.address ? <Text style={styles.address}>{shop.address}</Text> : null}
+          {shop.distance != null ? (
+            <Text style={styles.distance}>
+              {shop.distance.toFixed(1)} km away
+              {shop.inDeliveryRadius === false ? ' · Out of delivery range' : ''}
+            </Text>
+          ) : null}
           
           <View style={styles.metaRow}>
             {shop.phone ? <Text style={styles.phone}>📞 {shop.phone}</Text> : null}
@@ -160,6 +168,7 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   name: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
   address: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  distance: { fontSize: 12, color: colors.primary, fontFamily: fonts.medium, marginTop: 4 },
   rating: { fontSize: 13, color: colors.primary, fontFamily: fonts.medium },
   section: {
     fontSize: 16,

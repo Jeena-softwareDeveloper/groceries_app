@@ -9,9 +9,10 @@ interface ShopCardProps {
   shop: Shop;
   onPress?: () => void;
   horizontal?: boolean;
+  isNearest?: boolean;
 }
 
-export const ShopCard = React.memo(({ shop, onPress, horizontal }: ShopCardProps) => {
+export const ShopCard = React.memo(({ shop, onPress, horizontal, isNearest }: ShopCardProps) => {
   // Use logoUrl first (shop logo), then bannerUrl; treat empty strings as falsy
   const banner = shop.logoUrl || shop.bannerUrl || null;
 
@@ -36,6 +37,11 @@ export const ShopCard = React.memo(({ shop, onPress, horizontal }: ShopCardProps
             {shop.isOpen === false ? 'Closed' : 'Open'}
           </Text>
         </View>
+        {isNearest && shop.distance != null ? (
+          <View style={styles.nearestBadge}>
+            <Text style={styles.nearestText}>Nearest</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.body}>
@@ -75,7 +81,7 @@ export const ShopCard = React.memo(({ shop, onPress, horizontal }: ShopCardProps
         {shop.inDeliveryRadius === false && (
           <View style={{ marginTop: 4 }}>
             <Text style={{ fontSize: 10, color: colors.error, fontFamily: fonts.medium }}>
-              Nearest Area (Out of Delivery Radius)
+              Outside delivery range
             </Text>
           </View>
         )}
@@ -115,6 +121,16 @@ const styles = StyleSheet.create({
   statusClosed: { backgroundColor: colors.error },
   statusText: { fontSize: 10, fontFamily: fonts.bold, color: colors.white },
   statusTextClosed: { color: colors.white },
+  nearestBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#15803d',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+  },
+  nearestText: { fontSize: 10, fontFamily: fonts.bold, color: '#fff' },
   body: { padding: spacing.sm },
   name: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, marginBottom: 4 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 4 },

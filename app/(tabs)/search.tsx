@@ -89,8 +89,13 @@ export default function SearchScreen() {
           {data?.shops?.length ? (
             <>
               <Text style={styles.section}>Shops</Text>
-              {data.shops.map((s) => (
-                <ShopCard key={s.id} shop={s} onPress={() => router.push(`/shop/${s.id}`)} />
+              {data.shops.map((s, index) => (
+                <ShopCard
+                  key={s.id}
+                  shop={s}
+                  isNearest={index === 0 && s.distance != null}
+                  onPress={() => router.push(`/shop/${s.id}`)}
+                />
               ))}
             </>
           ) : null}

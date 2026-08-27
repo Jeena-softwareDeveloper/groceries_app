@@ -11,11 +11,13 @@ export const customerApi = {
     unwrap<HomeFeed>(api.get(ENDPOINTS.CUSTOMER.HOME_FEED_BY_LOCATION, { params: { lat, lng } })),
 
 
-  fetchShops: (districtId: string, areaId?: string, categoryId?: string, lat?: number | null, lng?: number | null) =>
+  fetchShops: (districtId?: string, areaId?: string, categoryId?: string, lat?: number | null, lng?: number | null) =>
     unwrap<Shop[]>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BASE, { params: { districtId, areaId, categoryId, lat, lng } })),
 
-  fetchShop: (id: string) =>
-    unwrap<Shop & { area?: { district?: { name: string } } }>(api.get(ENDPOINTS.CUSTOMER.SHOPS.BY_ID(id))),
+  fetchShop: (id: string, lat?: number | null, lng?: number | null) =>
+    unwrap<Shop & { area?: { district?: { name: string } }; deliveryRadius?: number }>(
+      api.get(ENDPOINTS.CUSTOMER.SHOPS.BY_ID(id), { params: { lat, lng } }),
+    ),
 
   fetchProfile: () =>
     unwrap<CustomerProfile>(api.get(ENDPOINTS.CUSTOMER.PROFILE)),
@@ -26,7 +28,7 @@ export const customerApi = {
   fetchAddresses: () =>
     unwrap<Address[]>(api.get(ENDPOINTS.CUSTOMER.ADDRESSES)),
 
-  createAddress: (data: Omit<Address, 'id'>) =>
+  createAddress: (data: Omit<Address, 'id'> & { lat?: number | null; lng?: number | null }) =>
     unwrap<Address>(api.post(ENDPOINTS.CUSTOMER.ADDRESSES, data)),
 
   updateAddress: (id: string, data: Partial<Omit<Address, 'id'>>) =>

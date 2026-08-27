@@ -96,6 +96,8 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
       districtName: district.name,
       areaId: area.id,
       areaName: area.name,
+      latitude: area.latitude ?? district.latitude ?? null,
+      longitude: area.longitude ?? district.longitude ?? null,
     };
     await persistLocation(payload);
     dispatch(setLocation(payload));
@@ -145,28 +147,39 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
         return;
       }
 
-      // Request fresh GPS satellite fix
-      let loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.BestForNavigation,
-      }).catch(async () => {
-        // Fallback to highest if BestForNavigation takes too long
-        return await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Highest,
-        });
-      });
+      // Fresh high-accuracy GPS fix; fall back to last known if the satellite lock is slow
+      let loc: Location.LocationObject | null = null;
+      try {
+        loc = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Highest,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('GPS timeout')), 12000)
+          ),
+        ]);
+      } catch {
+        loc = await Location.getLastKnownPositionAsync();
+      }
+
+      if (!loc) {
+        setGpsError('Could not get GPS. Please try again or select manually.');
+        setIsLocating(false);
+        return;
+      }
+
+      const accuracy = loc.coords.accuracy ?? 999;
+      if (accuracy > 150) {
+        const lastKnown = await Location.getLastKnownPositionAsync();
+        if (lastKnown && (lastKnown.coords.accuracy ?? 999) < accuracy) {
+          loc = lastKnown;
+        }
+      }
 
       const userLat = loc.coords.latitude;
       const userLng = loc.coords.longitude;
 
-      console.log('[GPS Raw Coordinates]', {
-        lat: userLat,
-        lng: userLng,
-        accuracyMeters: loc.coords.accuracy,
-      });
-
-      // ── Step 1: Reverse geocode to get the exact town/district name ─────────
       const displayName = await resolveAddressFromCoords(userLat, userLng);
-      console.log('[GPS Resolved Location]', displayName);
 
       // ── Step 2: Store GPS location directly (no DB lookup needed) ──────────
       await persistGPSLocation({ latitude: userLat, longitude: userLng, displayName });

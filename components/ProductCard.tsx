@@ -37,6 +37,16 @@ export const ProductCard = React.memo(({ product, onPress, onAddToCart, isAdding
       <Text style={styles.name} numberOfLines={2}>
         {product.name}
       </Text>
+      {product.vendor?.shopName ? (
+        <Text
+          style={[styles.vendorLine, product.vendor.inDeliveryRadius === false && styles.vendorOutOfRange]}
+          numberOfLines={1}
+        >
+          {product.vendor.shopName}
+          {product.vendor.distance != null ? ` · ${product.vendor.distance.toFixed(1)} km` : ''}
+          {product.vendor.inDeliveryRadius === false ? ' · No delivery' : ''}
+        </Text>
+      ) : null}
       <Text style={styles.unit} numberOfLines={1}>
         {product.unit || '1 pc'}
       </Text>
@@ -93,6 +103,8 @@ const styles = StyleSheet.create({
   },
   
   name: { fontSize: 12, fontFamily: fonts.semiBold, color: '#333', marginBottom: 2, minHeight: 15, lineHeight: 16 },
+  vendorLine: { fontSize: 10, color: colors.primary, fontFamily: fonts.medium, marginBottom: 2 },
+  vendorOutOfRange: { color: colors.textMuted },
   unit: { fontSize: 10, color: colors.textMuted, marginBottom: 8 },
   
   priceContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
