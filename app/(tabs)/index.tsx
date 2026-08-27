@@ -225,7 +225,8 @@ export default function HomeScreen() {
 
         {/* ── WHITE CONTENT AREA (BELOW VIDEO) ── */}
         <View style={styles.bottomContentWrap}>
-          {/* ── SEARCH BAR (below video) ── */}
+
+          {/* ── 1. SEARCH BAR ── */}
           <View style={styles.searchWrap}>
             <Pressable style={styles.searchBar} onPress={() => router.push('/(tabs)/search')}>
               <Ionicons name="search-outline" size={20} color="#64748b" />
@@ -236,42 +237,18 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* ── ROW 2: HORIZONTAL BANNERS ── */}
+          {/* ── 2. DOUBLE IMAGE ROW (2 per row side by side) ── */}
           {row2Banners.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row2Wrap}>
-              {row2Banners.slice(0, 2).map((b: any, idx: number) => (
-                <Pressable key={b.id} style={[styles.row2Card, { height: row2H, width: SW * 0.7 }]}>
-                  <Image source={{ uri: b.imageUrl }} style={styles.row2Img} contentFit="cover" />
+            <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, marginTop: spacing.md }}>
+              {row2Banners.slice(0, 2).map((b: any) => (
+                <Pressable key={b.id} style={{ flex: 1, height: row2H, borderRadius: 16, overflow: 'hidden' }}>
+                  <Image source={{ uri: b.imageUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
           )}
 
-          {/* ── NEARBY VENDORS ── */}
-          {nearbyShops && nearbyShops.length > 0 ? (
-            <View style={{ marginTop: spacing.md }}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Vendors</Text>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: spacing.md }}
-              >
-                {nearbyShops.map((shop, index) => (
-                  <ShopCard
-                    key={shop.id}
-                    shop={shop}
-                    horizontal
-                    isNearest={index === 0 && shop.distance != null}
-                    onPress={() => router.push(`/shop/${shop.id}`)}
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          ) : null}
-
-          {/* ── SHOP BY CATEGORIES ── */}
+          {/* ── 3. SHOP BY CATEGORIES ── */}
           {data?.categories?.length ? (
             <View style={{ marginTop: spacing.md }}>
               <View style={styles.sectionHeader}>
@@ -298,13 +275,13 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* ── ROW 3: WIDE FULL-WIDTH IMAGE ── */}
+          {/* ── 4. WIDE FULL-WIDTH IMAGE ── */}
           {row3Banner && (
             <Pressable style={[styles.row3Card, { height: row3H, marginTop: spacing.md }]}>
               <Image source={{ uri: row3Banner.imageUrl }} style={styles.row3Img} contentFit="cover" />
             </Pressable>
           )}
-          
+
         </View>
 
 

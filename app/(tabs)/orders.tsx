@@ -38,7 +38,7 @@ export default function OrdersScreen() {
   if (!accessToken) {
     return (
       <SafeAreaView style={styles.safe}>
-        <InnerHeader title="My Orders" />
+        <InnerHeader title="My Orders" showBack={true} showSearch={false} showCart={false} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Feather name="package" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
           <Text style={{ fontSize: 18, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 8 }}>Please Login</Text>
@@ -53,7 +53,7 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="My Orders" />
+      <InnerHeader title="My Orders" showBack={true} showSearch={false} showCart={false} />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
         <View style={styles.centered}>

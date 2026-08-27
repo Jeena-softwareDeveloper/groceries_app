@@ -119,7 +119,7 @@ function RootNavigator() {
   return (
     <NavigationGuard>
       <CartBadgeSync />
-      <StatusBar style="dark" />
+      <StatusBar style="dark" backgroundColor="#dcfce7" translucent={false} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />

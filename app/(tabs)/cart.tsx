@@ -681,7 +681,7 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f9fafb' },
-  scroll: { paddingBottom: 120 },
+  scroll: { paddingBottom: 180 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   emptyTitle: { fontSize: 20, fontFamily: fonts.bold, color: colors.text },
   emptyDesc: { fontSize: 15, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' },
@@ -777,7 +777,7 @@ const styles = StyleSheet.create({
   savingsHighlight: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef8f2', padding: spacing.sm, borderRadius: radius.md, marginTop: spacing.md, justifyContent: 'center' },
   savingsText: { color: colors.primary, fontSize: 13, marginLeft: 6 },
   
-  stickyFooterWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.border },
+  stickyFooterWrapper: { position: 'absolute', bottom: 60, left: 0, right: 0, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: colors.border, borderTopLeftRadius: 16, borderTopRightRadius: 16, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 8 },
   stickyFooter: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, paddingBottom: spacing.sm },
   footerLeft: { flex: 1 },
   footerToPayLabel: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.medium },

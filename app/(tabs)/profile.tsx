@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View, Alert, Platform, ActivityIndicator } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +75,7 @@ export default function ProfileScreen() {
   if (!accessToken) {
     return (
       <SafeAreaView style={styles.safe}>
+        <StatusBar style="light" backgroundColor="#16a34a" translucent={false} />
         <LinearGradient colors={['#16a34a', '#15803d', '#14532d']} style={{ flex: 1 }}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
             <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
@@ -100,9 +102,9 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <StatusBar style="light" backgroundColor="#16a34a" translucent={false} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* ── Gradient Header ── */}
         <LinearGradient colors={['#16a34a', '#15803d', '#14532d']} style={styles.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ position: 'absolute', top: 12, right: 20, width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.06)' }} />
           <View style={{ position: 'absolute', top: -16, right: 60, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.05)' }} />
