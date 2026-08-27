@@ -91,9 +91,35 @@ export default function HomeScreen() {
     staleTime: 60 * 1000,
   });
 
+  const [imagesPreloaded, setImagesPreloaded] = useState(false);
+
+  useEffect(() => {
+    if (data) {
+      const urls: string[] = [];
+      if (data.banners) {
+        data.banners.forEach((b: any) => {
+          if (b.imageUrl) urls.push(b.imageUrl);
+        });
+      }
+      if (data.categories) {
+        data.categories.forEach((c: any) => {
+          if (c.imageUrl) urls.push(c.imageUrl);
+        });
+      }
+
+      if (urls.length === 0) {
+        setImagesPreloaded(true);
+      } else {
+        Promise.all(urls.map(url => Image.prefetch(url)))
+          .then(() => setImagesPreloaded(true))
+          .catch(() => setImagesPreloaded(true));
+      }
+    }
+  }, [data]);
+
   const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
   const hasVideo = row1Banner?.type === 'VIDEO' && !!row1Banner.videoUrl;
-  const isPageLoading = !hasLocation || isLoading || !data;
+  const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded;
   const showVideoLoader = hasVideo && !isVideoReady;
   const showOverlay = isPageLoading || showVideoLoader;
 
