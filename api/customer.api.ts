@@ -71,5 +71,8 @@ export const customerApi = {
     districtId?: string;
     areaId?: string;
   }) => unwrap(api.post('/customer/location', data)),
+
+  fetchAppVersion: () =>
+    unwrap<{ minVersion: string; playStoreUrl: string }>(api.get('/customer/app/version')),
 };
 

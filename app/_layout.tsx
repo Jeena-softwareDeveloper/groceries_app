@@ -3,7 +3,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextStyle, View } from 'react-native';
+import { StyleSheet, Text, TextStyle, View, Linking, TouchableOpacity } from 'react-native';
+import Constants from 'expo-constants';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -24,6 +25,44 @@ import LoginScreen from '@/app/(auth)/login';
 import LocationScreen from '@/app/location';
 import { setShowLoginModal } from '@/store/authSlice';
 import { setShowLocationModal } from '@/store/locationSlice';
+import { customerApi } from '@/api';
+
+// ── Version helpers ─────────────────────────────────────────────────────────
+function parseVer(v: string) {
+  return (v || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
+}
+function isOutdated(current: string, min: string) {
+  const [cMaj, cMin, cPatch] = parseVer(current);
+  const [mMaj, mMin, mPatch] = parseVer(min);
+  if (cMaj !== mMaj) return cMaj < mMaj;
+  if (cMin !== mMin) return cMin < mMin;
+  return cPatch < mPatch;
+}
+
+function ForceUpdateScreen({ playStoreUrl }: { playStoreUrl: string }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+      <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <Text style={{ fontSize: 48 }}>🔄</Text>
+      </View>
+      <Text style={{ fontSize: 24, fontFamily: 'Roboto_700Bold', color: '#14532d', textAlign: 'center', marginBottom: 12 }}>
+        Update Required
+      </Text>
+      <Text style={{ fontSize: 15, color: '#374151', textAlign: 'center', lineHeight: 24, marginBottom: 32 }}>
+        A new version of All Time Market is available. Please update the app to continue.
+      </Text>
+      <TouchableOpacity
+        onPress={() => Linking.openURL(playStoreUrl)}
+        style={{ backgroundColor: '#16a34a', paddingHorizontal: 36, paddingVertical: 16, borderRadius: 100, flexDirection: 'row', alignItems: 'center', gap: 10 }}
+      >
+        <Text style={{ color: '#fff', fontSize: 17, fontFamily: 'Roboto_700Bold' }}>Update on Play Store</Text>
+      </TouchableOpacity>
+      <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 20 }}>
+        Current version: {Constants.expoConfig?.version ?? '—'}
+      </Text>
+    </View>
+  );
+}
 
 // Keep the native splash screen visible until we are ready to replace it
 SplashScreen.preventAutoHideAsync();
@@ -168,22 +207,36 @@ export default function RootLayout() {
     Roboto_500Medium,
     Roboto_700Bold,
   });
+  const [updateInfo, setUpdateInfo] = useState<{ playStoreUrl: string } | null>(null);
+
+  useEffect(() => {
+    const currentVersion = Constants.expoConfig?.version ?? '0.1.0';
+    customerApi.fetchAppVersion().then(({ minVersion, playStoreUrl }) => {
+      if (isOutdated(currentVersion, minVersion)) {
+        setUpdateInfo({ playStoreUrl });
+      }
+    }).catch(() => {}); // Fail silently — don't block app on network error
+  }, []);
 
   if (!fontsLoaded) {
-    return null; // Don't show a spinner, let the native splash screen stay
+    return null;
+  }
+
+  if (updateInfo) {
+    return <ForceUpdateScreen playStoreUrl={updateInfo.playStoreUrl} />;
   }
 
   return (
-    <SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
       <Provider store={store}>
-        <QueryClientProvider client={queryClient}>
-          <RootNavigator />
+        <SafeAreaProvider>
           <GlobalLocationOverlay />
           <GlobalAuthOverlay />
+          <RootNavigator />
           <Toast />
-        </QueryClientProvider>
+        </SafeAreaProvider>
       </Provider>
-    </SafeAreaProvider>
+    </QueryClientProvider>
   );
 }
 

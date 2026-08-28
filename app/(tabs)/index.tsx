@@ -118,7 +118,7 @@ export default function HomeScreen() {
   }, [data]);
 
   const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
-  const hasVideo = row1Banner?.type === 'VIDEO' && !!row1Banner.videoUrl;
+  const hasVideo = !!row1Banner?.videoUrl;
   const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded;
   const showVideoLoader = hasVideo && !isVideoReady;
   const showOverlay = isPageLoading || showVideoLoader;
@@ -130,6 +130,24 @@ export default function HomeScreen() {
       return () => clearTimeout(timer);
     }
   }, [data, showOverlay, accessToken, dispatch]);
+
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [isOverlayVisible, setIsOverlayVisible] = useState(true);
+
+  useEffect(() => {
+    if (showOverlay) {
+      setIsOverlayVisible(true);
+      fadeAnim.setValue(1);
+    } else {
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsOverlayVisible(false);
+      });
+    }
+  }, [showOverlay, fadeAnim]);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
@@ -239,9 +257,9 @@ export default function HomeScreen() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
         >
           {/* ── ROW 1: VIDEO OR IMAGE BANNER ── */}
-          {row1Banner?.videoUrl ? (
+          {hasVideo ? (
             <View style={styles.videoBannerWrap}>
-              <VideoBanner url={row1Banner.videoUrl} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
+              <VideoBanner url={row1Banner!.videoUrl!} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
             </View>
           ) : row1Banner?.imageUrl ? (
             <View style={styles.videoBannerWrap}>
@@ -333,10 +351,10 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {showOverlay && (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', zIndex: 999 }]}>
+      {isOverlayVisible && (
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', zIndex: 999, opacity: fadeAnim }]}>
           <AnimatedLoader size="large" />
-        </View>
+        </Animated.View>
       )}
     </SafeAreaView>
   );

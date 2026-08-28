@@ -251,6 +251,7 @@ export default function VendorRequestFormScreen() {
     if (step === 3) {
       if (!form.districtId) return 'Please select a district';
       if (areas.length > 0 && !form.areaId) return 'Please select an area';
+      if (!form.latitude || !form.longitude) return 'GPS location is required. Please tap "Detect My Location" to continue.';
       if (!form.address?.trim() || form.address.trim().length < 5) return 'Shop address is required';
     }
     if (step === 4) {
@@ -354,14 +355,30 @@ export default function VendorRequestFormScreen() {
 
 
   function renderStep3() {
+    const gpsDetected = !!(form.latitude && form.longitude);
     return (
       <>
-        <View style={{ marginBottom: spacing.lg, alignItems: 'center' }}>
+        {/* GPS Button */}
+        <View style={{ marginBottom: spacing.md, borderRadius: 16, borderWidth: 1.5, borderColor: gpsDetected ? '#16a34a' : '#f59e0b', backgroundColor: gpsDetected ? '#f0fdf4' : '#fffbeb', padding: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+            <Text style={{ fontSize: 14, fontFamily: fonts.bold, color: gpsDetected ? '#16a34a' : '#b45309', flex: 1 }}>
+              {gpsDetected ? '✅ GPS Location Detected' : '⚠️ GPS Location Required'}
+            </Text>
+          </View>
+          {gpsDetected ? (
+            <Text style={{ fontSize: 12, color: '#16a34a', marginBottom: spacing.sm }}>
+              📍 Lat: {form.latitude?.toFixed(5)}, Lng: {form.longitude?.toFixed(5)}
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 12, color: '#92400e', marginBottom: spacing.sm }}>
+              Your shop's GPS coordinates are needed for delivery radius and map visibility. Tap the button below.
+            </Text>
+          )}
           <Button 
-            title={isDetectingLocation ? "Detecting..." : "Detect My Location (GPS)"} 
+            title={isDetectingLocation ? "Detecting..." : gpsDetected ? "Re-detect Location" : "📍 Detect My Location (GPS)"} 
             onPress={handleDetectLocation} 
             disabled={isDetectingLocation}
-            icon="map-pin"
+            variant={gpsDetected ? 'ghost' : 'primary'}
           />
         </View>
 
@@ -381,10 +398,18 @@ export default function VendorRequestFormScreen() {
             onChange={(v) => set('areaId', v)} 
           />
         )}
-        <Input label="Complete Shop Address" value={form.address ?? ''} onChangeText={(v) => set('address', v)} multiline />
-        <Input label="Landmark (Optional)" value={form.landmark ?? ''} onChangeText={(v) => set('landmark', v)} />
-        <Input label="Latitude (Optional)" value={form.latitude?.toString() ?? ''} onChangeText={(v) => set('latitude', parseFloat(v) || undefined)} keyboardType="decimal-pad" />
-        <Input label="Longitude (Optional)" value={form.longitude?.toString() ?? ''} onChangeText={(v) => set('longitude', parseFloat(v) || undefined)} keyboardType="decimal-pad" />
+
+        {/* Address — only editable after GPS */}
+        <View style={{ opacity: gpsDetected ? 1 : 0.4 }} pointerEvents={gpsDetected ? 'auto' : 'none'}>
+          <Input 
+            label="Complete Shop Address" 
+            value={form.address ?? ''} 
+            onChangeText={(v) => set('address', v)} 
+            multiline 
+            placeholder={gpsDetected ? 'e.g. 12, Gandhi St, Perundurai, Erode - 638052' : 'Detect GPS first to fill address'}
+          />
+          <Input label="Landmark (Optional)" value={form.landmark ?? ''} onChangeText={(v) => set('landmark', v)} />
+        </View>
         <Input label="Delivery Radius (km)" value={form.deliveryRadius?.toString() ?? '5'} onChangeText={(v) => set('deliveryRadius', parseFloat(v) || 5)} keyboardType="decimal-pad" />
       </>
     );

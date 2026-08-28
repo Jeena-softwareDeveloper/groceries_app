@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, fonts } from '@/constants/theme';
@@ -15,21 +15,13 @@ interface SuccessStateProps {
 export function SuccessState({ title, message, buttonText, onButtonPress }: SuccessStateProps) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        bounces={false}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.container}>
-          <View style={styles.iconContainer}>
-            <Feather name="check-circle" size={80} color={colors.primary} />
-          </View>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
+      <View style={styles.container}>
+        <View style={styles.iconContainer}>
+          <Feather name="check-circle" size={80} color={colors.primary} />
         </View>
-      </ScrollView>
-      <View style={styles.footer}>
-        <Button title={buttonText} onPress={onButtonPress} />
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.message}>{message}</Text>
+        <Button title={buttonText} onPress={onButtonPress} style={styles.button} />
       </View>
     </SafeAreaView>
   );
@@ -40,11 +32,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   container: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
@@ -69,10 +58,9 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     textAlign: 'center',
     lineHeight: 24,
+    marginBottom: spacing.xl,
   },
-  footer: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
+  button: {
+    minWidth: 200,
   },
 });
