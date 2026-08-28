@@ -219,7 +219,7 @@ export default function VendorRequestFormScreen() {
       await vendorRequestApi.submit();
       setIsSubmitted(true);
     } catch (e: any) {
-      const msg = e.response?.data?.message || (e instanceof Error ? e.message : 'Could not submit. Try again.');
+      const msg = e.response?.data?.error?.message || e.response?.data?.message || (e instanceof Error ? e.message : 'Could not submit. Try again.');
       if (msg.toLowerCase().includes('unauthorized') || msg.toLowerCase().includes('token')) {
         if (Platform.OS === 'web') {
           if (window.confirm('Session Expired. Please log in again.')) router.push('/(auth)/login');
