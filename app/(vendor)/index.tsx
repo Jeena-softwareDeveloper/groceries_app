@@ -9,7 +9,11 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter, Link } from 'expo-router';
 import { vendorApi } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
-import { useAppSelector } from '@/store/hooks';
+import { useAppSelector, useAppDispatch } from '@/store/hooks';
+import { authApi } from '@/api';
+import { persistAuth } from '@/hooks/useBootstrap';
+import { setTokens, setUser } from '@/store/authSlice';
+import { showLoader, hideLoader } from '@/store/uiSlice';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -57,7 +61,24 @@ const ORDER_STATUS_COLORS: Record<string, string> = {
 
 export default function VendorDashboard() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
+
+  async function handleSwitchToCustomer() {
+    dispatch(showLoader());
+    try {
+      const tokens = await authApi.switchToCustomer();
+      await persistAuth(tokens.accessToken, tokens.refreshToken);
+      dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
+      const me = await authApi.getMe();
+      dispatch(setUser(me));
+      router.replace('/(tabs)');
+    } catch (e) {
+      router.replace('/(tabs)');
+    } finally {
+      dispatch(hideLoader());
+    }
+  }
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['vendor-dashboard'],
@@ -98,9 +119,14 @@ export default function VendorDashboard() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Vendor Portal</Text>
-          <Text style={styles.shopName}>{user?.shopName ?? 'My Shop'}</Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={handleSwitchToCustomer} style={styles.customerBtn}>
+            <Feather name="arrow-left" size={20} color={colors.primary} />
+          </Pressable>
+          <View>
+            <Text style={styles.greeting}>Vendor Portal</Text>
+            <Text style={styles.shopName}>{user?.shopName ?? 'My Shop'}</Text>
+          </View>
         </View>
         <TouchableOpacity
           activeOpacity={0.7}
@@ -280,6 +306,8 @@ const styles = StyleSheet.create({
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md },
   retryText: { color: colors.white, fontFamily: fonts.bold },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  customerBtn: { padding: spacing.xs },
   greeting: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.medium },
   shopName: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
   notifBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },

@@ -14,10 +14,9 @@ import { vendorApi } from '@/api/vendor.api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
 import { wipeAuth, persistAuth } from '@/hooks/useBootstrap';
+import { Image } from 'expo-image';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
-
-// ─── Modals ───────────────────────────────────────────────────────────────────
 
 function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose: () => void; profile: any }) {
   const queryClient = useQueryClient();
@@ -299,7 +298,15 @@ export default function VendorMore() {
           {/* Store Profile Header Card */}
           <View style={styles.profileHeaderCard}>
             <View style={styles.avatarBox}>
-              <Feather name="home" size={28} color="#16a34a" />
+              {(profile?.imageUrl || user?.imageUrl || profile?.image || user?.image) ? (
+                <Image 
+                  source={{ uri: profile?.imageUrl || user?.imageUrl || profile?.image || user?.image }} 
+                  style={{ width: 65, height: 65, borderRadius: 32.5 }} 
+                  contentFit="cover" 
+                />
+              ) : (
+                <Feather name="home" size={28} color="#16a34a" />
+              )}
               <View style={styles.checkBadge}>
                 <Feather name="check" size={10} color="#fff" />
               </View>
