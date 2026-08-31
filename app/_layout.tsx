@@ -130,8 +130,15 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
     }
   }, [ready, accessToken, districtId, segments, router, user]);
 
-  if (isSplashVisible) {
-    return <CustomSplashScreen ready={ready} onFinish={() => setIsSplashVisible(false)} />;
+  useEffect(() => {
+    if (ready) {
+      SplashScreen.hideAsync();
+      setIsSplashVisible(false);
+    }
+  }, [ready]);
+
+  if (!ready || isSplashVisible) {
+    return null;
   }
 
   return <>{children}</>;

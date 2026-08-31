@@ -35,22 +35,53 @@ import { setShowLocationModal } from '@/store/locationSlice';
 import { useEvent } from 'expo';
 
 function VideoBanner({ url, style, onReady }: { url: string, style: any, onReady?: () => void }) {
-  const player = useVideoPlayer(url, (player) => {
-    player.loop = true;
-    player.muted = true;
-    player.play();
+  console.log('[VideoBanner] url:', url);
+
+  const player = useVideoPlayer(url, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
   });
-  const { status } = useEvent(player, 'statusChange', { status: player.status });
+
+  // expo-video 3.x: useEvent returns the event payload object
+  const statusPayload = useEvent(player, 'statusChange', { status: player.status });
+  // statusPayload may be { status: string } or just a string depending on version
+  const currentStatus: string =
+    typeof statusPayload === 'string'
+      ? statusPayload
+      : (statusPayload as any)?.status ?? player.status;
+
+  console.log('[VideoBanner] status:', currentStatus);
 
   useEffect(() => {
-    if (status === 'readyToPlay' && onReady) {
-      onReady();
+    if (currentStatus === 'readyToPlay') {
+      player.play();
+      onReady?.();
+    } else if (currentStatus === 'error') {
+      console.warn('[VideoBanner] video error - releasing overlay');
+      onReady?.();
     }
-  }, [status, onReady]);
+  }, [currentStatus]);
+
+  // Safety fallback: release overlay after 6 seconds even if status never fires
+  useEffect(() => {
+    const t = setTimeout(() => {
+      console.warn('[VideoBanner] timeout fallback - releasing overlay');
+      onReady?.();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <View style={[style, { position: 'relative' }]}>
-      <VideoView style={StyleSheet.absoluteFill} player={player} nativeControls={false} contentFit="cover" />
+      <VideoView
+        style={StyleSheet.absoluteFill}
+        player={player}
+        nativeControls={false}
+        contentFit="cover"
+        allowsFullscreen={false}
+        allowsPictureInPicture={false}
+      />
     </View>
   );
 }
@@ -98,7 +129,8 @@ export default function HomeScreen() {
       const urls: string[] = [];
       if (data.banners) {
         data.banners.forEach((b: any) => {
-          if (b.imageUrl) urls.push(b.imageUrl);
+          // Skip VIDEO type banners — imageUrl is an .mp4, can't prefetch as image
+          if (b.imageUrl && b.type !== 'VIDEO') urls.push(b.imageUrl);
         });
       }
       if (data.categories) {
@@ -118,7 +150,18 @@ export default function HomeScreen() {
   }, [data]);
 
   const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
-  const hasVideo = !!row1Banner?.videoUrl;
+
+  // Admin sometimes saves video URL in imageUrl field (when type === 'VIDEO') instead of videoUrl
+  // So check both fields: prefer videoUrl, fallback to imageUrl when type is VIDEO
+  const videoSrc: string | null =
+    row1Banner?.videoUrl?.trim() ||
+    (row1Banner?.type === 'VIDEO' && row1Banner?.imageUrl?.trim()
+      ? row1Banner.imageUrl.trim()
+      : null) ||
+    null;
+
+  const hasVideo = !!videoSrc;
+  console.log('[HomeScreen] row1Banner type:', row1Banner?.type, '| videoSrc:', videoSrc, '| hasVideo:', hasVideo);
   const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded;
   const showVideoLoader = hasVideo && !isVideoReady;
   const showOverlay = isPageLoading || showVideoLoader;
@@ -259,9 +302,9 @@ export default function HomeScreen() {
           {/* ── ROW 1: VIDEO OR IMAGE BANNER ── */}
           {hasVideo ? (
             <View style={styles.videoBannerWrap}>
-              <VideoBanner url={row1Banner!.videoUrl!} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
+              <VideoBanner url={videoSrc!} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
             </View>
-          ) : row1Banner?.imageUrl ? (
+          ) : row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO' ? (
             <View style={styles.videoBannerWrap}>
               <Image source={{ uri: row1Banner.imageUrl }} style={styles.videoBannerImg as any} contentFit="cover" />
             </View>

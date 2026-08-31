@@ -103,7 +103,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar style="light" backgroundColor="#16a34a" translucent={false} />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         <LinearGradient colors={['#16a34a', '#15803d', '#14532d']} style={styles.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
           <View style={{ position: 'absolute', top: 12, right: 20, width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.06)' }} />
@@ -276,7 +276,8 @@ function MenuItem({ icon, title, subtitle, onPress, last, loading }: {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f8fafc' },
+  safe: { flex: 1, backgroundColor: '#16a34a' },
+  scrollView: { flex: 1, backgroundColor: '#f8fafc' },
   content: { paddingBottom: 120 },
 
   headerGradient: {

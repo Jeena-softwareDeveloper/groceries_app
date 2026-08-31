@@ -82,7 +82,18 @@ export interface Product {
 }
 
 export interface HomeFeed {
-  banners: { id: string; imageUrl: string; title?: string | null; themeColor?: string | null; themeColorEnd?: string | null }[];
+  banners: {
+    id: string;
+    imageUrl: string;
+    videoUrl?: string | null;
+    title?: string | null;
+    row?: number | null;
+    sortOrder?: number | null;
+    linkUrl?: string | null;
+    themeColor?: string | null;
+    themeColorEnd?: string | null;
+    isActive?: boolean;
+  }[];
   microBanners: { id: string; imageUrl: string; title?: string | null }[];
   categories: Category[];
   nearbyShops: Shop[];
