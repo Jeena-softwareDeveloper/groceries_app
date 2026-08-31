@@ -2,14 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { useRouter, useFocusEffect, Stack } from 'expo-router';
 import {
   View, Text, StyleSheet, FlatList, Pressable,
-  TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert, Image, Platform,
+  TextInput, RefreshControl, Modal, ScrollView, Alert, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Image } from 'expo-image';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { vendorApi, type VendorProduct } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
+import { PageHeader } from '@/components/PageHeader';
+import Toast from 'react-native-toast-message';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -301,6 +305,7 @@ function ProductFormModal({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function VendorProducts() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -354,10 +359,6 @@ export default function VendorProducts() {
     setIsModalVisible(true);
   };
 
-  const handleView = (product: VendorProduct) => {
-    router.push(`/product/${product.id}`);
-  };
-
   const handleAdd = () => {
     setSelectedProduct(null);
     setIsModalVisible(true);
@@ -386,43 +387,46 @@ export default function VendorProducts() {
       <Stack.Screen
         options={{
           header: () => (
-            <SafeAreaView edges={['top']} style={{ backgroundColor: '#fff' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12 }}>
-                <View style={[styles.searchBar, { flex: 1, marginHorizontal: 0, marginTop: 0 }]}>
-                  <Feather name="search" size={16} color={colors.textMuted} />
-                  <TextInput
-                    style={[styles.searchInput, { paddingVertical: 6, fontSize: 14 }]}
-                    placeholder="Search products..."
-                    placeholderTextColor={colors.textMuted}
-                    value={search}
-                    onChangeText={(t) => {
-                      setSearch(t);
-                      setPage(1);
-                    }}
-                  />
-                  {search !== '' && (
-                    <Pressable onPress={() => setSearch('')}>
-                      <Feather name="x" size={16} color={colors.textMuted} />
-                    </Pressable>
-                  )}
-                </View>
-                <Pressable
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: 14,
-                    paddingVertical: 10,
-                    borderRadius: 20,
-                    gap: 6,
+            <View style={{
+              backgroundColor: '#fff',
+              paddingTop: Math.max(insets.top, 20) + 10,
+              paddingHorizontal: spacing.lg,
+              paddingBottom: spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f1f5f9',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.md
+            }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <Feather name="search" size={16} color="#94a3b8" />
+                <TextInput
+                  placeholder="Search products..."
+                  placeholderTextColor="#94a3b8"
+                  style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
+                  onChangeText={(t) => {
+                    setSearch(t);
+                    setPage(1);
                   }}
-                  onPress={handleAdd}
-                >
-                  <Feather name="plus" size={14} color="#fff" />
-                  <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 13 }}>Add</Text>
-                </Pressable>
+                  value={search}
+                />
               </View>
-            </SafeAreaView>
+              <Pressable
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: colors.primary,
+                  paddingHorizontal: 16,
+                  height: 40,
+                  borderRadius: 20,
+                  gap: 6,
+                }}
+                onPress={handleAdd}
+              >
+                <Feather name="plus" size={16} color="#fff" />
+                <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 13 }}>Add</Text>
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -454,10 +458,7 @@ export default function VendorProducts() {
 
       {/* Products List */}
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading products...</Text>
-        </View>
+        <LoadingState message="Loading products..." />
       ) : products.length === 0 ? (
         <View style={styles.center}>
           <View style={styles.emptyIconCircle}>
@@ -522,9 +523,6 @@ export default function VendorProducts() {
                     <Text style={cardStyles.stock}>Stock: <Text style={{ fontFamily: fonts.bold }}>{item.inventory?.stock ?? 0}</Text></Text>
                     
                     <View style={{ flexDirection: 'row', gap: 8 }}>
-                      <Pressable style={cardStyles.smallIconBtn} onPress={() => handleView(item)}>
-                        <Feather name="eye" size={14} color={colors.text} />
-                      </Pressable>
                       <Pressable style={cardStyles.smallIconBtn} onPress={() => handleEdit(item)}>
                         <Feather name="edit-2" size={14} color={colors.text} />
                       </Pressable>

@@ -14,6 +14,7 @@ import { authApi } from '@/api';
 import { persistAuth } from '@/hooks/useBootstrap';
 import { setTokens, setUser } from '@/store/authSlice';
 import { showLoader, hideLoader } from '@/store/uiSlice';
+import { PageHeader } from '@/components/PageHeader';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ export default function VendorDashboard() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Loading dashboard...</Text>
@@ -101,7 +102,7 @@ export default function VendorDashboard() {
 
   if (isError || !data) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={[]}>
         <View style={styles.loadingContainer}>
           <Feather name="alert-circle" size={48} color={colors.error} />
           <Text style={[styles.loadingText, { color: colors.error }]}>Failed to load dashboard</Text>
@@ -116,31 +117,27 @@ export default function VendorDashboard() {
   const d = data;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Pressable onPress={handleSwitchToCustomer} style={styles.customerBtn}>
-            <Feather name="arrow-left" size={20} color={colors.primary} />
-          </Pressable>
-          <View>
-            <Text style={styles.greeting}>Vendor Portal</Text>
-            <Text style={styles.shopName}>{user?.shopName ?? 'My Shop'}</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[styles.notifBtn, d.notifications.unread > 0 && styles.notifBtnActive]}
-          onPress={() => router.push('/vendor-notifications')}
-        >
-          <Feather name="bell" size={20} color={d.notifications.unread > 0 ? colors.white : colors.text} />
-          {d.notifications.unread > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{d.notifications.unread > 9 ? '9+' : d.notifications.unread}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+      <PageHeader
+        title={user?.shopName ?? 'Vendor Portal'}
+        showBack={true}
+        onBack={handleSwitchToCustomer}
+        rightElement={
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[styles.notifBtn, d.notifications.unread > 0 && styles.notifBtnActive]}
+            onPress={() => router.push('/vendor-notifications')}
+          >
+            <Feather name="bell" size={20} color={d.notifications.unread > 0 ? colors.white : colors.text} />
+            {d.notifications.unread > 0 && (
+              <View style={styles.notifBadge}>
+                <Text style={styles.notifBadgeText}>{d.notifications.unread > 9 ? '9+' : d.notifications.unread}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -305,11 +302,6 @@ const styles = StyleSheet.create({
   loadingText: { fontSize: 15, color: colors.textMuted, fontFamily: fonts.medium },
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, borderRadius: radius.md },
   retryText: { color: colors.white, fontFamily: fonts.bold },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  customerBtn: { padding: spacing.xs },
-  greeting: { fontSize: 12, color: colors.textMuted, fontFamily: fonts.medium },
-  shopName: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },
   notifBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
   notifBtnActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   notifBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#dc2626', minWidth: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },

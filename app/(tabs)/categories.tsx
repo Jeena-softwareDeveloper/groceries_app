@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { useQuery } from '@tanstack/react-query';
 import { categoryApi } from '@/api/category.api';
@@ -29,8 +29,8 @@ export default function CategoriesScreen() {
   const subCategories = selectedCategory?.children || [];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <InnerHeader title="All Categories" />
+    <SafeAreaView style={styles.container} edges={[]}>
+      <PageHeader title="All Categories" showBack={false} />
       <View style={{ flex: 1, backgroundColor: colors.white }}>
       {isLoading ? (
         <View style={styles.center}>

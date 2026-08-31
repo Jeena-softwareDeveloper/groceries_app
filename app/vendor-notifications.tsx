@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FlatList, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { vendorApi } from '@/api/vendor.api';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { Stack } from 'expo-router';
 import Toast from 'react-native-toast-message';
+
+import { PageHeader } from '@/components/PageHeader';
 
 export default function VendorNotificationsScreen() {
   const queryClient = useQueryClient();
@@ -35,25 +38,24 @@ export default function VendorNotificationsScreen() {
 
   return (
     <View style={s.root}>
-      <Stack.Screen
-        options={{
-          title: 'Notifications',
-          headerRight: () =>
-            notifications.length > 0 && notifications.some((n: any) => !n.isRead) ? (
-              <Pressable
-                onPress={() => clearAllMutation.mutate()}
-                style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }, s.clearBtn]}
-              >
-                <Text style={s.clearBtnText}>Clear All</Text>
-              </Pressable>
-            ) : null,
-        }}
+      <Stack.Screen options={{ headerShown: false }} />
+      <PageHeader
+        title="Notifications"
+        showBack={true}
+        rightElement={
+          notifications.length > 0 && notifications.some((n: any) => !n.isRead) ? (
+            <Pressable
+              onPress={() => clearAllMutation.mutate()}
+              style={({ pressed }) => [{ opacity: pressed ? 0.5 : 1 }, s.clearBtn]}
+            >
+              <Text style={s.clearBtnText}>Clear All</Text>
+            </Pressable>
+          ) : undefined
+        }
       />
 
       {isLoading ? (
-        <View style={s.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : notifications.length === 0 ? (
         <View style={s.centered}>
           <Ionicons name="notifications-off-outline" size={56} color="#d1d5db" />

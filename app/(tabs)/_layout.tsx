@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    paddingTop: 12,
+    paddingTop: 6,
     paddingHorizontal: spacing.lg,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
@@ -147,12 +147,12 @@ const styles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 24,
   },
   iconWrap: {
-    paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
     borderRadius: 20,
     backgroundColor: 'transparent',
   },
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 11,
     fontFamily: fonts.bold,
-    marginTop: 2,
+    marginTop: 1,
   },
 });
 

@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
-  Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -15,7 +14,10 @@ import {
   TouchableOpacity,
   View,
   Pressable,
+  useWindowDimensions,
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { cartApi, customerApi, productApi } from '@/api';
@@ -45,7 +47,7 @@ const BAR_COLORS: Record<number, string> = {
 };
 
 export default function ProductScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const dispatch = useAppDispatch();
@@ -64,7 +66,8 @@ export default function ProductScreen() {
   const { data: product, isLoading, error } = useQuery({
     queryKey: ['product', id],
     queryFn: () => productApi.fetchProduct(id!),
-    enabled: !!id,
+    enabled: !!id && preview !== 'true',
+    initialData: preview === 'true' ? () => queryClient.getQueryData(['product', id]) as any : undefined,
   });
 
   const { data: similarData } = useQuery({
@@ -116,11 +119,7 @@ export default function ProductScreen() {
 
   // ── States ───────────────────────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <View style={s.centered}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
+    return <LoadingState />;
   }
   if (error || !product) {
     return (

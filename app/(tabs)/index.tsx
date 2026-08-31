@@ -22,7 +22,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import LottieView from 'lottie-react-native';
 import { customerApi, cartApi } from '@/api';
-import { AnimatedLoader } from '@/components/AnimatedLoader';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { CategoryCard } from '@/components/CategoryCard';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
@@ -54,37 +54,99 @@ function VideoBanner({ url, style, onReady }: { url: string, style: any, onReady
   console.log('[VideoBanner] status:', currentStatus);
 
   useEffect(() => {
+    let t: any;
     if (currentStatus === 'readyToPlay') {
       player.play();
       onReady?.();
     } else if (currentStatus === 'error') {
       console.warn('[VideoBanner] video error - releasing overlay');
       onReady?.();
+    } else {
+      // Safety fallback: release overlay after 6 seconds even if status never fires
+      t = setTimeout(() => {
+        console.warn('[VideoBanner] timeout fallback - releasing overlay');
+        onReady?.();
+      }, 6000);
     }
+    return () => {
+      if (t) clearTimeout(t);
+    };
   }, [currentStatus]);
-
-  // Safety fallback: release overlay after 6 seconds even if status never fires
-  useEffect(() => {
-    const t = setTimeout(() => {
-      console.warn('[VideoBanner] timeout fallback - releasing overlay');
-      onReady?.();
-    }, 6000);
-    return () => clearTimeout(t);
-  }, []);
 
   return (
     <View style={[style, { position: 'relative' }]}>
       <VideoView
         style={StyleSheet.absoluteFill}
         player={player}
-        nativeControls={false}
+        nativeControls={true}
         contentFit="cover"
-        allowsFullscreen={false}
+        allowsFullscreen={true}
         allowsPictureInPicture={false}
       />
     </View>
   );
 }
+
+function TypewriterSearchBar({ onPress }: { onPress: () => void }) {
+  const searchHints = ['Milk, Bread, Eggs...', 'Fresh Tomatoes...', 'Amul Butter...', 'Rice, Dal, Oil...', 'Snacks & Drinks...', 'Daily Essentials...'];
+  const [hintIndex, setHintIndex] = useState(0);
+  const [typedText, setTypedText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const searchGlow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(searchGlow, { toValue: 1, duration: 1400, useNativeDriver: false }),
+        Animated.timing(searchGlow, { toValue: 0, duration: 1400, useNativeDriver: false }),
+      ])
+    ).start();
+  }, []);
+
+  useEffect(() => {
+    const currentHint = searchHints[hintIndex];
+    let timeout: any;
+    if (!isDeleting && typedText.length < currentHint.length) {
+      timeout = setTimeout(() => setTypedText(currentHint.slice(0, typedText.length + 1)), 60);
+    } else if (!isDeleting && typedText.length === currentHint.length) {
+      timeout = setTimeout(() => setIsDeleting(true), 1400);
+    } else if (isDeleting && typedText.length > 0) {
+      timeout = setTimeout(() => setTypedText(typedText.slice(0, -1)), 35);
+    } else if (isDeleting && typedText.length === 0) {
+      setIsDeleting(false);
+      setHintIndex((i) => (i + 1) % searchHints.length);
+    }
+    return () => clearTimeout(timeout);
+  }, [typedText, isDeleting, hintIndex]);
+
+  const glowBorderColor = searchGlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#e2e8f0', '#86efac'],
+  });
+  const glowShadowOpacity = searchGlow.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.04, 0.22],
+  });
+
+  return (
+    <Animated.View style={[styles.searchBarOuter, { borderColor: glowBorderColor, shadowOpacity: glowShadowOpacity }]}>
+      <Pressable style={styles.searchBar} onPress={onPress}>
+        <Ionicons name="search-outline" size={20} color="#22c55e" />
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.searchPlaceholder}>
+            {typedText}<Text style={{ color: '#22c55e', fontFamily: fonts.bold }}>|</Text>
+          </Text>
+        </View>
+        <View style={styles.qrBtn}>
+          <Ionicons name="scan" size={20} color={colors.primary} />
+        </View>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// Global cache to prevent showing the image loading spinner again when navigating back
+const loadedVisualsCache = new Set<string>();
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -101,11 +163,23 @@ export default function HomeScreen() {
   const SCREEN_WIDTH = Dimensions.get('window').width;
   const VIDEO_HEIGHT = Math.round(SCREEN_WIDTH * 0.48); // Reduced from 16:9ish
 
-  const [isVideoReady, setIsVideoReady] = useState(false);
-  const handleVideoReady = useCallback(() => setIsVideoReady(true), []);
+  const [totalVisuals, setTotalVisuals] = useState(0);
+  const [loadedVisuals, setLoadedVisuals] = useState(0);
+  const cacheKey = `${districtId}-${areaId}`;
+  const handleVisualLoaded = useCallback(() => {
+    if (loadedVisualsCache.has(cacheKey)) return;
+    setLoadedVisuals((prev) => prev + 1);
+  }, [cacheKey]);
 
   // Track location changes to show loading overlay when location is updated
   const [locationChanged, setLocationChanged] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    await refetch();
+    setIsManualRefreshing(false);
+  }, [refetch]);
+
   const prevLocationRef = useRef({ districtId, areaId, latitude, longitude });
   useEffect(() => {
     const prev = prevLocationRef.current;
@@ -117,7 +191,7 @@ export default function HomeScreen() {
     if (changed && hasLocation) {
       prevLocationRef.current = { districtId, areaId, latitude, longitude };
       setLocationChanged(true);
-      setIsVideoReady(false); // reset video state for new location
+      setLoadedVisuals(0); // reset loading state for new location
     }
   }, [districtId, areaId, latitude, longitude, hasLocation]);
 
@@ -139,10 +213,10 @@ export default function HomeScreen() {
     staleTime: 60 * 1000,
   });
 
-  const [imagesPreloaded, setImagesPreloaded] = useState(false);
+  const [imagesPreloaded, setImagesPreloaded] = useState(() => loadedVisualsCache.has(cacheKey));
 
   useEffect(() => {
-    if (data) {
+    if (data && !imagesPreloaded) {
       const urls: string[] = [];
       if (data.banners) {
         data.banners.forEach((b: any) => {
@@ -164,9 +238,11 @@ export default function HomeScreen() {
           .catch(() => setImagesPreloaded(true));
       }
     }
-  }, [data]);
+  }, [data, imagesPreloaded]);
 
   const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
+  const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
+  const row3Banner = data?.banners?.find((b: any) => b.row === 3);
 
   // Admin sometimes saves video URL in imageUrl field (when type === 'VIDEO') instead of videoUrl
   // So check both fields: prefer videoUrl, fallback to imageUrl when type is VIDEO
@@ -186,9 +262,36 @@ export default function HomeScreen() {
     }
   }, [data, locationChanged]);
 
+  // Count total visuals on screen to ensure they all load before dismissing overlay
+  useEffect(() => {
+    if (data) {
+      let count = 0;
+      // Row 1
+      if (hasVideo || (row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO')) count++;
+      // Row 2
+      if (row2Banners.length) count += row2Banners.length;
+      // Categories
+      if (data.categories?.length) count += data.categories.length;
+      // Row 3
+      if (row3Banner?.imageUrl) count++;
+
+      setTotalVisuals(count);
+      setLoadedVisuals(0);
+    }
+  }, [data, hasVideo]);
+
   const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded || locationChanged;
-  const showVideoLoader = hasVideo && !isVideoReady;
-  const showOverlay = isPageLoading || showVideoLoader;
+  
+  const hasLoadedVisualsBefore = loadedVisualsCache.has(cacheKey);
+  
+  const showVisualsLoader = !hasLoadedVisualsBefore && (totalVisuals > 0 && loadedVisuals < totalVisuals);
+  const showOverlay = isPageLoading || showVisualsLoader;
+
+  useEffect(() => {
+    if (totalVisuals > 0 && loadedVisuals >= totalVisuals) {
+      loadedVisualsCache.add(cacheKey);
+    }
+  }, [totalVisuals, loadedVisuals, cacheKey]);
 
   useEffect(() => {
     if (data && !showOverlay && !accessToken && !hasAttemptedLogin.current) {
@@ -198,25 +301,19 @@ export default function HomeScreen() {
     }
   }, [data, showOverlay, accessToken, dispatch]);
 
-  const fadeAnim = useRef(new Animated.Value(1)).current;
-  const [isOverlayVisible, setIsOverlayVisible] = useState(true);
+  const fadeAnim = useRef(new Animated.Value(showOverlay ? 1 : 0)).current;
 
   useEffect(() => {
-    if (showOverlay) {
-      setIsOverlayVisible(true);
-      fadeAnim.setValue(1);
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsOverlayVisible(false);
-      });
-    }
+    Animated.timing(fadeAnim, {
+      toValue: showOverlay ? 1 : 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
   }, [showOverlay, fadeAnim]);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+
 
   const addToCartMutation = useMutation({
     mutationFn: (productId: string) => cartApi.addToCart(productId, 1),
@@ -274,12 +371,9 @@ export default function HomeScreen() {
   }
 
   // ── Banner helpers ─────────────────────────────────────────────────────────
-  const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
-  const row3Banner = data?.banners?.find((b: any) => b.row === 3);
-
   const halfW = (SCREEN_WIDTH - spacing.md * 2 - spacing.sm) / 2;
   const row2H = Math.round(halfW * 0.95);
-  const row3H = Math.round((SCREEN_WIDTH - spacing.md * 2) * 0.44);
+  const row3H = Math.round(SCREEN_WIDTH * 0.48);
 
   // ── RENDER ─────────────────────────────────────────────────────────────────
   return (
@@ -316,21 +410,27 @@ export default function HomeScreen() {
       {/* ═══════════════════════════════════════════════════════════
           SCROLLABLE CONTENT
       ═══════════════════════════════════════════════════════════ */}
-      {!isPageLoading && (
+      {!!data && !locationChanged && (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+          refreshControl={<RefreshControl refreshing={isManualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         >
           {/* ── ROW 1: VIDEO OR IMAGE BANNER ── */}
           {hasVideo ? (
             <View style={styles.videoBannerWrap}>
-              <VideoBanner url={videoSrc!} style={styles.videoBannerImg as any} onReady={handleVideoReady} />
+              <VideoBanner url={videoSrc!} style={styles.videoBannerImg as any} onReady={handleVisualLoaded} />
             </View>
           ) : row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO' ? (
             <View style={styles.videoBannerWrap}>
-              <Image source={{ uri: row1Banner.imageUrl }} style={styles.videoBannerImg as any} contentFit="cover" />
+              <Image 
+                source={{ uri: row1Banner.imageUrl }} 
+                style={styles.videoBannerImg as any} 
+                contentFit="cover" 
+                onLoad={handleVisualLoaded}
+                onError={handleVisualLoaded}
+              />
             </View>
           ) : null}
 
@@ -339,32 +439,26 @@ export default function HomeScreen() {
 
           {/* ── 1. SEARCH BAR ── */}
           <View style={styles.searchWrap}>
-            <Pressable style={styles.searchBar} onPress={() => router.push('/(tabs)/search')}>
-              <Ionicons name="search-outline" size={20} color="#64748b" />
-              <Text style={styles.searchPlaceholder}>Search groceries, products...</Text>
-              <View style={styles.qrBtn}>
-                <Ionicons name="scan" size={20} color={colors.primary} />
-              </View>
-            </Pressable>
+            <TypewriterSearchBar onPress={() => router.push('/(tabs)/search')} />
           </View>
 
-          {/* ── 2. BANNER IMAGES (65% width horizontal scroll) ── */}
+          {/* ── 2. BANNER IMAGES (70% width horizontal scroll) ── */}
           {row2Banners.length > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               decelerationRate="fast"
-              snapToInterval={Math.round(SCREEN_WIDTH * 0.65) + spacing.sm}
+              snapToInterval={Math.round(SCREEN_WIDTH * 0.70) + spacing.sm}
               snapToAlignment="start"
-              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, marginTop: spacing.md }}
-              style={{ marginTop: spacing.md }}
+              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}
+              style={{ marginTop: 6 }}
             >
               {row2Banners.map((b: any) => (
                 <Pressable
                   key={b.id}
                   style={{
-                    width: Math.round(SCREEN_WIDTH * 0.65),
-                    height: Math.round(SCREEN_WIDTH * 0.65 * 0.75),
+                    width: Math.round(SCREEN_WIDTH * 0.70),
+                    height: Math.round(SCREEN_WIDTH * 0.70 * 0.60),
                     borderRadius: 16,
                     overflow: 'hidden',
                     elevation: 3,
@@ -374,7 +468,13 @@ export default function HomeScreen() {
                     shadowRadius: 6,
                   }}
                 >
-                  <Image source={{ uri: b.imageUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                  <Image 
+                    source={{ uri: b.imageUrl }} 
+                    style={{ width: '100%', height: '100%' }} 
+                    contentFit="cover" 
+                    onLoad={handleVisualLoaded}
+                    onError={handleVisualLoaded}
+                  />
                 </Pressable>
               ))}
             </ScrollView>
@@ -383,7 +483,7 @@ export default function HomeScreen() {
 
           {/* ── 3. SHOP BY CATEGORIES ── */}
           {data?.categories?.length ? (
-            <View style={{ marginTop: spacing.md }}>
+            <View style={{ marginTop: 6 }}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Shop by Categories</Text>
                 <Pressable style={styles.viewAllRow} onPress={() => router.push('/(tabs)/categories')}>
@@ -402,18 +502,25 @@ export default function HomeScreen() {
                     category={cat}
                     isSelected={false}
                     onPress={() => router.push(`/category/${cat.id}?name=${encodeURIComponent(cat.name)}`)}
+                    onVisualReady={handleVisualLoaded}
                   />
                 ))}
               </ScrollView>
             </View>
           ) : null}
 
-          {/* ── 4. WIDE FULL-WIDTH IMAGE ── */}
-          {row3Banner && (
-            <Pressable style={[styles.row3Card, { height: row3H, marginTop: spacing.md }]}>
-              <Image source={{ uri: row3Banner.imageUrl }} style={styles.row3Img} contentFit="cover" />
+          {/* ── 4. WIDE FULL-WIDTH BANNER IMAGE ── */}
+          {row3Banner && row3Banner.imageUrl ? (
+            <Pressable style={[styles.row3Card, { height: row3H }]}>
+              <Image
+                source={{ uri: row3Banner.imageUrl }}
+                style={{ width: SCREEN_WIDTH - spacing.md * 2, height: row3H }}
+                contentFit="cover"
+                onLoad={handleVisualLoaded}
+                onError={handleVisualLoaded}
+              />
             </Pressable>
-          )}
+          ) : null}
 
         </View>
 
@@ -440,11 +547,12 @@ export default function HomeScreen() {
         </Pressable>
       )}
 
-      {isOverlayVisible && (
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', zIndex: 999, opacity: fadeAnim }]}>
-          <AnimatedLoader size="large" />
-        </Animated.View>
-      )}
+      <Animated.View 
+        pointerEvents={showOverlay ? 'auto' : 'none'}
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', zIndex: 999, opacity: fadeAnim }]}
+      >
+        <LoadingState fullScreen={false} />
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -462,13 +570,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 4,
     backgroundColor: '#f0fdf4',
     borderBottomWidth: 0,
   },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  logoImg: { width: 68, height: 68, resizeMode: 'contain' },
-  logoText: { fontSize: 16, fontFamily: fonts.bold, letterSpacing: -0.2, lineHeight: 18 },
+  logoImg: { width: 52, height: 52, resizeMode: 'contain' },
+  logoText: { fontSize: 15, fontFamily: fonts.bold, letterSpacing: -0.2, lineHeight: 17 },
   locationPill: {
     flexDirection: 'row', alignItems: 'center', gap: 3,
     paddingHorizontal: 10, paddingVertical: 6,
@@ -500,15 +608,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: spacing.sm,
-    paddingBottom: 100, // Increased padding to allow scrolling past the tab bar
+    paddingTop: 4,
+    paddingBottom: 120,
   },
 
   // ── VIDEO BANNER ──
   videoBannerWrap: {
     marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginTop: 4,
+    marginBottom: 4,
     borderRadius: radius.xl,
     overflow: 'hidden',
     elevation: 4,
@@ -587,7 +695,16 @@ const styles = StyleSheet.create({
   // ── SEARCH BAR ──
   searchWrap: {
     marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  searchBarOuter: {
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchBar: {
     flexDirection: 'row',
@@ -595,16 +712,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingLeft: spacing.md,
     paddingRight: 6,
-    height: 48,
+    height: 50,
     backgroundColor: '#fff',
     borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
   },
   searchPlaceholder: {
     fontSize: 15, fontFamily: fonts.medium,
@@ -663,16 +773,17 @@ const styles = StyleSheet.create({
   // ── ROW 3 (wide image) ──
   row3Card: {
     marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: 10,
+    marginBottom: 10,
     borderRadius: radius.lg,
     overflow: 'hidden',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
-  row3Img: { width: '100%', height: '100%', resizeMode: 'cover' },
+  row3Img: { width: '100%', height: '100%' },
   row3Overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.08)',
@@ -691,10 +802,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    marginTop: 6,
+    marginBottom: 4,
   },
-  sectionTitle: { fontSize: 17, fontFamily: fonts.bold, color: colors.text },
+  sectionTitle: { fontSize: 16, fontFamily: fonts.bold, color: colors.text },
   viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   viewAll: { fontSize: 13, fontFamily: fonts.medium, color: colors.primary },
 

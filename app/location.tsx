@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { Area, District } from '@shared/types';
@@ -383,7 +384,7 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
           )}
         </View>
         {districtsQuery.isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
+          <LoadingState fullScreen={false} />
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -463,7 +464,7 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
           )}
         </View>
         {areasQuery.isLoading ? (
-          <ActivityIndicator color={colors.primary} style={{ padding: 40 }} />
+          <LoadingState fullScreen={false} />
         ) : (
           <ScrollView
             showsVerticalScrollIndicator={false}

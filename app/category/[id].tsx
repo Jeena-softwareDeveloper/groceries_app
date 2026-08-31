@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
   Text,
   View,
   RefreshControl,
+  TouchableOpacity,
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -70,10 +71,7 @@ export default function CategoryShopsScreen() {
 
       {/* ── Shop List ── */}
       {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>Loading vendors…</Text>
-        </View>
+        <LoadingState message="Loading vendors…" />
       ) : error ? (
         <View style={styles.centered}>
           <Ionicons name="alert-circle-outline" size={48} color={colors.error} />

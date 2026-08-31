@@ -108,19 +108,20 @@ export default function LoginScreen(props: any = {}) {
     }
   }
 
-  async function handleVerifyOtp() {
+  async function handleVerifyOtp(autoOtp?: string | any) {
+    const code = typeof autoOtp === 'string' ? autoOtp : otp;
     const normalized = phone.replace(/\D/g, '');
-    if (!/^[6-9]\d{9}$/.test(normalized)) {
-      Toast.show({ type: 'error', text1: 'Invalid phone', text2: 'Enter a valid 10-digit Indian mobile number.' });
+    if (!normalized || normalized.length < 10) {
+      Toast.show({ type: 'error', text1: 'Validation', text2: 'Invalid phone number.' });
       return;
     }
-    if (!/^\d{6}$/.test(otp)) {
+    if (!/^\d{6}$/.test(code)) {
       Toast.show({ type: 'error', text1: 'Invalid OTP', text2: 'Enter the 6-digit code.' });
       return;
     }
     setLoading(true);
     try {
-      const tokens = await authApi.verifyOtp(normalized, otp);
+      const tokens = await authApi.verifyOtp(normalized, code);
       
       // FIX: Persist auth to local storage so axios interceptor can use it for getMe()
       await persistAuth(tokens.accessToken, tokens.refreshToken);
@@ -282,9 +283,18 @@ export default function LoginScreen(props: any = {}) {
               placeholder="------"
               keyboardType="number-pad"
               value={otp}
-              onChangeText={(v) => setOtp(v.replace(/\D/g, '').slice(0, 6))}
+              onChangeText={(v) => {
+                const code = v.replace(/\D/g, '').slice(0, 6);
+                setOtp(code);
+                if (code.length === 6) {
+                  Keyboard.dismiss();
+                  handleVerifyOtp(code);
+                }
+              }}
               maxLength={6}
               textAlign="center"
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
               containerStyle={{ marginBottom: spacing.md }}
               style={styles.otpInput}
             />

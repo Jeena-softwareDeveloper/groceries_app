@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FlatList, StyleSheet, Text, View, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { FlatList, StyleSheet, Text, View, Pressable, Alert } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authApi } from '@/api';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { Feather } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -21,8 +22,8 @@ export default function DevicesScreen() {
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <InnerHeader title="Devices" showBack showSearch={false} showCart={false} />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <PageHeader title="Devices" showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
         </View>
@@ -56,8 +57,8 @@ export default function DevicesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Logged in Devices" showBack showSearch={false} showCart={false} />
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <PageHeader title="Logged in Devices" showBack />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.content}>
         <Text style={styles.infoText}>
@@ -65,118 +66,75 @@ export default function DevicesScreen() {
         </Text>
         
         {isLoading ? (
-          <View style={styles.loader}>
-            <ActivityIndicator color={colors.primary} size="large" />
-          </View>
+          <LoadingState fullScreen={false} />
         ) : (
           <FlatList
             data={sessions || []}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={<Text style={styles.empty}>No active sessions found.</Text>}
-            renderItem={({ item, index }) => {
-              const isCurrent = index === 0; // The most recent session is usually the current one
-              return (
-                <View style={styles.card}>
-                  <View style={styles.iconBox}>
-                    <Feather name={item.osVersion?.toLowerCase().includes('windows') || item.osVersion?.toLowerCase().includes('mac') ? "monitor" : "smartphone"} size={24} color={isCurrent ? colors.primary : colors.textMuted} />
-                  </View>
-                  <View style={styles.details}>
-                    <Text style={styles.deviceName}>
-                      {item.deviceModel || item.deviceName || 'Unknown Device'} {isCurrent && <Text style={styles.currentBadge}>(Current)</Text>}
-                    </Text>
-                    <Text style={styles.meta}>
-                      {item.osVersion ? `OS: ${item.osVersion} | ` : ''}IP: {item.ipAddress || 'Unknown'}
-                    </Text>
-                    <Text style={styles.meta}>
-                      Started: {new Date(item.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  {!isCurrent && (
-                    <Pressable 
-                      style={({ pressed }) => [styles.logoutBtn, pressed && styles.logoutBtnPressed]}
-                      onPress={() => handleRevoke(item.id, isCurrent)}
-                    >
-                      <Feather name="log-out" size={18} color="#dc2626" />
-                    </Pressable>
-                  )}
+            ListEmptyComponent={<Text style={styles.empty}>No other devices found.</Text>}
+            renderItem={({ item }) => (
+              <View style={styles.card}>
+                <View style={styles.iconBox}>
+                  <Feather name={item.deviceType === 'ios' || item.deviceType === 'android' ? 'smartphone' : 'monitor'} size={24} color={colors.primary} />
                 </View>
-              );
-            }}
+                <View style={styles.details}>
+                  <Text style={styles.deviceName}>
+                    {item.deviceModel || item.deviceType || 'Unknown Device'}
+                  </Text>
+                  {item.isCurrentDevice ? (
+                    <Text style={styles.currentBadge}>Current Device</Text>
+                  ) : (
+                    <Text style={styles.meta}>Last active: {new Date(item.lastActiveAt).toLocaleDateString()}</Text>
+                  )}
+                  {item.ipAddress && <Text style={styles.meta}>IP: {item.ipAddress}</Text>}
+                </View>
+                {!item.isCurrentDevice && (
+                  <Pressable 
+                    style={({ pressed }) => [styles.logoutBtn, pressed && styles.logoutBtnPressed]}
+                    onPress={() => handleRevoke(item.id, item.isCurrentDevice)}
+                  >
+                    <Feather name="log-out" size={16} color="#ef4444" />
+                  </Pressable>
+                )}
+              </View>
+            )}
           />
         )}
       </View>
-          </View>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#dcfce7' },
-  content: { flex: 1 },
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
+  content: { flex: 1, paddingVertical: spacing.md, gap: spacing.md },
   infoText: {
-    padding: spacing.md,
-    color: colors.textMuted,
+    marginHorizontal: spacing.md,
     fontSize: 14,
-    lineHeight: 20,
-  },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  list: {
-    padding: spacing.md,
-    paddingTop: 0,
-    gap: spacing.sm,
-  },
-  empty: {
-    textAlign: 'center',
     color: colors.textMuted,
-    marginTop: spacing.xl,
+    lineHeight: 20,
+    fontFamily: fonts.medium,
   },
+  loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  list: { gap: spacing.sm },
+  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
   card: {
+    marginHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     padding: spacing.md,
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: colors.surface,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  details: {
-    flex: 1,
-  },
-  deviceName: {
-    fontSize: 16,
-    fontFamily: fonts.semiBold,
-    color: colors.text,
-    marginBottom: 4,
-  },
-  currentBadge: {
-    color: colors.primary,
-    fontSize: 12,
-    fontFamily: fonts.bold,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  logoutBtn: {
-    padding: spacing.sm,
-    backgroundColor: '#fee2e2',
-    borderRadius: radius.md,
-  },
-  logoutBtnPressed: {
-    opacity: 0.7,
-  }
+  iconBox: { width: 48, height: 48, borderRadius: radius.full, backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center', marginRight: spacing.md },
+  details: { flex: 1 },
+  deviceName: { fontSize: 16, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 4 },
+  currentBadge: { color: colors.primary, fontSize: 12, fontFamily: fonts.bold },
+  meta: { fontSize: 12, color: colors.textMuted },
+  logoutBtn: { padding: spacing.sm, backgroundColor: '#fee2e2', borderRadius: radius.md },
+  logoutBtnPressed: { opacity: 0.7 }
 });

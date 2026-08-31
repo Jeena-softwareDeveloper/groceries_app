@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { walletApi } from '@/api';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setShowLoginModal } from '@/store/authSlice';
@@ -14,8 +14,8 @@ export default function WalletScreen() {
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <InnerHeader title="Wallet" showBack showSearch={false} showCart={false} />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <PageHeader title="Wallet" showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
         </View>
@@ -24,8 +24,8 @@ export default function WalletScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Wallet" showBack showSearch={false} showCart={false} />
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <PageHeader title="Wallet" showBack />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.balanceCard}>
         <Text style={styles.label}>Available balance</Text>
@@ -35,7 +35,7 @@ export default function WalletScreen() {
       <FlatList
         data={data?.transactions ?? []}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ padding: spacing.md }}
+        contentContainerStyle={{ paddingVertical: spacing.md }}
         ListEmptyComponent={<Text style={styles.empty}>No transactions yet</Text>}
         renderItem={({ item }) => (
           <View style={styles.tx}>
@@ -52,9 +52,10 @@ export default function WalletScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#dcfce7' },
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
   balanceCard: {
-    margin: spacing.md,
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.md,
     backgroundColor: colors.primary,
     borderRadius: radius.xl,
     padding: spacing.xl,
@@ -64,6 +65,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: spacing.md, fontFamily: fonts.bold, color: colors.text },
   empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.lg },
   tx: {
+    marginHorizontal: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,

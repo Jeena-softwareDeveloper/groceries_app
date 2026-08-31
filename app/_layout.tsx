@@ -208,8 +208,7 @@ function GlobalLoadingOverlay() {
 
   useEffect(() => {
     if (isLoading) {
-      // Show immediately, then fade in
-      setVisible(true);
+      // Fade in
       Animated.timing(opacity, {
         toValue: 1,
         duration: 180,
@@ -226,29 +225,28 @@ function GlobalLoadingOverlay() {
         clearTimeout(safetyTimer.current);
         safetyTimer.current = null;
       }
-      // Fade out, then unmount
+      // Fade out
       Animated.timing(opacity, {
         toValue: 0,
         duration: 220,
         useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setVisible(false);
-      });
+      }).start();
     }
   }, [isLoading]);
 
-  if (!visible) return null;
-
   return (
-    <Animated.View style={{
-      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: '#ffffff',
-      zIndex: 99999,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 20,
-      opacity,
-    }}>
+    <Animated.View 
+      pointerEvents={isLoading ? 'auto' : 'none'}
+      style={{
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: '#ffffff',
+        zIndex: 99999,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 20,
+        opacity,
+      }}
+    >
       <AnimatedLoader size="large" />
       <Text style={{
         fontSize: 14,

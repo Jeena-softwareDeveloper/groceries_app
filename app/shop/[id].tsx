@@ -11,6 +11,7 @@ import {
   ScrollView,
   Pressable,
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { Image } from 'expo-image';
 import { customerApi, productApi } from '@/api';
 import { ProductCard } from '@/components/ProductCard';
@@ -36,11 +37,7 @@ export default function ShopScreen() {
   });
 
   if (shopQuery.isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
+    return <LoadingState />;
   }
 
   const shop = shopQuery.data;
@@ -100,7 +97,7 @@ export default function ShopScreen() {
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           productsQuery.isLoading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />
+            <LoadingState fullScreen={false} />
           ) : (
             <Text style={styles.empty}>No products available</Text>
           )

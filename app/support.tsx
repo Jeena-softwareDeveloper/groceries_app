@@ -3,7 +3,7 @@ import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
 import { Button } from '@/components/Button';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { SuccessState } from '@/components/ui';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import Toast from 'react-native-toast-message';
@@ -20,8 +20,8 @@ export default function SupportScreen() {
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <InnerHeader title="Help & Support" showBack showSearch={false} showCart={false} />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <PageHeader title="Help & Support" showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
         </View>
@@ -66,9 +66,9 @@ export default function SupportScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={[]}>
 
-      <InnerHeader title="Help & Support" showBack showSearch={false} showCart={false} />
+      <PageHeader title="Help & Support" showBack />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={styles.form}>
         <Text style={styles.label}>Subject</Text>
@@ -82,7 +82,7 @@ export default function SupportScreen() {
           multiline
           numberOfLines={5}
         />
-        <Button title="Submit ticket" loading={loading} onPress={handleSubmit} style={{ marginTop: spacing.lg }} />
+        <Button title="Submit ticket" loading={loading} onPress={handleSubmit} style={{ marginHorizontal: spacing.md, marginTop: spacing.lg }} />
       </View>
           </View>
     </SafeAreaView>
@@ -90,10 +90,11 @@ export default function SupportScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#dcfce7' },
-  form: { padding: spacing.md },
-  label: { fontFamily: fonts.medium, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
+  form: { paddingVertical: spacing.md },
+  label: { marginHorizontal: spacing.md, fontFamily: fonts.medium, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md },
   input: {
+    marginHorizontal: spacing.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,

@@ -9,9 +9,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { productApi } from '@/api';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
 import { CategoryCard } from '@/components/CategoryCard';
@@ -39,23 +40,12 @@ export default function SearchScreen() {
   const hasQuery = debounced.trim().length >= 2;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader 
-        title="Search" 
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <PageHeader 
+        showBack={false}
         showSearch={true} 
-        customSearchNode={
-          <View style={{ flex: 1 }}>
-            <TextInput
-              style={[styles.searchInput, { flex: 1, backgroundColor: '#fff', borderRadius: 999, height: 44, paddingVertical: 0, paddingHorizontal: 16, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4, borderWidth: 0 }]}
-              placeholder="Search products, shops, categories..."
-              value={query}
-              onChangeText={setQuery}
-              autoCapitalize="words"
-              returnKeyType="search"
-              autoFocus={true}
-            />
-          </View>
-        }
+        onSearch={setQuery}
+        searchHints={['Search products, shops, categories...']}
       />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
 
@@ -64,9 +54,7 @@ export default function SearchScreen() {
           <Text style={styles.hintText}>Type at least 2 characters to search</Text>
         </View>
       ) : isFetching ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <LoadingState />
       ) : (
         <ScrollView contentContainerStyle={styles.results}>
           {data?.products?.length ? (

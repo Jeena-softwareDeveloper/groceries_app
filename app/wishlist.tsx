@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { customerApi } from '@/api';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setShowLoginModal } from '@/store/authSlice';
@@ -17,8 +17,8 @@ export default function WishlistScreen() {
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <InnerHeader title="Wishlist" showBack showSearch={false} showCart={false} />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <PageHeader title="Wishlist" showBack />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ fontSize: 16, color: colors.textMuted, textAlign: 'center' }}>Please sign in to view this page</Text>
         </View>
@@ -32,8 +32,8 @@ export default function WishlistScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="Wishlist" showBack showSearch={false} showCart={false} />
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <PageHeader title="Wishlist" showBack />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
         <Text style={styles.empty}>Loading…</Text>
@@ -43,7 +43,7 @@ export default function WishlistScreen() {
         <FlatList
           data={data}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.md }}
+          contentContainerStyle={{ paddingVertical: spacing.md }}
           renderItem={({ item }) => {
             const p = item.product;
             const img = p.images?.[0]?.url;
@@ -68,9 +68,10 @@ export default function WishlistScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#dcfce7' },
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
   empty: { textAlign: 'center', marginTop: spacing.xl, color: colors.textMuted },
   row: {
+    marginHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { orderApi } from '@/api';
 import { Button } from '@/components/Button';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -30,7 +31,7 @@ export default function OrderDetailScreen() {
   }
 
   if (isLoading || !order) {
-    return <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>;
+    return <LoadingState />;
   }
 
   const canCancel = order.status === 'PLACED' || order.status === 'CONFIRMED';

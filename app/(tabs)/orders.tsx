@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -8,9 +7,10 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { orderApi } from '@/api';
-import { InnerHeader } from '@/components/InnerHeader';
+import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
 import { Feather } from '@expo/vector-icons';
@@ -37,8 +37,8 @@ export default function OrdersScreen() {
 
   if (!accessToken) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <InnerHeader title="My Orders" showBack={true} showSearch={false} showCart={false} />
+      <SafeAreaView style={styles.safe} edges={[]}>
+        <PageHeader title="My Orders" showBack />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
           <Feather name="package" size={48} color={colors.textMuted} style={{ marginBottom: 16 }} />
           <Text style={{ fontSize: 18, fontFamily: fonts.semiBold, color: colors.text, marginBottom: 8 }}>Please Login</Text>
@@ -52,13 +52,11 @@ export default function OrdersScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <InnerHeader title="My Orders" showBack={true} showSearch={false} showCart={false} />
+    <SafeAreaView style={styles.safe} edges={[]}>
+      <PageHeader title="My Orders" showBack />
       <View style={{ flex: 1, backgroundColor: colors.background }}>
       {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} size="large" />
-        </View>
+        <LoadingState />
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.error}>{error instanceof Error ? error.message : 'Failed to load'}</Text>
@@ -102,12 +100,13 @@ export default function OrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#dcfce7' },
-  list: { padding: spacing.md, paddingBottom: spacing.xl },
+  safe: { flex: 1, backgroundColor: '#f0fdf4' },
+  list: { paddingVertical: spacing.md, paddingBottom: spacing.xl },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   error: { color: colors.error },
   empty: { color: colors.textMuted, fontSize: 16 },
   card: {
+    marginHorizontal: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     padding: spacing.md,

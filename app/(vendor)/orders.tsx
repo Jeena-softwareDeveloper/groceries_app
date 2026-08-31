@@ -4,11 +4,12 @@ import {
   TextInput, ActivityIndicator, RefreshControl, Modal, ScrollView, Alert,
 } from 'react-native';
 import { Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import { vendorApi, type VendorOrder } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
+import { PageHeader } from '@/components/PageHeader';
 import Toast from 'react-native-toast-message';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -226,6 +227,7 @@ function OrderCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function VendorOrders() {
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -263,28 +265,30 @@ export default function VendorOrders() {
       <Stack.Screen
         options={{
           header: () => (
-            <SafeAreaView edges={['top']} style={{ backgroundColor: '#fff' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
-                <View style={[styles.searchBar, { flex: 1, marginHorizontal: 0, marginTop: 0 }]}>
-                  <Feather name="search" size={16} color={colors.textMuted} />
-                  <TextInput
-                    style={[styles.searchInput, { paddingVertical: 6, fontSize: 14 }]}
-                    placeholder="Search orders..."
-                    placeholderTextColor={colors.textMuted}
-                    value={search}
-                    onChangeText={(t) => {
-                      setSearch(t);
-                      setPage(1);
-                    }}
-                  />
-                  {search !== '' && (
-                    <Pressable onPress={() => setSearch('')}>
-                      <Feather name="x" size={16} color={colors.textMuted} />
-                    </Pressable>
-                  )}
-                </View>
+            <View style={{
+              backgroundColor: '#fff',
+              paddingTop: Math.max(insets.top, 20) + 10,
+              paddingHorizontal: spacing.lg,
+              paddingBottom: spacing.md,
+              borderBottomWidth: 1,
+              borderBottomColor: '#f1f5f9',
+              flexDirection: 'row',
+              alignItems: 'center',
+            }}>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
+                <Feather name="search" size={16} color="#94a3b8" />
+                <TextInput
+                  placeholder="Search orders..."
+                  placeholderTextColor="#94a3b8"
+                  style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
+                  onChangeText={(t) => {
+                    setSearch(t);
+                    setPage(1);
+                  }}
+                  value={search}
+                />
               </View>
-            </SafeAreaView>
+            </View>
           ),
         }}
       />

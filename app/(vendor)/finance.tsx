@@ -1,9 +1,12 @@
 import React from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, ActivityIndicator,
+  View, Text, StyleSheet, ScrollView,
   RefreshControl, Pressable
 } from 'react-native';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Stack } from 'expo-router';
+import { PageHeader } from '@/components/PageHeader';
 import { useQuery } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import { vendorApi } from '@/api/vendor.api';
@@ -26,13 +29,7 @@ export default function VendorFinance() {
   const onRefresh = React.useCallback(() => { refetch(); }, [refetch]);
 
   if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['bottom']}>
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      </SafeAreaView>
-    );
+    return <LoadingState />;
   }
 
   if (!data) {
@@ -49,8 +46,8 @@ export default function VendorFinance() {
   const { summary, transactions } = data;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={[colors.primary]} />}

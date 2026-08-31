@@ -8,6 +8,7 @@ interface CategoryCardProps {
   category: Category;
   onPress?: () => void;
   isSelected?: boolean;
+  onVisualReady?: () => void;
 }
 
 const GRADIENTS: [string, string][] = [
@@ -22,15 +23,27 @@ function hashIndex(id: string) {
   return id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % GRADIENTS.length;
 }
 
-export const CategoryCard = React.memo(({ category, onPress, isSelected }: CategoryCardProps) => {
+export const CategoryCard = React.memo(({ category, onPress, isSelected, onVisualReady }: CategoryCardProps) => {
   const [from] = GRADIENTS[hashIndex(category.id)];
   const imageUrl = (category as any).imageUrl || null;
+
+  React.useEffect(() => {
+    if (!imageUrl && onVisualReady) {
+      onVisualReady();
+    }
+  }, [imageUrl, onVisualReady]);
 
   return (
     <Pressable style={[styles.card, isSelected && styles.cardSelected]} onPress={onPress}>
       <View style={[styles.imageWrap, !imageUrl && { backgroundColor: from }]}>
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="contain" />
+          <Image 
+            source={{ uri: imageUrl }} 
+            style={styles.image} 
+            contentFit="contain" 
+            onLoad={onVisualReady}
+            onError={onVisualReady}
+          />
         ) : (
           <Text style={styles.initial}>{category.name.charAt(0).toUpperCase()}</Text>
         )}
