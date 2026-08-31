@@ -104,6 +104,23 @@ export default function HomeScreen() {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const handleVideoReady = useCallback(() => setIsVideoReady(true), []);
 
+  // Track location changes to show loading overlay when location is updated
+  const [locationChanged, setLocationChanged] = useState(false);
+  const prevLocationRef = useRef({ districtId, areaId, latitude, longitude });
+  useEffect(() => {
+    const prev = prevLocationRef.current;
+    const changed =
+      prev.districtId !== districtId ||
+      prev.areaId !== areaId ||
+      prev.latitude !== latitude ||
+      prev.longitude !== longitude;
+    if (changed && hasLocation) {
+      prevLocationRef.current = { districtId, areaId, latitude, longitude };
+      setLocationChanged(true);
+      setIsVideoReady(false); // reset video state for new location
+    }
+  }, [districtId, areaId, latitude, longitude, hasLocation]);
+
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['homeFeed', districtId, areaId, latitude, longitude, isGPSMode],
     queryFn: () =>
@@ -162,7 +179,14 @@ export default function HomeScreen() {
 
   const hasVideo = !!videoSrc;
   console.log('[HomeScreen] row1Banner type:', row1Banner?.type, '| videoSrc:', videoSrc, '| hasVideo:', hasVideo);
-  const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded;
+  // Clear locationChanged once fresh data arrives
+  useEffect(() => {
+    if (data && locationChanged) {
+      setLocationChanged(false);
+    }
+  }, [data, locationChanged]);
+
+  const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded || locationChanged;
   const showVideoLoader = hasVideo && !isVideoReady;
   const showOverlay = isPageLoading || showVideoLoader;
 
@@ -324,16 +348,38 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {/* ── 2. DOUBLE IMAGE ROW (2 per row side by side) ── */}
+          {/* ── 2. BANNER IMAGES (65% width horizontal scroll) ── */}
           {row2Banners.length > 0 && (
-            <View style={{ flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, marginTop: spacing.md }}>
-              {row2Banners.slice(0, 2).map((b: any) => (
-                <Pressable key={b.id} style={{ flex: 1, height: row2H, borderRadius: 16, overflow: 'hidden' }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              decelerationRate="fast"
+              snapToInterval={Math.round(SCREEN_WIDTH * 0.65) + spacing.sm}
+              snapToAlignment="start"
+              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm, marginTop: spacing.md }}
+              style={{ marginTop: spacing.md }}
+            >
+              {row2Banners.map((b: any) => (
+                <Pressable
+                  key={b.id}
+                  style={{
+                    width: Math.round(SCREEN_WIDTH * 0.65),
+                    height: Math.round(SCREEN_WIDTH * 0.65 * 0.75),
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    elevation: 3,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 6,
+                  }}
+                >
                   <Image source={{ uri: b.imageUrl }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                 </Pressable>
               ))}
-            </View>
+            </ScrollView>
           )}
+
 
           {/* ── 3. SHOP BY CATEGORIES ── */}
           {data?.categories?.length ? (

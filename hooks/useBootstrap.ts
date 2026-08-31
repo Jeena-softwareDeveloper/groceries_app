@@ -138,7 +138,13 @@ export function useBootstrap() {
         if (accessToken && refreshToken) {
           try {
             dispatch(setTokens({ accessToken, refreshToken }));
-            const user = await authApi.getMe();
+            // Timeout after 8s — don't let a slow server block app startup
+            const user = await Promise.race([
+              authApi.getMe(),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('getMe timeout')), 8000)
+              ),
+            ]);
             dispatch(setUser(user));
           } catch (getMeErr: any) {
             const statusCode = getMeErr?.response?.status;
@@ -182,7 +188,13 @@ export function useBootstrap() {
         }
 
         try {
-          const config = await fetchAppSettings();
+          // Timeout after 6s — don't let config API block app startup
+          const config = await Promise.race([
+            fetchAppSettings(),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('appSettings timeout')), 6000)
+            ),
+          ]);
           dispatch(setAppSettings(config));
         } catch (e) {
           console.error('Failed to fetch app settings, using fallback defaults', e);

@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-quer
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, TextStyle, View, Linking, TouchableOpacity } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { StyleSheet, Text, TextStyle, View, Linking, TouchableOpacity, Animated } from 'react-native';
 import Constants from 'expo-constants';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -26,6 +26,8 @@ import LocationScreen from '@/app/location';
 import { setShowLoginModal } from '@/store/authSlice';
 import { setShowLocationModal } from '@/store/locationSlice';
 import { customerApi } from '@/api';
+import { AnimatedLoader } from '@/components/AnimatedLoader';
+import { hideLoader } from '@/store/uiSlice';
 
 // ── Version helpers ─────────────────────────────────────────────────────────
 function parseVer(v: string) {
@@ -197,6 +199,68 @@ function GlobalAuthOverlay() {
   );
 }
 
+function GlobalLoadingOverlay() {
+  const { isLoading } = useAppSelector((s) => s.ui);
+  const dispatch = useAppDispatch();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const [visible, setVisible] = useState(false);
+  const safetyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isLoading) {
+      // Show immediately, then fade in
+      setVisible(true);
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+
+      // Safety: auto-dismiss after 12s to prevent stuck screen
+      safetyTimer.current = setTimeout(() => {
+        dispatch(hideLoader());
+      }, 12000);
+    } else {
+      // Clear safety timer
+      if (safetyTimer.current) {
+        clearTimeout(safetyTimer.current);
+        safetyTimer.current = null;
+      }
+      // Fade out, then unmount
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: 220,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) setVisible(false);
+      });
+    }
+  }, [isLoading]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={{
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: '#ffffff',
+      zIndex: 99999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 20,
+      opacity,
+    }}>
+      <AnimatedLoader size="large" />
+      <Text style={{
+        fontSize: 14,
+        fontFamily: 'Roboto_500Medium',
+        color: '#94a3b8',
+        letterSpacing: 0.3,
+      }}>Loading...</Text>
+    </Animated.View>
+  );
+}
+
+
 function GlobalLocationOverlay() {
   const { showLocationModal } = useAppSelector((s) => s.location);
   const dispatch = useAppDispatch();
@@ -239,6 +303,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <GlobalLocationOverlay />
           <GlobalAuthOverlay />
+          <GlobalLoadingOverlay />
           <RootNavigator />
           <Toast />
         </SafeAreaProvider>
