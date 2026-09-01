@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  ActivityIndicator, Alert, Image, Platform, KeyboardAvoidingView,
+  ActivityIndicator, Alert, Image, Platform, KeyboardAvoidingView, LayoutAnimation, Animated, Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import * as Location from 'expo-location';
 import { vendorRequestApi, type VendorRequest } from '@/api/vendor-request.api';
 import { api } from '@/api/client';
@@ -55,14 +56,25 @@ function DocUploader({
     try {
       const asset = result.assets[0];
 
+      let uploadUri = asset.uri;
+      
+      if (Platform.OS !== 'web') {
+        const manipResult = await manipulateAsync(
+          asset.uri,
+          [{ resize: { width: 1024 } }],
+          { compress: 0.7, format: SaveFormat.JPEG }
+        );
+        uploadUri = manipResult.uri;
+      }
+
       // 1. Prepare form data for our backend
       const form = new FormData();
       if (Platform.OS === 'web') {
-        const response = await fetch(asset.uri);
+        const response = await fetch(uploadUri);
         const blob = await response.blob();
         form.append('file', blob, 'upload.jpg');
       } else {
-        form.append('file', { uri: asset.uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+        form.append('file', { uri: uploadUri, name: 'upload.jpg', type: 'image/jpeg' } as any);
       }
       form.append('folder', 'districtmart/vendors');
 
@@ -111,6 +123,79 @@ function DocUploader({
   );
 }
 
+function RocketProgressBar({ step, totalSteps }: { step: number; totalSteps: number }) {
+  const airAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(airAnim, {
+        toValue: 1,
+        duration: 350, // fast airflow
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  const airTranslate = airAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -20],
+  });
+
+  const fillPercent = ((step - 1) / (totalSteps - 1)) * 100;
+
+  return (
+    <View style={{ paddingHorizontal: spacing.lg, paddingTop: 28, paddingBottom: 16 }}>
+      <View style={{ position: 'relative', width: '100%', justifyContent: 'center' }}>
+        
+        {/* Track Background */}
+        <View style={{ height: 10, backgroundColor: '#e2e8f0', borderRadius: 5, width: '100%', overflow: 'hidden' }}>
+          {/* Active Fill with Airflow */}
+          <View style={{ height: '100%', width: `${fillPercent}%`, backgroundColor: '#16a34a', overflow: 'hidden', borderTopRightRadius: 5, borderBottomRightRadius: 5 }}>
+            <Animated.View style={{ flexDirection: 'row', width: '300%', transform: [{ translateX: airTranslate }] }}>
+              {Array.from({ length: 50 }).map((_, i) => (
+                <View key={i} style={{ width: 12, height: 2, backgroundColor: 'rgba(255,255,255,0.4)', marginHorizontal: 4, marginTop: 4, borderRadius: 1 }} />
+              ))}
+            </Animated.View>
+          </View>
+        </View>
+
+        {/* Numeric Nodes */}
+        <View style={{ position: 'absolute', top: '50%', marginTop: -13, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          {Array.from({ length: totalSteps }).map((_, i) => {
+            const s = i + 1;
+            const isActive = s <= step;
+            return (
+              <View 
+                key={s} 
+                style={{ 
+                  width: 26, height: 26, borderRadius: 13, 
+                  backgroundColor: isActive ? '#16a34a' : '#e2e8f0', 
+                  justifyContent: 'center', alignItems: 'center', 
+                  borderWidth: 2, borderColor: '#fff' 
+                }}
+              >
+                <Text style={{ fontSize: 11, fontFamily: fonts.bold, color: isActive ? '#fff' : '#94a3b8' }}>{s}</Text>
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Rocket Icon */}
+        <View style={{ position: 'absolute', top: '50%', marginTop: -16, left: `${fillPercent}%`, marginLeft: -16 }}>
+           <View style={{ 
+             shadowColor: '#16a34a', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 8,
+             backgroundColor: '#fff', borderRadius: 20, padding: 5, transform: [{ rotate: '45deg' }] 
+           }}>
+             <Ionicons name="rocket" size={22} color="#16a34a" />
+           </View>
+        </View>
+
+      </View>
+    </View>
+  );
+}
+
 // ─── Main Form ──────────────────────────────────────────────────────────────
 
 export default function VendorRequestFormScreen() {
@@ -125,6 +210,7 @@ export default function VendorRequestFormScreen() {
   const [districts, setDistricts] = useState<{ id: string; name: string }[]>([]);
   const [areas, setAreas] = useState<{ id: string; name: string }[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState<Partial<VendorRequest>>({
     shopName: '',
@@ -157,6 +243,9 @@ export default function VendorRequestFormScreen() {
 
   function set(key: keyof VendorRequest, value: unknown) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: '' }));
+    }
   }
 
   // Load existing draft
@@ -187,6 +276,7 @@ export default function VendorRequestFormScreen() {
       if (accessToken && user) {
         await vendorRequestApi.saveDraft(form).catch(() => {});
       }
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       setStep((s) => Math.min(s + 1, STEPS.length));
       scrollRef.current?.scrollTo({ y: 0, animated: true });
     } catch (e) {
@@ -238,42 +328,36 @@ export default function VendorRequestFormScreen() {
     }
   }
 
-  function validateCurrentStep(): string | null {
+  function validateCurrentStep(): Record<string, string> {
+    const errs: Record<string, string> = {};
     if (step === 1) {
-      if (!form.shopName?.trim()) return 'Shop Name is required';
-      if (!form.ownerName?.trim()) return 'Owner Name is required';
+      if (!form.shopName?.trim()) errs.shopName = 'Shop Name is required';
+      if (!form.ownerName?.trim()) errs.ownerName = 'Owner Name is required';
       const mobile = form.mobileNumber?.replace(/\D/g, '') ?? '';
-      if (!/^[6-9]\d{9}$/.test(mobile)) return 'Enter a valid 10-digit Indian mobile number';
+      if (!/^[6-9]\d{9}$/.test(mobile)) errs.mobileNumber = 'Enter a valid 10-digit mobile number';
     }
     if (step === 2) {
-      if (!form.shopCategory) return 'Please select a shop category';
+      if (!form.shopCategory) errs.shopCategory = 'Please select a shop category';
     }
     if (step === 3) {
-      if (!form.districtId) return 'Please select a district';
-      if (areas.length > 0 && !form.areaId) return 'Please select an area';
-      if (!form.latitude || !form.longitude) return 'GPS location is required. Please tap "Detect My Location" to continue.';
-      if (!form.address?.trim() || form.address.trim().length < 5) return 'Shop address is required';
+      if (!form.latitude || !form.longitude) errs.location = 'GPS location is required';
+      if (!form.address?.trim() || form.address.trim().length < 5) errs.address = 'Shop address is required';
     }
     if (step === 4) {
-      if (!form.accountHolderName?.trim()) return 'Account holder name is required';
-      if (!form.bankName?.trim()) return 'Bank name is required';
+      if (!form.accountHolderName?.trim()) errs.accountHolderName = 'Account holder name is required';
+      if (!form.bankName?.trim()) errs.bankName = 'Bank name is required';
       const accountNumber = form.accountNumber?.replace(/\s/g, '') ?? '';
-      if (!/^\d{9,18}$/.test(accountNumber)) return 'Enter a valid bank account number (9-18 digits)';
+      if (!/^\d{9,18}$/.test(accountNumber)) errs.accountNumber = 'Enter a valid bank account number';
       const ifsc = (form.ifscCode ?? '').trim().toUpperCase();
-      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) return 'Enter a valid IFSC code';
+      if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) errs.ifscCode = 'Enter a valid IFSC code';
     }
-    if (step === 5) {
-      // Images are optional for now so the user can skip them
-    }
-
-    return null;
+    return errs;
   }
 
   async function handleNext() {
-    const error = validateCurrentStep();
-    if (error) { 
-      if (Platform.OS === 'web') window.alert(error);
-      else Toast.show({ type: 'error', text1: 'Validation Error', text2: error }); 
+    const errs = validateCurrentStep();
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) { 
       return; 
     }
     await saveAndNext();
@@ -284,10 +368,10 @@ export default function VendorRequestFormScreen() {
   function renderStep1() {
     return (
       <>
-        <Input label="Shop Name" value={form.shopName ?? ''} onChangeText={(v) => set('shopName', v)} placeholder="e.g. Fresh Mart" />
-        <Input label="Owner Name" value={form.ownerName ?? ''} onChangeText={(v) => set('ownerName', v)} />
-        <Input label="Mobile Number" value={form.mobileNumber ?? ''} onChangeText={(v) => set('mobileNumber', v)} keyboardType="phone-pad" />
-        <Input label="Email Address (Optional)" value={form.email ?? ''} onChangeText={(v) => set('email', v)} keyboardType="email-address" />
+        <Input label="Shop Name" value={form.shopName ?? ''} onChangeText={(v) => set('shopName', v)} placeholder="e.g. Fresh Mart" error={errors.shopName} />
+        <Input label="Owner Name" value={form.ownerName ?? ''} onChangeText={(v) => set('ownerName', v)} error={errors.ownerName} />
+        <Input label="Mobile Number" value={form.mobileNumber ?? ''} onChangeText={(v) => set('mobileNumber', v)} keyboardType="phone-pad" error={errors.mobileNumber} />
+        <Input label="Email Address (Optional)" value={form.email ?? ''} onChangeText={(v) => set('email', v)} keyboardType="email-address" error={errors.email} />
       </>
     );
   }
@@ -310,25 +394,8 @@ export default function VendorRequestFormScreen() {
       
       set('latitude', lat);
       set('longitude', lng);
-
-      // Attempt reverse geocoding via standard Expo location or backend
-      const geocode = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-      if (geocode && geocode.length > 0) {
-        const place = geocode[0];
-        const addrParts = [];
-        if (place.name) addrParts.push(place.name);
-        if (place.street) addrParts.push(place.street);
-        if (place.subregion) addrParts.push(place.subregion);
-        if (place.city) addrParts.push(place.city);
-        if (place.region) addrParts.push(place.region);
-        if (place.postalCode) addrParts.push(place.postalCode);
-        
-        if (addrParts.length > 0) {
-           set('address', addrParts.join(', '));
-        }
-      }
-      
-      Toast.show({ type: 'success', text1: 'Location Detected', text2: 'Coordinates and address fetched successfully.' });
+      // Removed reverse geocoding to address based on user request; they want to manually type the address
+      Toast.show({ type: 'success', text1: 'Location Detected', text2: 'Your coordinates have been securely captured.' });
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Location Error', text2: 'Could not fetch your current location.' });
     } finally {
@@ -344,11 +411,12 @@ export default function VendorRequestFormScreen() {
           options={SHOP_CATEGORIES.map(c => ({ label: c, value: c }))} 
           value={form.shopCategory ?? ''} 
           onChange={(v) => set('shopCategory', v)} 
+          error={errors.shopCategory}
         />
-        <Input label="Shop Description (Optional)" value={form.description ?? ''} onChangeText={(v) => set('description', v)} multiline />
-        <Input label="GST Number (Optional)" value={form.gstNumber ?? ''} onChangeText={(v) => set('gstNumber', v)} />
-        <Input label="FSSAI License Number (Optional)" value={form.fssaiNumber ?? ''} onChangeText={(v) => set('fssaiNumber', v)} />
-        <Input label="Business Registration Number (Optional)" value={form.businessRegNumber ?? ''} onChangeText={(v) => set('businessRegNumber', v)} />
+        <Input label="Shop Description (Optional)" value={form.description ?? ''} onChangeText={(v) => set('description', v)} multiline error={errors.description} />
+        <Input label="GST Number (Optional)" value={form.gstNumber ?? ''} onChangeText={(v) => set('gstNumber', v)} error={errors.gstNumber} />
+        <Input label="FSSAI License Number (Optional)" value={form.fssaiNumber ?? ''} onChangeText={(v) => set('fssaiNumber', v)} error={errors.fssaiNumber} />
+        <Input label="Business Registration Number (Optional)" value={form.businessRegNumber ?? ''} onChangeText={(v) => set('businessRegNumber', v)} error={errors.businessRegNumber} />
       </>
     );
   }
@@ -367,7 +435,7 @@ export default function VendorRequestFormScreen() {
           </View>
           {gpsDetected ? (
             <Text style={{ fontSize: 12, color: '#16a34a', marginBottom: spacing.sm }}>
-              📍 Lat: {form.latitude?.toFixed(5)}, Lng: {form.longitude?.toFixed(5)}
+              📍 Your location coordinates are captured securely.
             </Text>
           ) : (
             <Text style={{ fontSize: 12, color: '#92400e', marginBottom: spacing.sm }}>
@@ -382,23 +450,6 @@ export default function VendorRequestFormScreen() {
           />
         </View>
 
-        <Select 
-          label="District" 
-          placeholder="Select a District"
-          options={districts.map(d => ({ label: d.name, value: d.id }))} 
-          value={form.districtId ?? ''} 
-          onChange={(v) => { set('districtId', v); set('areaId', ''); }} 
-        />
-        {areas.length > 0 && (
-          <Select 
-            label="Area" 
-            placeholder="Select an Area"
-            options={areas.map(a => ({ label: a.name, value: a.id }))} 
-            value={form.areaId ?? ''} 
-            onChange={(v) => set('areaId', v)} 
-          />
-        )}
-
         {/* Address — only editable after GPS */}
         <View style={{ opacity: gpsDetected ? 1 : 0.4 }} pointerEvents={gpsDetected ? 'auto' : 'none'}>
           <Input 
@@ -407,6 +458,7 @@ export default function VendorRequestFormScreen() {
             onChangeText={(v) => set('address', v)} 
             multiline 
             placeholder={gpsDetected ? 'e.g. 12, Gandhi St, Perundurai, Erode - 638052' : 'Detect GPS first to fill address'}
+            error={errors.address}
           />
           <Input label="Landmark (Optional)" value={form.landmark ?? ''} onChangeText={(v) => set('landmark', v)} />
         </View>
@@ -419,11 +471,11 @@ export default function VendorRequestFormScreen() {
   function renderStep4() {
     return (
       <>
-        <Input label="Account Holder Name" value={form.accountHolderName ?? ''} onChangeText={(v) => set('accountHolderName', v)} />
-        <Input label="Bank Name" value={form.bankName ?? ''} onChangeText={(v) => set('bankName', v)} />
-        <Input label="Account Number" value={form.accountNumber ?? ''} onChangeText={(v) => set('accountNumber', v)} keyboardType="number-pad" />
-        <Input label="IFSC Code" value={form.ifscCode ?? ''} onChangeText={(v) => set('ifscCode', v.toUpperCase())} />
-        <Input label="UPI ID (Optional)" value={form.upiId ?? ''} onChangeText={(v) => set('upiId', v)} />
+        <Input label="Account Holder Name" value={form.accountHolderName ?? ''} onChangeText={(v) => set('accountHolderName', v)} placeholder="As per bank records" error={errors.accountHolderName} />
+        <Input label="Bank Name" value={form.bankName ?? ''} onChangeText={(v) => set('bankName', v)} placeholder="e.g. State Bank of India" error={errors.bankName} />
+        <Input label="Account Number" value={form.accountNumber ?? ''} onChangeText={(v) => set('accountNumber', v)} keyboardType="number-pad" error={errors.accountNumber} />
+        <Input label="IFSC Code" value={form.ifscCode ?? ''} onChangeText={(v) => set('ifscCode', v)} autoCapitalize="characters" placeholder="e.g. SBIN0001234" error={errors.ifscCode} />
+        <Input label="UPI ID (Optional)" value={form.upiId ?? ''} onChangeText={(v) => set('upiId', v)} keyboardType="email-address" placeholder="e.g. shop@okaxis" error={errors.upiId} />
       </>
     );
   }
@@ -522,16 +574,8 @@ export default function VendorRequestFormScreen() {
   return (
 
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          {STEPS.map((s) => (
-            <View
-              key={s.id}
-              style={[styles.progressSegment, s.id <= step && styles.progressSegmentActive]}
-            />
-          ))}
-        </View>
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <RocketProgressBar step={step} totalSteps={STEPS.length} />
 
         {/* Step header */}
         <View style={styles.stepHeader}>
@@ -558,7 +602,11 @@ export default function VendorRequestFormScreen() {
           {step > 1 && (
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() => { setStep((s) => s - 1); scrollRef.current?.scrollTo({ y: 0, animated: true }); }}
+              onPress={() => { 
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                setStep((s) => s - 1); 
+                scrollRef.current?.scrollTo({ y: 0, animated: true }); 
+              }}
             >
               <Feather name="chevron-left" size={20} color={colors.text} />
               <Text style={styles.backButtonText}>Back</Text>
@@ -602,7 +650,7 @@ export default function VendorRequestFormScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  progressContainer: { flexDirection: 'row', gap: 4, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  progressContainer: { flexDirection: 'row', gap: 4, paddingHorizontal: spacing.lg, paddingTop: 10 },
   progressSegment: { flex: 1, height: 4, backgroundColor: colors.border, borderRadius: 2 },
   progressSegmentActive: { backgroundColor: colors.primary },
   stepHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },

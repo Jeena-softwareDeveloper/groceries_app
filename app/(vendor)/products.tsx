@@ -10,6 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { vendorApi, type VendorProduct } from '@/api/vendor.api';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { PageHeader } from '@/components/PageHeader';
@@ -130,13 +131,24 @@ function ProductFormModal({
             continue;
           }
 
+          let uploadUri = uri;
+          
+          if (Platform.OS !== 'web') {
+            const manipResult = await manipulateAsync(
+              uri,
+              [{ resize: { width: 1024 } }],
+              { compress: 0.7, format: SaveFormat.JPEG }
+            );
+            uploadUri = manipResult.uri;
+          }
+
           const formBody = new FormData();
           if (Platform.OS === 'web') {
-            const response = await fetch(uri);
+            const response = await fetch(uploadUri);
             const blob = await response.blob();
             formBody.append('file', blob, 'upload.jpg');
           } else {
-            formBody.append('file', { uri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+            formBody.append('file', { uri: uploadUri, name: 'upload.jpg', type: 'image/jpeg' } as any);
           }
           formBody.append('folder', 'districtmart/products');
 

@@ -50,10 +50,7 @@ export default function ShopScreen() {
   }
 
   const renderHeader = () => (
-    <View style={{ paddingBottom: spacing.md }}>
-      {shop.bannerUrl ? (
-        <Image source={{ uri: shop.bannerUrl }} style={styles.banner} contentFit="cover" />
-      ) : null}
+    <View style={{ paddingBottom: spacing.md, borderBottomWidth: 8, borderBottomColor: colors.surface }}>
       <View style={styles.header}>
         {shop.logoUrl ? (
           <Image source={{ uri: shop.logoUrl }} style={styles.logo} contentFit="cover" />
@@ -157,10 +154,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logo: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerInfo: { flex: 1 },
   name: { fontSize: 18, fontFamily: fonts.bold, color: colors.text },

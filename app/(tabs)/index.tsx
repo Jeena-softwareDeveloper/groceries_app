@@ -34,8 +34,11 @@ import { setShowLocationModal } from '@/store/locationSlice';
 
 import { useEvent } from 'expo';
 
-function VideoBanner({ url, style, onReady }: { url: string, style: any, onReady?: () => void }) {
-  console.log('[VideoBanner] url:', url);
+function VideoBanner({ url, style }: { url: string; style: any }) {
+  const videoOpacity = useRef(new Animated.Value(0)).current;
+  const scanAnim = useRef(new Animated.Value(-1)).current;  // -1 = off-screen left, 1 = off-screen right
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [isReady, setIsReady] = useState(false);
 
   const player = useVideoPlayer(url, (p) => {
     p.loop = true;
@@ -43,49 +46,111 @@ function VideoBanner({ url, style, onReady }: { url: string, style: any, onReady
     p.play();
   });
 
-  // expo-video 3.x: useEvent returns the event payload object
   const statusPayload = useEvent(player, 'statusChange', { status: player.status });
-  // statusPayload may be { status: string } or just a string depending on version
   const currentStatus: string =
     typeof statusPayload === 'string'
       ? statusPayload
       : (statusPayload as any)?.status ?? player.status;
 
-  console.log('[VideoBanner] status:', currentStatus);
+  // Scanning bar: slides left → right repeatedly
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(scanAnim, {
+        toValue: 2,
+        duration: 1400,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
+
+  // Pulse play icon
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.2, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
-    let t: any;
-    if (currentStatus === 'readyToPlay') {
+    if ((currentStatus === 'readyToPlay' || currentStatus === 'error') && !isReady) {
+      setIsReady(true);
       player.play();
-      onReady?.();
-    } else if (currentStatus === 'error') {
-      console.warn('[VideoBanner] video error - releasing overlay');
-      onReady?.();
-    } else {
-      // Safety fallback: release overlay after 6 seconds even if status never fires
-      t = setTimeout(() => {
-        console.warn('[VideoBanner] timeout fallback - releasing overlay');
-        onReady?.();
-      }, 6000);
+      Animated.timing(videoOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }).start();
     }
-    return () => {
-      if (t) clearTimeout(t);
-    };
   }, [currentStatus]);
 
+  // scanAnim goes from -1 to +2 — translate the bar across its own width
+  const BAR_WIDTH = Dimensions.get('window').width * 0.40; // 40% width glow bar
+  const scanTranslateX = scanAnim.interpolate({
+    inputRange: [-1, 2],
+    outputRange: [-BAR_WIDTH, Dimensions.get('window').width + BAR_WIDTH],
+  });
+
   return (
-    <View style={[style, { position: 'relative' }]}>
-      <VideoView
-        style={StyleSheet.absoluteFill}
-        player={player}
-        nativeControls={true}
-        contentFit="cover"
-        allowsFullscreen={true}
-        allowsPictureInPicture={false}
-      />
+    <View style={[style, { position: 'relative', backgroundColor: '#0f172a', overflow: 'hidden' }]}>
+      {/* Skeleton while loading */}
+      {!isReady && (
+        <View style={StyleSheet.absoluteFill}>
+          {/* Dark gradient background */}
+          <View style={{ flex: 1, backgroundColor: '#1e293b' }} />
+
+          {/* Pulsing play circle */}
+          <Animated.View style={{
+            position: 'absolute', alignSelf: 'center', top: '35%',
+            width: 60, height: 60, borderRadius: 30,
+            backgroundColor: 'rgba(34,197,94,0.18)',
+            justifyContent: 'center', alignItems: 'center',
+            transform: [{ scale: pulseAnim }],
+            borderWidth: 1.5,
+            borderColor: 'rgba(34,197,94,0.35)',
+          }}>
+            <Ionicons name="play" size={24} color="rgba(34,197,94,0.85)" />
+          </Animated.View>
+
+          {/* Scanning progress bar at bottom */}
+          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, backgroundColor: 'rgba(255,255,255,0.08)' }}>
+            <Animated.View style={{
+              height: '100%',
+              width: BAR_WIDTH,
+              backgroundColor: '#22c55e',
+              borderRadius: 2,
+              transform: [{ translateX: scanTranslateX }],
+              shadowColor: '#22c55e',
+              shadowOpacity: 0.9,
+              shadowRadius: 8,
+              elevation: 4,
+            }} />
+          </View>
+
+          {/* "Loading video..." text */}
+          <View style={{ position: 'absolute', bottom: 12, left: 0, right: 0, alignItems: 'center' }}>
+            <Animated.Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, fontFamily: 'System', letterSpacing: 0.5 }}>
+              Loading video...
+            </Animated.Text>
+          </View>
+        </View>
+      )}
+      {/* Video fades in when ready */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: videoOpacity }]}>
+        <VideoView
+          style={StyleSheet.absoluteFill}
+          player={player}
+          nativeControls={true}
+          contentFit="cover"
+          allowsFullscreen={true}
+          allowsPictureInPicture={false}
+        />
+      </Animated.View>
     </View>
   );
 }
+
 
 function TypewriterSearchBar({ onPress }: { onPress: () => void }) {
   const searchHints = ['Milk, Bread, Eggs...', 'Fresh Tomatoes...', 'Amul Butter...', 'Rice, Dal, Oil...', 'Snacks & Drinks...', 'Daily Essentials...'];
@@ -145,8 +210,7 @@ function TypewriterSearchBar({ onPress }: { onPress: () => void }) {
   );
 }
 
-// Global cache to prevent showing the image loading spinner again when navigating back
-const loadedVisualsCache = new Set<string>();
+
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -163,15 +227,6 @@ export default function HomeScreen() {
   const SCREEN_WIDTH = Dimensions.get('window').width;
   const VIDEO_HEIGHT = Math.round(SCREEN_WIDTH * 0.48); // Reduced from 16:9ish
 
-  const [totalVisuals, setTotalVisuals] = useState(0);
-  const [loadedVisuals, setLoadedVisuals] = useState(0);
-  const cacheKey = `${districtId}-${areaId}`;
-  const handleVisualLoaded = useCallback(() => {
-    if (loadedVisualsCache.has(cacheKey)) return;
-    setLoadedVisuals((prev) => prev + 1);
-  }, [cacheKey]);
-
-  // Track location changes to show loading overlay when location is updated
   const [locationChanged, setLocationChanged] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
@@ -191,7 +246,6 @@ export default function HomeScreen() {
     if (changed && hasLocation) {
       prevLocationRef.current = { districtId, areaId, latitude, longitude };
       setLocationChanged(true);
-      setLoadedVisuals(0); // reset loading state for new location
     }
   }, [districtId, areaId, latitude, longitude, hasLocation]);
 
@@ -205,45 +259,9 @@ export default function HomeScreen() {
     staleTime: 60 * 1000,
   });
 
-  const { data: nearbyShops } = useQuery({
-    queryKey: ['nearbyShops', districtId, areaId, latitude, longitude],
-    queryFn: () =>
-      customerApi.fetchShops(districtId ?? undefined, areaId ?? undefined, undefined, latitude, longitude),
-    enabled: hasLocation,
-    staleTime: 60 * 1000,
-  });
 
-  const [imagesPreloaded, setImagesPreloaded] = useState(() => loadedVisualsCache.has(cacheKey));
 
-  useEffect(() => {
-    if (data && !imagesPreloaded) {
-      const urls: string[] = [];
-      if (data.banners) {
-        data.banners.forEach((b: any) => {
-          if (b.imageUrl && b.type !== 'VIDEO') urls.push(b.imageUrl);
-        });
-      }
-      if (data.categories) {
-        data.categories.forEach((c: any) => {
-          if (c.imageUrl) urls.push(c.imageUrl);
-        });
-      }
 
-      if (urls.length === 0) {
-        setImagesPreloaded(true);
-      } else {
-        // Fallback timeout so we never hang indefinitely
-        const timer = setTimeout(() => {
-          console.warn('[HomeScreen] imagesPreloaded timed out');
-          setImagesPreloaded(true);
-        }, 3000);
-
-        Promise.all(urls.map(url => Image.prefetch(url)))
-          .then(() => { clearTimeout(timer); setImagesPreloaded(true); })
-          .catch(() => { clearTimeout(timer); setImagesPreloaded(true); });
-      }
-    }
-  }, [data, imagesPreloaded]);
 
   const row1Banner = data?.banners?.find((b: any) => b.row === 1) ?? data?.banners?.[0];
   const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
@@ -258,49 +276,11 @@ export default function HomeScreen() {
 
   const hasVideo = !!videoSrc;
 
-  useEffect(() => {
-    if (data && locationChanged) {
-      setLocationChanged(false);
-    }
-  }, [data, locationChanged]);
 
-  useEffect(() => {
-    if (data) {
-      let count = 0;
-      if (hasVideo || (row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO')) count++;
-      if (row2Banners.length) count += row2Banners.length;
-      if (data.categories?.length) count += data.categories.length;
-      if (row3Banner?.imageUrl) count++;
+  const isPageLoading = !hasLocation || isLoading || !data || locationChanged;
 
-      setTotalVisuals(count);
-      setLoadedVisuals(0);
-    }
-  }, [data, hasVideo]);
-
-  // Safety fallback for visual loader
-  useEffect(() => {
-    let t: any;
-    if (data && totalVisuals > 0 && loadedVisuals < totalVisuals) {
-      t = setTimeout(() => {
-        console.warn('[HomeScreen] Visual loader timed out');
-        setLoadedVisuals(totalVisuals);
-      }, 4000);
-    }
-    return () => { if (t) clearTimeout(t); };
-  }, [data, totalVisuals, loadedVisuals]);
-
-  const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded || locationChanged;
-  
-  const hasLoadedVisualsBefore = loadedVisualsCache.has(cacheKey);
-  
-  const showVisualsLoader = !hasLoadedVisualsBefore && (totalVisuals > 0 && loadedVisuals < totalVisuals);
-  const showOverlay = isPageLoading || showVisualsLoader;
-
-  useEffect(() => {
-    if (totalVisuals > 0 && loadedVisuals >= totalVisuals) {
-      loadedVisualsCache.add(cacheKey);
-    }
-  }, [totalVisuals, loadedVisuals, cacheKey]);
+  // Overlay shows only while API data is loading — video loads lazily with skeleton
+  const showOverlay = isPageLoading;
 
   useEffect(() => {
     if (data && !showOverlay && !accessToken && !hasAttemptedLogin.current) {
@@ -429,7 +409,7 @@ export default function HomeScreen() {
           {/* ── ROW 1: VIDEO OR IMAGE BANNER ── */}
           {hasVideo ? (
             <View style={styles.videoBannerWrap}>
-              <VideoBanner url={videoSrc!} style={styles.videoBannerImg as any} onReady={handleVisualLoaded} />
+              <VideoBanner url={videoSrc!} style={styles.videoBannerImg as any} />
             </View>
           ) : row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO' ? (
             <View style={styles.videoBannerWrap}>
@@ -437,8 +417,6 @@ export default function HomeScreen() {
                 source={{ uri: row1Banner.imageUrl }} 
                 style={styles.videoBannerImg as any} 
                 contentFit="cover" 
-                onLoad={handleVisualLoaded}
-                onError={handleVisualLoaded}
               />
             </View>
           ) : null}
@@ -481,8 +459,6 @@ export default function HomeScreen() {
                     source={{ uri: b.imageUrl }} 
                     style={{ width: '100%', height: '100%' }} 
                     contentFit="cover" 
-                    onLoad={handleVisualLoaded}
-                    onError={handleVisualLoaded}
                   />
                 </Pressable>
               ))}
@@ -511,7 +487,6 @@ export default function HomeScreen() {
                     category={cat}
                     isSelected={false}
                     onPress={() => router.push(`/category/${cat.id}?name=${encodeURIComponent(cat.name)}`)}
-                    onVisualReady={handleVisualLoaded}
                   />
                 ))}
               </ScrollView>
@@ -525,8 +500,6 @@ export default function HomeScreen() {
                 source={{ uri: row3Banner.imageUrl }}
                 style={{ width: SCREEN_WIDTH - spacing.md * 2, height: row3H }}
                 contentFit="cover"
-                onLoad={handleVisualLoaded}
-                onError={handleVisualLoaded}
               />
             </Pressable>
           ) : null}
