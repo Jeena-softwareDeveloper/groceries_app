@@ -42,6 +42,10 @@ function isOutdated(current: string, min: string) {
 }
 
 function ForceUpdateScreen({ playStoreUrl }: { playStoreUrl: string }) {
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f0fdf4', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#dcfce7', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
