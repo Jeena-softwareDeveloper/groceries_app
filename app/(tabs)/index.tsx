@@ -220,7 +220,6 @@ export default function HomeScreen() {
       const urls: string[] = [];
       if (data.banners) {
         data.banners.forEach((b: any) => {
-          // Skip VIDEO type banners — imageUrl is an .mp4, can't prefetch as image
           if (b.imageUrl && b.type !== 'VIDEO') urls.push(b.imageUrl);
         });
       }
@@ -233,9 +232,15 @@ export default function HomeScreen() {
       if (urls.length === 0) {
         setImagesPreloaded(true);
       } else {
+        // Fallback timeout so we never hang indefinitely
+        const timer = setTimeout(() => {
+          console.warn('[HomeScreen] imagesPreloaded timed out');
+          setImagesPreloaded(true);
+        }, 3000);
+
         Promise.all(urls.map(url => Image.prefetch(url)))
-          .then(() => setImagesPreloaded(true))
-          .catch(() => setImagesPreloaded(true));
+          .then(() => { clearTimeout(timer); setImagesPreloaded(true); })
+          .catch(() => { clearTimeout(timer); setImagesPreloaded(true); });
       }
     }
   }, [data, imagesPreloaded]);
@@ -244,8 +249,6 @@ export default function HomeScreen() {
   const row2Banners: any[] = data?.banners?.filter((b: any) => b.row === 2) ?? [];
   const row3Banner = data?.banners?.find((b: any) => b.row === 3);
 
-  // Admin sometimes saves video URL in imageUrl field (when type === 'VIDEO') instead of videoUrl
-  // So check both fields: prefer videoUrl, fallback to imageUrl when type is VIDEO
   const videoSrc: string | null =
     row1Banner?.videoUrl?.trim() ||
     (row1Banner?.type === 'VIDEO' && row1Banner?.imageUrl?.trim()
@@ -254,31 +257,37 @@ export default function HomeScreen() {
     null;
 
   const hasVideo = !!videoSrc;
-  console.log('[HomeScreen] row1Banner type:', row1Banner?.type, '| videoSrc:', videoSrc, '| hasVideo:', hasVideo);
-  // Clear locationChanged once fresh data arrives
+
   useEffect(() => {
     if (data && locationChanged) {
       setLocationChanged(false);
     }
   }, [data, locationChanged]);
 
-  // Count total visuals on screen to ensure they all load before dismissing overlay
   useEffect(() => {
     if (data) {
       let count = 0;
-      // Row 1
       if (hasVideo || (row1Banner?.imageUrl && row1Banner?.type !== 'VIDEO')) count++;
-      // Row 2
       if (row2Banners.length) count += row2Banners.length;
-      // Categories
       if (data.categories?.length) count += data.categories.length;
-      // Row 3
       if (row3Banner?.imageUrl) count++;
 
       setTotalVisuals(count);
       setLoadedVisuals(0);
     }
   }, [data, hasVideo]);
+
+  // Safety fallback for visual loader
+  useEffect(() => {
+    let t: any;
+    if (data && totalVisuals > 0 && loadedVisuals < totalVisuals) {
+      t = setTimeout(() => {
+        console.warn('[HomeScreen] Visual loader timed out');
+        setLoadedVisuals(totalVisuals);
+      }, 4000);
+    }
+    return () => { if (t) clearTimeout(t); };
+  }, [data, totalVisuals, loadedVisuals]);
 
   const isPageLoading = !hasLocation || isLoading || !data || !imagesPreloaded || locationChanged;
   
