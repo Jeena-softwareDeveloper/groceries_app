@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, useRef } from 'react';
 import { StyleSheet, Text, TextStyle, View, Linking, TouchableOpacity, Animated } from 'react-native';
 import Constants from 'expo-constants';
+import * as Application from 'expo-application';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -41,7 +42,7 @@ function isOutdated(current: string, min: string) {
   return cPatch < mPatch;
 }
 
-function ForceUpdateScreen({ playStoreUrl }: { playStoreUrl: string }) {
+function ForceUpdateScreen({ playStoreUrl, currentVersion }: { playStoreUrl: string; currentVersion: string }) {
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
@@ -64,7 +65,7 @@ function ForceUpdateScreen({ playStoreUrl }: { playStoreUrl: string }) {
         <Text style={{ color: '#fff', fontSize: 17, fontFamily: 'Roboto_700Bold' }}>Update on Play Store</Text>
       </TouchableOpacity>
       <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 20 }}>
-        Current version: {Constants.expoConfig?.version ?? '—'}
+        Current version: {currentVersion ?? '—'}
       </Text>
     </View>
   );
@@ -280,13 +281,16 @@ export default function RootLayout() {
     Roboto_500Medium,
     Roboto_700Bold,
   });
-  const [updateInfo, setUpdateInfo] = useState<{ playStoreUrl: string } | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<{ playStoreUrl: string; currentVersion: string } | null>(null);
 
   useEffect(() => {
-    const currentVersion = Constants.expoConfig?.version ?? '0.1.0';
+    // In production builds, Constants.expoConfig might not contain version accurately,
+    // so we use the actual native application version installed on the device.
+    const currentVersion = Application.nativeApplicationVersion || Constants.expoConfig?.version || '0.1.0';
+    
     customerApi.fetchAppVersion().then(({ minVersion, playStoreUrl }) => {
       if (isOutdated(currentVersion, minVersion)) {
-        setUpdateInfo({ playStoreUrl });
+        setUpdateInfo({ playStoreUrl, currentVersion });
       }
     }).catch(() => {}); // Fail silently — don't block app on network error
   }, []);
@@ -296,7 +300,7 @@ export default function RootLayout() {
   }
 
   if (updateInfo) {
-    return <ForceUpdateScreen playStoreUrl={updateInfo.playStoreUrl} />;
+    return <ForceUpdateScreen playStoreUrl={updateInfo.playStoreUrl} currentVersion={updateInfo.currentVersion} />;
   }
 
   return (
