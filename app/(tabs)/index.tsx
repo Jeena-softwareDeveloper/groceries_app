@@ -249,7 +249,7 @@ export default function HomeScreen() {
     }
   }, [districtId, areaId, latitude, longitude, hasLocation]);
 
-  const { data, isLoading, error, refetch, isRefetching } = useQuery({
+  const { data, isLoading, error, refetch, isFetching, isRefetching } = useQuery({
     queryKey: ['homeFeed', districtId, areaId, latitude, longitude, isGPSMode],
     queryFn: () =>
       isGPSMode
@@ -258,6 +258,13 @@ export default function HomeScreen() {
     enabled: hasLocation,
     staleTime: 60 * 1000,
   });
+
+  // Fail-safe: Reset locationChanged as soon as fetching completes
+  useEffect(() => {
+    if (locationChanged && !isFetching) {
+      setLocationChanged(false);
+    }
+  }, [locationChanged, isFetching]);
 
 
 

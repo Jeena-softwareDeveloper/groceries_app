@@ -2,7 +2,7 @@
   "expo": {
     "name": "All Time Market",
     "slug": "all-time-market",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "scheme": "districtmart",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -22,6 +22,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.alltimemarket.app",
+      "versionCode": 1,
       "softwareKeyboardLayoutMode": "resize"
     },
     "web": {

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  BackHandler,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,7 +23,7 @@ import { customerApi } from '@/api';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
 import { persistLocation, persistGPSLocation } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setLocation, setGPSLocation } from '@/store/locationSlice';
+import { setLocation, setGPSLocation, setShowLocationModal } from '@/store/locationSlice';
 import * as Location from 'expo-location';
 import { resolveAddressFromCoords } from '@/utils/geocode';
 
@@ -38,7 +39,8 @@ interface LocationScreenProps {
 export default function LocationScreen({ isModalComponent = false, onClose }: LocationScreenProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { latitude, longitude, displayName } = useAppSelector((s) => s.location);
+  const { districtId, latitude, longitude, displayName } = useAppSelector((s) => s.location);
+  const hasLocation = !!districtId || !!latitude;
 
   // State
   const [step, setStep] = useState<'home' | 'district' | 'area'>('home');
@@ -64,6 +66,20 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     }).start();
   }, []);
 
+  // Block Android hardware back button if location is mandatory and not set
+  useEffect(() => {
+    if (!hasLocation) {
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        if (step !== 'home') {
+          setStep('home');
+          return true;
+        }
+        return true;
+      });
+      return () => subscription.remove();
+    }
+  }, [hasLocation, step]);
+
   // Queries
   const districtsQuery = useQuery({
     queryKey: ['districts'],
@@ -85,7 +101,8 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
 
   // ─── Actions ────────────────────────────────────────────────────────────────
 
-  function handleClose() {
+  function handleClose(force = false) {
+    if (!hasLocation && !force) return;
     if (onClose) onClose();
     else if (router.canGoBack()) router.back();
     else router.replace('/(tabs)');
@@ -102,7 +119,8 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
     };
     await persistLocation(payload);
     dispatch(setLocation(payload));
-    handleClose();
+    dispatch(setShowLocationModal(false));
+    handleClose(true);
   }
 
   async function handleManualAddressConfirm() {
@@ -117,7 +135,8 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
         const { latitude, longitude } = results[0];
         await persistGPSLocation({ latitude, longitude, displayName: trimmed });
         dispatch(setGPSLocation({ latitude, longitude, displayName: trimmed }));
-        handleClose();
+        dispatch(setShowLocationModal(false));
+        handleClose(true);
       } else {
         setGpsError('Could not find this address. Please try again.');
       }
@@ -185,8 +204,9 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
       // ── Step 2: Store GPS location directly (no DB lookup needed) ──────────
       await persistGPSLocation({ latitude: userLat, longitude: userLng, displayName });
       dispatch(setGPSLocation({ latitude: userLat, longitude: userLng, displayName }));
+      dispatch(setShowLocationModal(false));
       setGpsResult({ districtName: '', areaName: displayName });
-      setTimeout(() => handleClose(), 1200);
+      setTimeout(() => handleClose(true), 1200);
     } catch (e) {
       console.error('[GPS Error]', e);
       setGpsError('GPS detection failed. Please select manually.');
@@ -197,9 +217,6 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
 
   // ─── Sub-screens ─────────────────────────────────────────────────────────────
 
-
-
-
   function renderHome() {
     return (
       <ScrollView contentContainerStyle={styles.sheetBody} style={{ flexGrow: 0 }} showsVerticalScrollIndicator={false}>
@@ -207,11 +224,15 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
         <View style={styles.sheetHeader}>
           <View>
             <Text style={styles.sheetTitle}>Delivery Location</Text>
-            <Text style={styles.sheetSubtitle}>Where should we deliver?</Text>
+            <Text style={styles.sheetSubtitle}>
+              {hasLocation ? 'Where should we deliver?' : 'Select location to continue'}
+            </Text>
           </View>
-          <Pressable onPress={handleClose} style={styles.closeBtn}>
-            <Feather name="x" size={20} color={colors.textMuted} />
-          </Pressable>
+          {hasLocation && (
+            <Pressable onPress={() => handleClose()} style={styles.closeBtn}>
+              <Feather name="x" size={20} color={colors.textMuted} />
+            </Pressable>
+          )}
         </View>
 
         {/* GPS Button */}
@@ -522,7 +543,12 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
   if (isModalComponent) {
     return (
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => {
+            if (hasLocation) handleClose();
+          }}
+        />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardAvoid}
