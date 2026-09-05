@@ -229,11 +229,6 @@ export default function HomeScreen() {
 
   const [locationChanged, setLocationChanged] = useState(false);
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
-  const handleRefresh = useCallback(async () => {
-    setIsManualRefreshing(true);
-    await refetch();
-    setIsManualRefreshing(false);
-  }, [refetch]);
 
   const prevLocationRef = useRef({ districtId, areaId, latitude, longitude });
   useEffect(() => {
@@ -258,6 +253,12 @@ export default function HomeScreen() {
     enabled: hasLocation,
     staleTime: 60 * 1000,
   });
+
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true);
+    await refetch();
+    setIsManualRefreshing(false);
+  }, [refetch]);
 
   // Fail-safe: Reset locationChanged as soon as fetching completes
   useEffect(() => {

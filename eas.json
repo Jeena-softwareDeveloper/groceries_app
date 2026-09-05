@@ -16,6 +16,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://atmapi.ponnilamfincorp.com",
         "EXPO_PUBLIC_IMAGE_BASE_URL": "https://atmapi.ponnilamfincorp.com/uploads",

@@ -16,10 +16,6 @@ import { useAppSelector } from '@/store/hooks';
 import { Input, Select, Button, Typography, Badge, SuccessState } from '@/components/ui';
 import Toast from 'react-native-toast-message';
 
-
-
-// ─── Types & Constants ──────────────────────────────────────────────────────
-
 const SHOP_CATEGORIES = [
   'Grocery', 'Fruits & Vegetables', 'Dairy & Eggs', 'Bakery', 'Meat & Seafood',
   'Beverages', 'Snacks & Namkeen', 'Personal Care', 'Home & Kitchen',
@@ -340,6 +336,8 @@ export default function VendorRequestFormScreen() {
       if (!form.shopCategory) errs.shopCategory = 'Please select a shop category';
     }
     if (step === 3) {
+      if (!form.districtId) errs.districtId = 'Please select a district';
+      if (areas.length > 0 && !form.areaId) errs.areaId = 'Please select an area';
       if (!form.latitude || !form.longitude) errs.location = 'GPS location is required';
       if (!form.address?.trim() || form.address.trim().length < 5) errs.address = 'Shop address is required';
     }
@@ -426,6 +424,25 @@ export default function VendorRequestFormScreen() {
     const gpsDetected = !!(form.latitude && form.longitude);
     return (
       <>
+        <Select
+          label="District"
+          options={districts.map(d => ({ label: d.name, value: d.id }))}
+          value={form.districtId ?? ''}
+          onChange={(v) => {
+            set('districtId', v);
+            set('areaId', '');
+          }}
+          error={errors.districtId}
+        />
+        {areas.length > 0 && (
+          <Select
+            label="Area"
+            options={areas.map(a => ({ label: a.name, value: a.id }))}
+            value={form.areaId ?? ''}
+            onChange={(v) => set('areaId', v)}
+            error={errors.areaId}
+          />
+        )}
         {/* GPS Button */}
         <View style={{ marginBottom: spacing.md, borderRadius: 16, borderWidth: 1.5, borderColor: gpsDetected ? '#16a34a' : '#f59e0b', backgroundColor: gpsDetected ? '#f0fdf4' : '#fffbeb', padding: spacing.md }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
