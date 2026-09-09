@@ -33,7 +33,8 @@ export default function LoginScreen(props: any = {}) {
   
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp' | 'role'>('phone');
+  const [step, setStep] = useState<'phone' | 'otp' | 'role' | 'success'>('phone');
+  const [successTitle, setSuccessTitle] = useState('Verified Successfully!');
   const [loading, setLoading] = useState(false);
   const [tempAuth, setTempAuth] = useState<{ tokens: any; user: any } | null>(null);
   const [resendTimer, setResendTimer] = useState(0);
@@ -80,23 +81,26 @@ export default function LoginScreen(props: any = {}) {
         dispatch(setTokens({ accessToken: result.tokens.accessToken, refreshToken: result.tokens.refreshToken }));
         const user = await authApi.getMe();
         
-        if (user.role === 'VENDOR') {
-          dispatch(setUser(user));
-          if (isModalComponent && onClose) {
-            onClose();
-            router.replace('/(vendor)');
+        setSuccessTitle('Welcome back!');
+        setStep('success');
+
+        setTimeout(() => {
+          if (user.role === 'VENDOR') {
+            dispatch(setUser(user));
+            if (isModalComponent && onClose) {
+              onClose();
+            } else {
+              router.replace('/(vendor)');
+            }
           } else {
-            router.replace('/(vendor)');
+            dispatch(setUser(user));
+            if (isModalComponent && onClose) {
+              onClose();
+            } else {
+              router.replace('/(tabs)');
+            }
           }
-        } else {
-          // Auto login means existing user, so never show role selection
-          dispatch(setUser(user));
-          if (isModalComponent && onClose) {
-            onClose();
-          } else {
-            router.replace('/(tabs)');
-          }
-        }
+        }, 1000);
       } else {
         setStep('otp');
         setResendTimer(30);
@@ -129,21 +133,31 @@ export default function LoginScreen(props: any = {}) {
       
       const user = await authApi.getMe();
       
-      if (user.role === 'VENDOR') {
-        dispatch(setUser(user));
-        router.replace('/(vendor)');
+      if (tokens.isNewUser) {
+        setTempAuth({ tokens, user });
+        setStep('role');
       } else {
-        if (tokens.isNewUser) {
-          setTempAuth({ tokens, user });
-          setStep('role');
-        } else {
-          dispatch(setUser(user));
-          if (isModalComponent && onClose) {
-            onClose();
+        // Show success animation inside the modal first!
+        setSuccessTitle(user.name ? `Welcome back, ${user.name}!` : 'Login Successful!');
+        setStep('success');
+
+        setTimeout(() => {
+          if (user.role === 'VENDOR') {
+            dispatch(setUser(user));
+            if (isModalComponent && onClose) {
+              onClose();
+            } else {
+              router.replace('/(vendor)');
+            }
           } else {
-            router.replace('/(tabs)');
+            dispatch(setUser(user));
+            if (isModalComponent && onClose) {
+              onClose();
+            } else {
+              router.replace('/(tabs)');
+            }
           }
-        }
+        }, 1100);
       }
     } catch (e) {
       Toast.show({ type: 'error', text1: 'Error', text2: e instanceof Error ? e.message : 'Verification failed' });
@@ -177,36 +191,49 @@ export default function LoginScreen(props: any = {}) {
 
         {/* Bottom Sheet */}
         <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom + spacing.sm, spacing.lg) }]}>
-          <View style={styles.sheetHeaderRow}>
-            {step === 'otp' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <TouchableOpacity onPress={() => setStep('phone')} style={styles.backBtn} hitSlop={10}>
-                  <Feather name="arrow-left" size={20} color="#0f172a" />
-                </TouchableOpacity>
-                <Typography style={styles.sheetTitle}>Verify number</Typography>
-              </View>
-            ) : step === 'role' ? (
-              <Typography style={styles.sheetTitle}>Choose your role</Typography>
-            ) : (
-              <Typography style={styles.sheetTitle}>Get started</Typography>
-            )}
+          {step !== 'success' && (
+            <View style={styles.sheetHeaderRow}>
+              {step === 'otp' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <TouchableOpacity onPress={() => setStep('phone')} style={styles.backBtn} hitSlop={10}>
+                    <Feather name="arrow-left" size={20} color="#0f172a" />
+                  </TouchableOpacity>
+                  <Typography style={styles.sheetTitle}>Verify number</Typography>
+                </View>
+              ) : step === 'role' ? (
+                <Typography style={styles.sheetTitle}>Choose your role</Typography>
+              ) : (
+                <Typography style={styles.sheetTitle}>Get started</Typography>
+              )}
               <TouchableOpacity onPress={() => {
                 if (isModalComponent && onClose) onClose();
                 else if (router.canGoBack()) router.back();
                 else router.replace('/(tabs)');
               }} style={styles.closeBtn}>
-              <Feather name="x" size={24} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          <Typography style={[styles.sheetSubtitle, step === 'otp' && { marginLeft: 44 }]}>
-            {step === 'phone'
-              ? 'Enter your phone number to continue'
-              : step === 'otp'
-              ? `OTP sent to +91 ${phone}`
-              : 'How would you like to continue?'}
-          </Typography>
+                <Feather name="x" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+          )}
 
-        {step === 'phone' ? (
+          {step !== 'success' && (
+            <Typography style={[styles.sheetSubtitle, step === 'otp' && { marginLeft: 44 }]}>
+              {step === 'phone'
+                ? 'Enter your phone number to continue'
+                : step === 'otp'
+                ? `OTP sent to +91 ${phone}`
+                : 'How would you like to continue?'}
+            </Typography>
+          )}
+
+        {step === 'success' ? (
+          <View style={styles.successBox}>
+            <View style={styles.successCircle}>
+              <Feather name="check-circle" size={48} color="#16a34a" />
+            </View>
+            <Typography style={styles.successTitleText}>{successTitle}</Typography>
+            <Typography style={styles.successSubText}>Phone verified • Logging in...</Typography>
+          </View>
+        ) : step === 'phone' ? (
           <>
             <Input
               placeholder="9876543210"
@@ -464,5 +491,36 @@ const styles = StyleSheet.create({
   termsLink: {
     fontSize: 12,
     color: '#16a34a',
+  },
+  successBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.lg,
+  },
+  successCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#dcfce7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  successTitleText: {
+    fontFamily: typography.bold.fontFamily,
+    fontSize: 22,
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  successSubText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
   },
 });

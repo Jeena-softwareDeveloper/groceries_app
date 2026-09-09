@@ -4,13 +4,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   Modal,
   ScrollView,
   Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Image } from 'expo-image';
 import { customerApi, productApi } from '@/api';
@@ -49,6 +52,8 @@ export default function ShopScreen() {
     );
   }
 
+  const displayPhone = shop.phone?.trim() || '9944932484';
+
   const renderHeader = () => (
     <View style={{ paddingBottom: spacing.md, borderBottomWidth: 8, borderBottomColor: colors.surface }}>
       <View style={styles.header}>
@@ -64,9 +69,20 @@ export default function ShopScreen() {
               {shop.inDeliveryRadius === false ? ' · Out of delivery range' : ''}
             </Text>
           ) : null}
+
+          <Text style={{ fontSize: 13, color: '#16a34a', fontFamily: fonts.bold, marginTop: 4 }}>
+            📞 {displayPhone}
+          </Text>
           
           <View style={styles.metaRow}>
-            {shop.phone ? <Text style={styles.phone}>📞 {shop.phone}</Text> : null}
+            <TouchableOpacity
+              style={styles.callShopBtn}
+              onPress={() => Linking.openURL(`tel:${displayPhone}`)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="call" size={13} color="#ffffff" />
+              <Text style={styles.callShopBtnText}>Call Store</Text>
+            </TouchableOpacity>
             {shop.rating != null ? (
               <Pressable onPress={() => setActiveTab(prev => prev === 'products' ? 'reviews' : 'products')} style={styles.ratingRow}>
                 <Text style={styles.rating}>★ {Number(shop.rating).toFixed(1)}</Text>
@@ -181,6 +197,21 @@ const styles = StyleSheet.create({
   empty: { padding: spacing.lg, color: colors.textMuted, textAlign: 'center' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: 4 },
   phone: { fontSize: 13, color: colors.text, fontFamily: fonts.medium },
+  callShopBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 16,
+    elevation: 2,
+  },
+  callShopBtnText: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: '#ffffff',
+  },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ratingCount: { fontSize: 12, color: colors.textMuted },
   

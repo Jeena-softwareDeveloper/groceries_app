@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { SmartImage } from './ui/SmartImage';
 import React from 'react';
 import { colors, radius, spacing, fonts, typography } from '@/constants/theme';
 import type { Category } from '@/types/customer';
@@ -37,7 +37,7 @@ export const CategoryCard = React.memo(({ category, onPress, isSelected, onVisua
     <Pressable style={[styles.card, isSelected && styles.cardSelected]} onPress={onPress}>
       <View style={[styles.imageWrap, !imageUrl && { backgroundColor: from }]}>
         {imageUrl ? (
-          <Image 
+          <SmartImage 
             source={{ uri: imageUrl }} 
             style={styles.image} 
             contentFit="contain" 

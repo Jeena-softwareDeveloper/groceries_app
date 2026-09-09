@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Dimensions,
   FlatList,
+  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
@@ -69,6 +70,14 @@ export default function ProductScreen() {
     enabled: !!id && preview !== 'true',
     initialData: preview === 'true' ? () => queryClient.getQueryData(['product', id]) as any : undefined,
   });
+
+  const { data: shopData } = useQuery({
+    queryKey: ['shop', product?.vendor?.id],
+    queryFn: () => customerApi.fetchShop(product!.vendor!.id),
+    enabled: !!product?.vendor?.id && !product?.vendor?.phone,
+  });
+
+  const vendorPhone = product?.vendor?.phone?.trim() || shopData?.phone?.trim() || '9344193569';
 
   const { data: similarData } = useQuery({
     queryKey: ['products', 'similar', product?.category?.id],
@@ -320,24 +329,44 @@ export default function ProductScreen() {
         ) : null}
 
         {/* ── Sold by ── */}
-        <Pressable style={s.soldByRow} onPress={() => product.vendor?.id && router.push(`/shop/${product.vendor.id}` as any)}>
-          <View style={s.soldByIconWrap}>
-            <Ionicons name="storefront" size={18} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={s.soldByLabel}>Sold by</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={s.soldByName}>{product.vendor?.shopName || 'Unknown Store'}</Text>
-              {reviewCount > 0 && (
-                <View style={s.shopRatingPill}>
-                  <Text style={s.shopRatingText}>{avgRating.toFixed(1)}</Text>
-                  <Ionicons name="star" size={10} color="#fff" />
-                </View>
-              )}
+        <View style={s.soldByRow}>
+          <Pressable 
+            style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }} 
+            onPress={() => product.vendor?.id && router.push(`/shop/${product.vendor.id}` as any)}
+          >
+            <View style={s.soldByIconWrap}>
+              <Ionicons name="storefront" size={18} color={colors.primary} />
             </View>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color="#aaa" />
-        </Pressable>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={s.soldByLabel}>Sold by</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={s.soldByName} numberOfLines={1}>{product.vendor?.shopName || 'Unknown Store'}</Text>
+                {reviewCount > 0 && (
+                  <View style={s.shopRatingPill}>
+                    <Text style={s.shopRatingText}>{avgRating.toFixed(1)}</Text>
+                    <Ionicons name="star" size={10} color="#fff" />
+                  </View>
+                )}
+              </View>
+              <Text style={{ fontSize: 12, color: '#16a34a', fontFamily: fonts.medium, marginTop: 2 }}>
+                📞 {vendorPhone}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#aaa" style={{ marginRight: 8 }} />
+          </Pressable>
+
+          {/* 📞 Direct Call Button (Right side of same row) */}
+          <TouchableOpacity
+            style={s.callVendorBtn}
+            onPress={() => {
+              Linking.openURL(`tel:${vendorPhone}`);
+            }}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="call" size={14} color="#ffffff" />
+            <Text style={s.callVendorBtnText}>Call</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={s.divider} />
 
@@ -657,6 +686,25 @@ const s = StyleSheet.create({
   soldByName: { fontSize: 14, fontFamily: fonts.bold, color: '#111' },
   shopRatingPill: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#388e3c', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
   shopRatingText: { fontSize: 11, fontFamily: fonts.bold, color: '#fff' },
+  callVendorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  callVendorBtnText: {
+    fontSize: 13,
+    fontFamily: fonts.bold,
+    color: '#ffffff',
+  },
 
   // ── Stock ────────────────────────────────────────────────────────────────
   stockDot: { width: 8, height: 8, borderRadius: 4 },

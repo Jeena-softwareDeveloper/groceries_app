@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+import { SmartImage } from './ui/SmartImage';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { colors, radius, spacing, fonts } from '@/constants/theme';
@@ -26,13 +26,7 @@ export const ProductCard = React.memo(({ product, onPress, onAddToCart, isAdding
   return (
     <Pressable style={[styles.card, compact && styles.compact]} onPress={onPress}>
       <View style={styles.imageWrap}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} contentFit="cover" />
-        ) : (
-          <View style={[styles.image, styles.placeholder]}>
-            <Text style={styles.placeholderText}>No image</Text>
-          </View>
-        )}
+        <SmartImage source={imageUrl ? { uri: imageUrl } : null} style={styles.image} contentFit="cover" />
       </View>
       <Text style={styles.name} numberOfLines={2}>
         {product.name}

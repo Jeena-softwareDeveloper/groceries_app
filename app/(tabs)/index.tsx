@@ -23,6 +23,7 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 import LottieView from 'lottie-react-native';
 import { customerApi, cartApi } from '@/api';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { CategoryCard } from '@/components/CategoryCard';
 import { ProductCard } from '@/components/ProductCard';
 import { ShopCard } from '@/components/ShopCard';
@@ -463,7 +464,7 @@ export default function HomeScreen() {
                     shadowRadius: 6,
                   }}
                 >
-                  <Image 
+                  <SmartImage 
                     source={{ uri: b.imageUrl }} 
                     style={{ width: '100%', height: '100%' }} 
                     contentFit="cover" 
@@ -504,7 +505,7 @@ export default function HomeScreen() {
           {/* ── 4. WIDE FULL-WIDTH BANNER IMAGE ── */}
           {row3Banner && row3Banner.imageUrl ? (
             <Pressable style={[styles.row3Card, { height: row3H }]}>
-              <Image
+              <SmartImage
                 source={{ uri: row3Banner.imageUrl }}
                 style={{ width: SCREEN_WIDTH - spacing.md * 2, height: row3H }}
                 contentFit="cover"
