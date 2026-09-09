@@ -63,8 +63,10 @@ export default function VendorRequestStatusScreen() {
       const me = await authApi.getMe();
       dispatch(setUser(me));
       router.replace('/(vendor)');
-    } catch (e) {
-      alert('Failed to switch to Vendor Mode');
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Failed to switch to Vendor Mode';
+      console.error('[switchToVendor] Error:', e?.response?.data || e);
+      alert(`Failed to switch to Vendor Mode: ${msg}`);
     }
   }
 
