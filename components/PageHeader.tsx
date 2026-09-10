@@ -7,6 +7,7 @@ import {
   Animated,
   TextInput,
   type ViewStyle,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -28,6 +29,8 @@ interface PageHeaderProps {
   rightElement?: React.ReactNode;
   /** Called when back button pressed (default: router.back()) */
   onBack?: () => void;
+  /** Show loading spinner instead of back arrow */
+  isBackLoading?: boolean;
   style?: ViewStyle;
 }
 
@@ -39,6 +42,7 @@ export function PageHeader({
   searchHints = ['Search products...', 'Try "Milk"...', 'Try "Rice"...'],
   rightElement,
   onBack,
+  isBackLoading = false,
   style,
 }: PageHeaderProps) {
   const router = useRouter();
@@ -103,8 +107,12 @@ export function PageHeader({
       <View style={styles.topRow}>
         {/* Back Button */}
         {showBack ? (
-          <Pressable style={styles.backBtn} onPress={handleBack} hitSlop={8}>
-            <Ionicons name="arrow-back" size={20} color={colors.text} />
+          <Pressable style={styles.backBtn} onPress={isBackLoading ? undefined : handleBack} hitSlop={8} disabled={isBackLoading}>
+            {isBackLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="arrow-back" size={20} color={colors.text} />
+            )}
           </Pressable>
         ) : (
           <View style={styles.backBtnPlaceholder} />
@@ -173,7 +181,7 @@ export function PageHeader({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.md,
     paddingBottom: 8,
   },

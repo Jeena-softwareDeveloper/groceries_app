@@ -12,9 +12,9 @@ import {
   Pressable,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  Alert,
   RefreshControl,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +34,7 @@ import { setShowLoginModal } from '@/store/authSlice';
 import { setShowLocationModal } from '@/store/locationSlice';
 
 import { useEvent } from 'expo';
+import { STALE_TIMES } from '@/utils/constants';
 
 function VideoBanner({ url, style }: { url: string; style: any }) {
   const videoOpacity = useRef(new Animated.Value(0)).current;
@@ -144,8 +145,6 @@ function VideoBanner({ url, style }: { url: string; style: any }) {
           player={player}
           nativeControls={true}
           contentFit="cover"
-          allowsFullscreen={true}
-          allowsPictureInPicture={false}
         />
       </Animated.View>
     </View>
@@ -252,7 +251,7 @@ export default function HomeScreen() {
         ? customerApi.fetchHomeFeedByLocation(latitude!, longitude!)
         : customerApi.fetchHomeFeed(districtId ?? '', areaId ?? undefined, latitude, longitude),
     enabled: hasLocation,
-    staleTime: 60 * 1000,
+    staleTime: STALE_TIMES.CONTENT,
   });
 
   const handleRefresh = useCallback(async () => {
@@ -319,9 +318,9 @@ export default function HomeScreen() {
       queryClient.invalidateQueries({ queryKey: ['cart'] });
       const cart = await cartApi.fetchCart();
       dispatch(setItemCount(cart.items.reduce((s, i) => s + i.quantity, 0)));
-      Alert.alert('Success', 'Item added to cart');
+      Toast.show({ type: 'success', text1: 'Added to cart' });
     },
-    onError: (e) => Alert.alert('Error', e instanceof Error ? e.message : 'Could not add to cart'),
+    onError: (e) => Toast.show({ type: 'error', text1: 'Could not add to cart', text2: e instanceof Error ? e.message : undefined }),
   });
 
   const handleAddToCart = (productId: string) => {
@@ -621,7 +620,7 @@ const styles = StyleSheet.create({
     height: Math.round(SW * 0.48), // Reduced from 0.56
   },
   playBtnWrap: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -735,7 +734,7 @@ const styles = StyleSheet.create({
   },
   row2Img: { width: '100%', height: '100%', resizeMode: 'cover' },
   row2Overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.08)',
   },
   row2Content: {
@@ -776,7 +775,7 @@ const styles = StyleSheet.create({
   },
   row3Img: { width: '100%', height: '100%' },
   row3Overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.08)',
   },
   row3Content: {

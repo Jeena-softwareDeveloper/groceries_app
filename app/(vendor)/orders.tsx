@@ -262,36 +262,30 @@ export default function VendorOrders() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          header: () => (
-            <View style={{
-              backgroundColor: '#fff',
-              paddingTop: Math.max(insets.top, 20) + 10,
-              paddingHorizontal: spacing.lg,
-              paddingBottom: spacing.md,
-              borderBottomWidth: 1,
-              borderBottomColor: '#f1f5f9',
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                <Feather name="search" size={16} color="#94a3b8" />
-                <TextInput
-                  placeholder="Search orders..."
-                  placeholderTextColor="#94a3b8"
-                  style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
-                  onChangeText={(t) => {
-                    setSearch(t);
-                    setPage(1);
-                  }}
-                  value={search}
-                />
-              </View>
-            </View>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.md,
+        paddingTop: Math.max(insets.top, 12),
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+      }}>
+        {/* Search Bar */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
+          <Feather name="search" size={16} color="#94a3b8" />
+          <TextInput
+            placeholder="Search orders..."
+            placeholderTextColor="#94a3b8"
+            style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
+            onChangeText={(t) => {
+              setSearch(t);
+              setPage(1);
+            }}
+            value={search}
+          />
+        </View>
+      </View>
 
       {/* Status Tabs */}
       <View style={styles.tabsWrapper}>

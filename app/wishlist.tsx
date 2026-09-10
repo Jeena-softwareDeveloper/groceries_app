@@ -7,13 +7,14 @@ import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setShowLoginModal } from '@/store/authSlice';
+import { STALE_TIMES } from '@/utils/constants';
 
 export default function WishlistScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { accessToken } = useAppSelector((s) => s.auth);
   const dispatch = useAppDispatch();
-  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: customerApi.fetchWishlist, enabled: !!accessToken });
+  const { data = [], isLoading } = useQuery({ queryKey: ['wishlist'], queryFn: customerApi.fetchWishlist, enabled: !!accessToken, staleTime: STALE_TIMES.PERSONAL });
 
   if (!accessToken) {
     return (

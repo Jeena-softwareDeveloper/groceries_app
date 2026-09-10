@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated, ViewStyle, StyleProp } from 'react-native';
-import { Image, ImageProps } from 'expo-image';
+import { Image, ImageSource } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
+import { IMAGE_CACHE_POLICY } from '@/utils/constants';
 
-interface SmartImageProps extends Omit<ImageProps, 'style'> {
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface SmartImageProps {
+  source: ImageSource | null | undefined;
   style?: StyleProp<ViewStyle>;
   containerStyle?: StyleProp<ViewStyle>;
+  contentFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down';
   fallbackIcon?: keyof typeof Ionicons.glyphMap;
+  onLoad?: () => void;
+  onError?: () => void;
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export const SmartImage: React.FC<SmartImageProps> = ({
   source,
   style,
@@ -17,15 +24,22 @@ export const SmartImage: React.FC<SmartImageProps> = ({
   fallbackIcon = 'image-outline',
   onLoad,
   onError,
-  ...props
 }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
-  // Pulse shimmer animation for skeleton state (Flipkart / Amazon style)
+  // Validate source has a non-empty URI
+  const hasValidUri =
+    source != null &&
+    typeof source === 'object' &&
+    'uri' in source &&
+    typeof (source as any).uri === 'string' &&
+    (source as any).uri.length > 0;
+
+  // Shimmer pulse animation while loading (Flipkart / Amazon skeleton style)
   useEffect(() => {
-    if (!isLoaded && !hasError) {
+    if (!isLoaded && !hasError && hasValidUri) {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1, duration: 650, useNativeDriver: true }),
@@ -35,50 +49,43 @@ export const SmartImage: React.FC<SmartImageProps> = ({
       animation.start();
       return () => animation.stop();
     }
-  }, [isLoaded, hasError]);
-
-  const uri = typeof source === 'object' && source !== null && 'uri' in source ? (source as any).uri : null;
+  }, [isLoaded, hasError, hasValidUri]);
 
   return (
     <View style={[styles.container, containerStyle, style]}>
-      {/* ── Skeleton Placeholder ── */}
-      {(!isLoaded && !hasError) && (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            styles.skeleton,
-            { opacity: pulseAnim }
-          ]}
-        />
+      {/* Skeleton shimmer — shown while valid image is loading */}
+      {!isLoaded && !hasError && hasValidUri && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.skeleton, { opacity: pulseAnim }]} />
       )}
 
-      {/* ── Error Fallback ── */}
-      {hasError || !uri ? (
+      {/* Fallback icon — no source provided or load error */}
+      {!hasValidUri || hasError ? (
         <View style={[StyleSheet.absoluteFill, styles.errorBox]}>
           <Ionicons name={fallbackIcon} size={24} color="#94a3b8" />
         </View>
       ) : (
         <Image
-          source={source}
-          style={[StyleSheet.absoluteFill, style]}
+          source={source as ImageSource}
+          style={StyleSheet.absoluteFill}
           contentFit={contentFit}
           transition={250}
-          cachePolicy="memory-disk"
-          onLoad={(e) => {
+          // In dev: 'none' = always load fresh. In production: 'memory-disk' for speed.
+          cachePolicy={IMAGE_CACHE_POLICY}
+          onLoad={() => {
             setIsLoaded(true);
-            if (onLoad) onLoad(e);
+            onLoad?.();
           }}
-          onError={(e) => {
+          onError={() => {
             setHasError(true);
-            if (onError) onError(e);
+            onError?.();
           }}
-          {...props}
         />
       )}
     </View>
   );
 };
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',

@@ -75,7 +75,8 @@ export default function ProfileScreen() {
   if (!accessToken) {
     return (
       <SafeAreaView style={styles.safe}>
-        <StatusBar style="light" backgroundColor="#16a34a" translucent={false} />
+        {/* @ts-ignore — backgroundColor is valid on Android at runtime */}
+        <StatusBar style="light" backgroundColor={colors.primary} translucent={false} />
         <LinearGradient colors={['#16a34a', '#15803d', '#14532d']} style={{ flex: 1 }}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
             <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
@@ -102,7 +103,8 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar style="light" backgroundColor="#16a34a" translucent={false} />
+      {/* @ts-ignore — backgroundColor is valid on Android at runtime */}
+      <StatusBar style="light" backgroundColor={colors.primary} translucent={false} />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
         <LinearGradient colors={['#16a34a', '#15803d', '#14532d']} style={styles.headerGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -116,7 +118,7 @@ export default function ProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 20, fontFamily: fonts.bold, color: '#fff', marginBottom: 2 }} numberOfLines={1}>
-                {user?.name ?? 'All Time Market User'}
+                {user?.name || user?.phone || 'Customer'}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Feather name="check-circle" size={13} color="#86efac" />
@@ -157,7 +159,7 @@ export default function ProfileScreen() {
                       <Feather name="home" size={24} color="#fff" />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 16, fontFamily: fonts.bold, color: '#14532d' }}>My Store is Live! 🎉</Text>
+                      <Text style={{ fontSize: 16, fontFamily: fonts.bold, color: '#14532d' }}>My Store</Text>
                       <Text style={{ fontSize: 12, fontFamily: fonts.regular, color: '#166534', marginTop: 2 }}>Tap to manage products, orders & earnings</Text>
                     </View>
                     {isSwitching ? <ActivityIndicator size="small" color="#16a34a" /> : <Feather name="chevron-right" size={20} color="#16a34a" />}

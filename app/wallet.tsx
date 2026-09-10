@@ -6,11 +6,12 @@ import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector, useAppDispatch } from '@/store/hooks';
 import { setShowLoginModal } from '@/store/authSlice';
+import { STALE_TIMES } from '@/utils/constants';
 
 export default function WalletScreen() {
   const { accessToken } = useAppSelector((s) => s.auth);
   const dispatch = useAppDispatch();
-  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: walletApi.fetchWallet, enabled: !!accessToken });
+  const { data, isLoading } = useQuery({ queryKey: ['wallet'], queryFn: walletApi.fetchWallet, enabled: !!accessToken, staleTime: STALE_TIMES.REALTIME });
 
   if (!accessToken) {
     return (

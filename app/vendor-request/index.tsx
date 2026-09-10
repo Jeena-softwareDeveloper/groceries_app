@@ -7,8 +7,9 @@ import { Feather } from '@expo/vector-icons';
 import { vendorRequestApi, type VendorRequest, type VendorRequestStatus } from '@/api/vendor-request.api';
 import { authApi } from '@/api';
 import { persistAuth } from '@/hooks/useBootstrap';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
+import { getItemAsync, setItemAsync } from '@/utils/storage';
 import { colors, spacing, radius, fonts, typography } from '@/constants/theme';
 
 const STATUS_CONFIG: Record<VendorRequestStatus, { label: string; color: string; bg: string; icon: string; desc: string }> = {
@@ -52,11 +53,15 @@ const STATUS_CONFIG: Record<VendorRequestStatus, { label: string; color: string;
 export default function VendorRequestStatusScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
   const [request, setRequest] = useState<VendorRequest | null | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   async function handleSwitchToVendor() {
     try {
+      if (user?.id) {
+        await setItemAsync(`hasSeenVendorApproved_${user.id}`, 'true');
+      }
       const tokens = await authApi.switchToVendor();
       await persistAuth(tokens.accessToken, tokens.refreshToken);
       dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
@@ -71,10 +76,22 @@ export default function VendorRequestStatusScreen() {
   useEffect(() => {
     vendorRequestApi
       .getMyRequest()
-      .then((r) => setRequest(r))
-      .catch(() => setRequest(null))
-      .finally(() => setLoading(false));
-  }, []);
+      .then(async (r) => {
+        if (r?.status === 'APPROVED' && user?.id) {
+          const hasSeen = await getItemAsync(`hasSeenVendorApproved_${user.id}`);
+          if (hasSeen === 'true') {
+            await handleSwitchToVendor();
+            return; // don't set loading to false so it transitions smoothly without flashing the screen
+          }
+        }
+        setRequest(r);
+        setLoading(false);
+      })
+      .catch(() => {
+        setRequest(null);
+        setLoading(false);
+      });
+  }, [user?.id]);
 
   if (loading) {
     return <LoadingState />;

@@ -5,11 +5,12 @@ import { notificationApi } from '@/api';
 import { PageHeader } from '@/components/PageHeader';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
 import { useAppSelector } from '@/store/hooks';
+import { STALE_TIMES } from '@/utils/constants';
 
 export default function NotificationsScreen() {
   const queryClient = useQueryClient();
   const { accessToken } = useAppSelector((s) => s.auth);
-  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.fetchNotifications, enabled: !!accessToken });
+  const { data = [], isLoading } = useQuery({ queryKey: ['notifications'], queryFn: notificationApi.fetchNotifications, enabled: !!accessToken, staleTime: STALE_TIMES.REALTIME });
 
   if (!accessToken) {
     return (

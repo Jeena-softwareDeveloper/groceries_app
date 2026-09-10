@@ -35,6 +35,17 @@ function formatPrice(n: number) {
   return `₹${n.toFixed(0)}`;
 }
 
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
 export default function CartScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -293,7 +304,26 @@ export default function CartScreen() {
   const platformFee = appSettings?.platformFee ?? 0;
   const taxPercent = appSettings?.taxPercent ?? 0;
   const gst = Math.round(totalSellingPrice * taxPercent / 100);
-  const deliveryFee = appSettings?.deliveryFee ?? 0;
+  const isDeliveryKmBased = appSettings?.isDeliveryKmBased ?? false;
+  const deliveryFeePerKm = appSettings?.deliveryFeePerKm ?? 10;
+  
+  let deliveryFee = appSettings?.deliveryFee ?? 0;
+  
+  if (isDeliveryKmBased && latitude && longitude) {
+    let maxDist = 0;
+    allItems.forEach((item) => {
+      const vLat = item.vendor?.latitude;
+      const vLng = item.vendor?.longitude;
+      if (vLat && vLng) {
+        const d = calculateDistance(latitude, longitude, vLat, vLng);
+        if (d > maxDist) maxDist = d;
+      }
+    });
+    if (maxDist > 0) {
+      deliveryFee = Math.round(maxDist * deliveryFeePerKm);
+    }
+  }
+
   const minOrderValue = appSettings?.minOrderValue ?? 0;
   const toPay = totalSellingPrice + platformFee + gst + deliveryFee;
 
@@ -302,13 +332,13 @@ export default function CartScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Sticky Header */}
-      <LinearGradient colors={['#e0f2e9', '#d1fae5']} style={styles.stickyHeader}>
+      <View style={[styles.stickyHeader, { backgroundColor: colors.primaryLight }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Cart</Text>
         <View style={{ width: 40 }} />
-      </LinearGradient>
+      </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <LinearGradient
@@ -469,17 +499,6 @@ export default function CartScreen() {
              </View>
           ))}
         </View>
-
-        <TouchableOpacity style={styles.couponSection} onPress={() => setShowCouponModal(true)}>
-           <View style={styles.couponLeft}>
-              <MaterialCommunityIcons name="ticket-percent-outline" size={24} color={colors.primary} />
-              <View style={styles.couponTexts}>
-                 <Text style={styles.couponTitle}>Apply Coupon</Text>
-                 <Text style={styles.couponSub}>Save more on your order</Text>
-              </View>
-           </View>
-           <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-        </TouchableOpacity>
 
 
 
@@ -680,7 +699,7 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#f9fafb' },
+  safe: { flex: 1, backgroundColor: colors.primaryLight },
   scroll: { paddingBottom: 180 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   emptyTitle: { fontSize: 20, fontFamily: fonts.bold, color: colors.text },
@@ -721,52 +740,52 @@ const styles = StyleSheet.create({
   formTitle: { fontFamily: fonts.bold, fontSize: 16, marginBottom: spacing.sm },
   input: { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.sm, fontFamily: fonts.regular, outlineStyle: 'none' as any },
   
-  section: { padding: spacing.md, backgroundColor: '#fff', marginBottom: 4 },
+  section: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: '#fff', marginBottom: 2 },
   sectionTitle: { fontSize: 16, fontFamily: fonts.bold, color: colors.text, marginBottom: spacing.sm },
   
-  productCard: { flexDirection: 'row', marginBottom: spacing.md, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: spacing.md },
-  productImageWrap: { width: 80, height: 80, borderRadius: radius.md, backgroundColor: '#f9fafb', padding: 8, marginRight: spacing.md },
+  productCard: { flexDirection: 'row', marginBottom: spacing.sm, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#f3f4f6', paddingBottom: spacing.sm },
+  productImageWrap: { width: 70, height: 70, borderRadius: radius.md, backgroundColor: '#f9fafb', padding: 6, marginRight: spacing.md },
   productImage: { width: '100%', height: '100%', resizeMode: 'contain' },
   itemImagePlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#e5e7eb', borderRadius: radius.md },
   itemImagePlaceholderText: { fontSize: 10, color: colors.textMuted },
   
   productInfo: { flex: 1 },
   productHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  productName: { fontSize: 15, fontFamily: fonts.bold, color: colors.text, flex: 1, marginRight: spacing.sm },
+  productName: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, flex: 1, marginRight: spacing.sm },
   trashBtn: { padding: 4 },
-  productWeight: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  productWeight: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   tagWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', alignSelf: 'flex-start', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginTop: 4 },
   tagText: { fontSize: 10, color: colors.primary, fontFamily: fonts.medium },
   
-  productFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 12 },
+  productFooterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8 },
   priceBlock: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  productPrice: { fontSize: 16, fontFamily: fonts.bold, color: colors.text, marginRight: 6 },
-  productMrp: { fontSize: 13, color: colors.textMuted, textDecorationLine: 'line-through', marginRight: 6 },
-  productDiscount: { fontSize: 11, color: '#ea580c', fontFamily: fonts.bold, backgroundColor: '#ffedd5', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
+  productPrice: { fontSize: 15, fontFamily: fonts.bold, color: colors.text, marginRight: 6 },
+  productMrp: { fontSize: 12, color: colors.textMuted, textDecorationLine: 'line-through', marginRight: 6 },
+  productDiscount: { fontSize: 10, color: '#ea580c', fontFamily: fonts.bold, backgroundColor: '#ffedd5', paddingHorizontal: 4, paddingVertical: 2, borderRadius: 4 },
   
-  qtyPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: colors.primary, borderRadius: 20 },
-  qtyBtnIcon: { paddingHorizontal: 12, paddingVertical: 6 },
+  qtyPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: colors.primary, borderRadius: 16 },
+  qtyBtnIcon: { paddingHorizontal: 10, paddingVertical: 4 },
   qtyBtnText: { color: colors.primary, fontSize: 16, fontFamily: fonts.bold },
-  qtyText: { fontSize: 14, fontFamily: fonts.bold, color: colors.text, paddingHorizontal: 8 },
+  qtyText: { fontSize: 13, fontFamily: fonts.bold, color: colors.text, paddingHorizontal: 6 },
   
-  couponSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', padding: spacing.md, marginVertical: spacing.sm, borderWidth: 1, borderColor: '#eef8f2', borderRadius: radius.lg, marginHorizontal: spacing.md },
+  couponSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', padding: spacing.sm, marginVertical: spacing.xs, borderWidth: 1, borderColor: '#eef8f2', borderRadius: radius.md, marginHorizontal: spacing.md },
   couponLeft: { flexDirection: 'row', alignItems: 'center' },
   couponTexts: { marginLeft: spacing.sm },
-  couponTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.text },
-  couponSub: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+  couponTitle: { fontSize: 14, fontFamily: fonts.bold, color: colors.text },
+  couponSub: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
   
-  recHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  viewAllText: { fontSize: 14, color: colors.primary, fontFamily: fonts.medium },
-  recCard: { width: 120, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.sm },
-  recImg: { width: 80, height: 80, resizeMode: 'contain', alignSelf: 'center' },
-  recName: { fontSize: 14, fontFamily: fonts.medium, color: colors.text, marginTop: 8 },
-  recWeight: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  recFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  recPrice: { fontSize: 14, fontFamily: fonts.bold, color: colors.text },
-  recAddBtn: { borderWidth: 1, borderColor: colors.primary, borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4 },
-  recAddText: { color: colors.primary, fontSize: 11, fontFamily: fonts.bold },
+  recHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  viewAllText: { fontSize: 13, color: colors.primary, fontFamily: fonts.medium },
+  recCard: { width: 110, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.xs },
+  recImg: { width: 70, height: 70, resizeMode: 'contain', alignSelf: 'center' },
+  recName: { fontSize: 13, fontFamily: fonts.medium, color: colors.text, marginTop: 6 },
+  recWeight: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
+  recFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
+  recPrice: { fontSize: 13, fontFamily: fonts.bold, color: colors.text },
+  recAddBtn: { borderWidth: 1, borderColor: colors.primary, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 3 },
+  recAddText: { color: colors.primary, fontSize: 10, fontFamily: fonts.bold },
   
-  billSection: { padding: spacing.md, backgroundColor: '#fff', marginTop: spacing.sm, borderRadius: radius.lg, marginHorizontal: spacing.md, marginBottom: spacing.xl },
+  billSection: { padding: spacing.md, backgroundColor: '#fff', marginTop: spacing.xs, borderRadius: radius.md, marginHorizontal: spacing.md, marginBottom: spacing.md },
   billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   billLabel: { fontSize: 14, color: colors.textMuted },
   billValue: { fontSize: 14, fontFamily: fonts.medium, color: colors.text },

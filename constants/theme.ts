@@ -1,13 +1,17 @@
 export const colors = {
   primary: '#16a34a',
   primaryDark: '#15803d',
+  primaryLight: '#dcfce7',
   background: '#ffffff',
   surface: '#f9fafb',
   border: '#e5e7eb',
   text: '#111827',
   textMuted: '#6b7280',
   textLight: '#9ca3af',
-  error: '#dc2626',
+  error: '#dc2626',   // deep red — validation errors, cancel states
+  danger: '#ef4444',  // vivid red — out-of-stock, destructive actions
+  warning: '#f59e0b', // amber — caution states
+  success: '#16a34a', // alias of primary — for semantic clarity
   white: '#ffffff',
 };
 

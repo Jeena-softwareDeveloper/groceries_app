@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY, STALE_TIMES } from '@/utils/constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PageHeader } from '@/components/PageHeader';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
@@ -14,6 +15,7 @@ export default function CategoriesScreen() {
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
     queryFn: categoryApi.fetchCategories,
+    staleTime: STALE_TIMES.STATIC,
   });
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(initialCategoryId ?? null);
@@ -51,15 +53,14 @@ export default function CategoriesScreen() {
                   >
                     <View style={styles.parentIconBox}>
                       {cat.imageUrl ? (
-                        <Image source={{ uri: cat.imageUrl }} style={styles.parentIcon} contentFit="contain" />
+                        <Image source={{ uri: cat.imageUrl }} style={styles.parentIcon} contentFit="contain" cachePolicy={IMAGE_CACHE_POLICY} />
                       ) : (
                         <Ionicons name="basket-outline" size={32} color={isSelected ? colors.primary : colors.textMuted} />
                       )}
                     </View>
                     <Text
-                      style={[styles.parentName, isSelected && styles.parentNameSelected]}
+                      style={[styles.parentName, isSelected && styles.parentNameSelected, { textAlign: 'center' }]}
                       numberOfLines={2}
-                      textAlign="center"
                     >
                       {cat.name}
                     </Text>
@@ -85,7 +86,7 @@ export default function CategoriesScreen() {
                   >
                     <View style={styles.subImageBox}>
                       {sub.imageUrl ? (
-                        <Image source={{ uri: sub.imageUrl }} style={styles.subImage} contentFit="contain" />
+                        <Image source={{ uri: sub.imageUrl }} style={styles.subImage} contentFit="contain" cachePolicy={IMAGE_CACHE_POLICY} />
                       ) : (
                         <Ionicons name="image-outline" size={32} color={colors.border} />
                       )}

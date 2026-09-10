@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Pressable, TouchableOpacity,
   ActivityIndicator, RefreshControl,
@@ -15,8 +15,7 @@ import { persistAuth } from '@/hooks/useBootstrap';
 import { setTokens, setUser } from '@/store/authSlice';
 import { showLoader, hideLoader } from '@/store/uiSlice';
 import { PageHeader } from '@/components/PageHeader';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import { STALE_TIMES } from '@/utils/constants';
 
 function fmt(n: number | undefined) {
   if (!n) return '₹0';
@@ -65,26 +64,32 @@ export default function VendorDashboard() {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
 
+  const isSwitchingRef = useRef(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+
   async function handleSwitchToCustomer() {
-    dispatch(showLoader());
+    if (isSwitchingRef.current) return;
+    isSwitchingRef.current = true;
+    setIsSwitching(true); // for back button spinner
     try {
       const tokens = await authApi.switchToCustomer();
       await persistAuth(tokens.accessToken, tokens.refreshToken);
       dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
       const me = await authApi.getMe();
+      // We don't reset isSwitching here so the spinner stays while NavigationGuard transitions seamlessly
       dispatch(setUser(me));
-      router.replace('/(tabs)');
     } catch (e) {
+      console.error('[VendorDashboard] Error switching to customer:', e);
+      isSwitchingRef.current = false;
+      setIsSwitching(false);
       router.replace('/(tabs)');
-    } finally {
-      dispatch(hideLoader());
     }
   }
 
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['vendor-dashboard'],
     queryFn: vendorApi.getDashboard,
-    staleTime: 30000,
+    staleTime: STALE_TIMES.PERSONAL,
   });
 
   const onRefresh = useCallback(() => { refetch(); }, [refetch]);
@@ -123,6 +128,7 @@ export default function VendorDashboard() {
         title={user?.shopName ?? 'Vendor Portal'}
         showBack={true}
         onBack={handleSwitchToCustomer}
+        isBackLoading={isSwitching}
         rightElement={
           <TouchableOpacity
             activeOpacity={0.7}

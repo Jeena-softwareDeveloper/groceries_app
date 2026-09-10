@@ -71,12 +71,7 @@ export const ShopCard = React.memo(({ shop, onPress, horizontal, isNearest }: Sh
                 {shop.distance.toFixed(1)} km away
               </Text>
             </>
-          ) : (
-            <>
-              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.timeText}>30-40 mins</Text>
-            </>
-          )}
+          ) : null}
         </View>
         {shop.inDeliveryRadius === false && (
           <View style={{ marginTop: 4 }}>

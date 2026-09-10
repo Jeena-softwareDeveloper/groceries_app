@@ -6,6 +6,8 @@ export interface AppSettings {
   taxPercent?: number;
   platformFee?: number;
   deliveryFee?: number;
+  isDeliveryKmBased?: boolean;
+  deliveryFeePerKm?: number;
   roles: Record<string, {
     defaultRoute: string;
     allowedRoutes: string[];

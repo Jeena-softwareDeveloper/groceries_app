@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/utils/constants';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -18,6 +19,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { SmartImage } from '@/components/ui/SmartImage';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -69,15 +71,17 @@ export default function ProductScreen() {
     queryFn: () => productApi.fetchProduct(id!),
     enabled: !!id && preview !== 'true',
     initialData: preview === 'true' ? () => queryClient.getQueryData(['product', id]) as any : undefined,
+    staleTime: STALE_TIMES.CONTENT,
   });
 
   const { data: shopData } = useQuery({
     queryKey: ['shop', product?.vendor?.id],
     queryFn: () => customerApi.fetchShop(product!.vendor!.id),
     enabled: !!product?.vendor?.id && !product?.vendor?.phone,
+    staleTime: STALE_TIMES.CONTENT,
   });
 
-  const vendorPhone = product?.vendor?.phone?.trim() || shopData?.phone?.trim() || '9344193569';
+  const vendorPhone = product?.vendor?.phone?.trim() || shopData?.phone?.trim() || null;
 
   const { data: similarData } = useQuery({
     queryKey: ['products', 'similar', product?.category?.id],
@@ -90,6 +94,7 @@ export default function ProductScreen() {
       return res;
     },
     enabled: !!product,
+    staleTime: STALE_TIMES.LIST,
   });
   const similarProducts = (similarData?.products ?? []).filter((p) => p.id !== id);
 
@@ -97,6 +102,7 @@ export default function ProductScreen() {
     queryKey: ['wishlist'],
     queryFn: customerApi.fetchWishlist,
     enabled: role === 'CUSTOMER',
+    staleTime: STALE_TIMES.PERSONAL,
   });
   const isWishlisted = wishlist.some((w: any) => w.product?.id === id || w.productId === id);
 
@@ -220,7 +226,7 @@ export default function ProductScreen() {
             }}
             renderItem={({ item }: { item: any }) =>
               item.url ? (
-                <Image source={{ uri: item.url }} style={s.prodImg} resizeMode="contain" />
+                <SmartImage source={{ uri: item.url }} style={s.prodImg} contentFit="contain" />
               ) : (
                 <View style={[s.prodImg, s.imgPh]}>
                   <Ionicons name="image-outline" size={56} color="#ccc" />
@@ -348,24 +354,28 @@ export default function ProductScreen() {
                   </View>
                 )}
               </View>
-              <Text style={{ fontSize: 12, color: '#16a34a', fontFamily: fonts.medium, marginTop: 2 }}>
-                📞 {vendorPhone}
-              </Text>
+              {vendorPhone ? (
+                <Text style={{ fontSize: 12, color: colors.primary, fontFamily: fonts.medium, marginTop: 2 }}>
+                  📞 {vendorPhone}
+                </Text>
+              ) : null}
             </View>
             <Ionicons name="chevron-forward" size={18} color="#aaa" style={{ marginRight: 8 }} />
           </Pressable>
 
           {/* 📞 Direct Call Button (Right side of same row) */}
-          <TouchableOpacity
-            style={s.callVendorBtn}
-            onPress={() => {
-              Linking.openURL(`tel:${vendorPhone}`);
-            }}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="call" size={14} color="#ffffff" />
-            <Text style={s.callVendorBtnText}>Call</Text>
-          </TouchableOpacity>
+          {vendorPhone ? (
+            <TouchableOpacity
+              style={s.callVendorBtn}
+              onPress={() => {
+                Linking.openURL(`tel:${vendorPhone}`);
+              }}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="call" size={14} color="#ffffff" />
+              <Text style={s.callVendorBtnText}>Call</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={s.divider} />
@@ -534,7 +544,7 @@ export default function ProductScreen() {
                       <Ionicons name="heart-outline" size={18} color="#aaa" />
                     </TouchableOpacity>
                     {rp.images?.[0]?.url ? (
-                      <Image source={{ uri: rp.images[0].url }} style={s.gridImg} resizeMode="cover" />
+                      <SmartImage source={{ uri: rp.images[0].url }} style={s.gridImg} contentFit="cover" />
                     ) : (
                       <View style={[s.gridImg, s.imgPh]}>
                         <Ionicons name="image-outline" size={32} color="#ccc" />

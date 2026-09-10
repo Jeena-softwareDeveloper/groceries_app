@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Modal, Alert, ActivityIndicator, Platform } from 'react-native';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
@@ -12,18 +12,25 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { authApi, customerApi } from '@/api';
+import { api } from '@/api/client';
 import { vendorApi } from '@/api/vendor.api';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
+import { showLoader, hideLoader } from '@/store/uiSlice';
 import { wipeAuth, persistAuth } from '@/hooks/useBootstrap';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY } from '@/utils/constants';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose: () => void; profile: any }) {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
+  const [logoUri, setLogoUri] = useState<string | null>(null);    // local picked URI
+  const [bannerUri, setBannerUri] = useState<string | null>(null); // local picked URI
   const [form, setForm] = useState({
     shopName: profile?.shopName ?? '',
     description: profile?.description ?? '',
@@ -49,6 +56,8 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
 
   React.useEffect(() => {
     if (visible && profile) {
+      setLogoUri(null);   // reset local picks when modal opens
+      setBannerUri(null);
       setForm({
         shopName: profile?.shopName ?? '',
         description: profile?.description ?? '',
@@ -62,10 +71,63 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
     }
   }, [profile, visible]);
 
+  // ── Image upload helper ───────────────────────────────────────────────────
+  const uploadImage = async (localUri: string, folder: string): Promise<string> => {
+    let uploadUri = localUri;
+    if (Platform.OS !== 'web') {
+      const compressed = await manipulateAsync(
+        localUri,
+        [{ resize: { width: 1024 } }],
+        { compress: 0.75, format: SaveFormat.JPEG },
+      );
+      uploadUri = compressed.uri;
+    }
+    const body = new FormData();
+    if (Platform.OS === 'web') {
+      const blob = await (await fetch(uploadUri)).blob();
+      body.append('file', blob, 'upload.jpg');
+    } else {
+      body.append('file', { uri: uploadUri, name: 'upload.jpg', type: 'image/jpeg' } as any);
+    }
+    body.append('folder', folder);
+    const res = await api.post('/upload', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+    if (!res.data.success) throw new Error('Image upload failed');
+    return res.data.data.url as string;
+  };
+
+  // ── Image picker ─────────────────────────────────────────────────────────
+  const pickImage = async (type: 'logo' | 'banner') => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Toast.show({ type: 'error', text1: 'Permission required', text2: 'Allow photo access to upload images.' });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: type === 'logo' ? [1, 1] : [16, 9],
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets[0]) {
+      if (type === 'logo') setLogoUri(result.assets[0].uri);
+      else setBannerUri(result.assets[0].uri);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setLoading(true);
-      await vendorApi.updateProfile(form);
+      const updates: Record<string, any> = { ...form };
+
+      // Upload images if the user picked new ones
+      if (logoUri) {
+        updates.logoUrl = await uploadImage(logoUri, 'districtmart/vendors/logos');
+      }
+      if (bannerUri) {
+        updates.bannerUrl = await uploadImage(bannerUri, 'districtmart/vendors/banners');
+      }
+
+      await vendorApi.updateProfile(updates);
       queryClient.invalidateQueries({ queryKey: ['vendor-profile'] });
       queryClient.invalidateQueries({ queryKey: ['vendor-dashboard'] });
       Toast.show({ type: 'success', text1: 'Success', text2: 'Profile updated successfully' });
@@ -105,8 +167,8 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
           if (data?.display_name) {
             addrString = data.display_name;
           }
-        } catch (err) {
-          console.log('OSM fallback failed', err);
+        } catch {
+          // OSM fallback failed silently — proceed with existing address
         }
       }
 
@@ -139,7 +201,53 @@ function ProfileModal({ visible, onClose, profile }: { visible: boolean; onClose
           </Pressable>
         </View>
         <ScrollView style={modalStyles.body}>
-          <Input label="Shop Name" value={form.shopName} onChangeText={(t) => setForm(f => ({ ...f, shopName: t }))} />
+
+          {/* ── Store Images ─────────────────────────────── */}
+          <Text style={modalStyles.sectionLabel}>Store Images</Text>
+          <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+
+            {/* Logo */}
+            <Pressable style={imgStyles.logoBox} onPress={() => pickImage('logo')}>
+              {(logoUri || profile?.logoUrl) ? (
+                <Image
+                  source={{ uri: logoUri ?? profile.logoUrl }}
+                  style={imgStyles.logoImg}
+                  contentFit="cover"
+                  cachePolicy={IMAGE_CACHE_POLICY}
+                />
+              ) : (
+                <Feather name="camera" size={22} color={colors.textMuted} />
+              )}
+              <View style={imgStyles.editBadge}>
+                <Feather name="edit-2" size={10} color="#fff" />
+              </View>
+              <Text style={imgStyles.imgLabel}>Logo</Text>
+            </Pressable>
+
+            {/* Banner */}
+            <Pressable style={imgStyles.bannerBox} onPress={() => pickImage('banner')}>
+              {(bannerUri || profile?.bannerUrl) ? (
+                <Image
+                  source={{ uri: bannerUri ?? profile.bannerUrl }}
+                  style={imgStyles.bannerImg}
+                  contentFit="cover"
+                  cachePolicy={IMAGE_CACHE_POLICY}
+                />
+              ) : (
+                <View style={{ alignItems: 'center', gap: 4 }}>
+                  <Feather name="image" size={22} color={colors.textMuted} />
+                  <Text style={{ fontSize: 11, color: colors.textMuted, fontFamily: fonts.regular }}>Add banner</Text>
+                </View>
+              )}
+              <View style={[imgStyles.editBadge, { right: 6 }]}>
+                <Feather name="edit-2" size={10} color="#fff" />
+              </View>
+              <Text style={imgStyles.imgLabel}>Banner (16:9)</Text>
+            </Pressable>
+
+          </View>
+
+          {/* ── Text Fields ──────────────────────────────── */}
           <Input label="Phone Number" value={form.phone} onChangeText={(t) => setForm(f => ({ ...f, phone: t }))} keyboardType="phone-pad" />
           <Select
             label="District"
@@ -267,16 +375,25 @@ export default function VendorMore() {
     queryFn: vendorApi.getProfile,
   });
 
+  const isSwitchingRef = useRef(false);
+
+  const [isSwitching, setIsSwitching] = useState(false);
+
   async function handleSwitchToCustomer() {
+    if (isSwitchingRef.current) return;
+    isSwitchingRef.current = true;
+    setIsSwitching(true);
     try {
       const tokens = await authApi.switchToCustomer();
       await persistAuth(tokens.accessToken, tokens.refreshToken);
       dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
       const me = await authApi.getMe();
+      // dispatching setUser changes role to CUSTOMER, triggering NavigationGuard's redirect to /(tabs)
       dispatch(setUser(me));
-      router.replace('/(tabs)');
     } catch (error) {
       console.error('Failed to switch role', error);
+      isSwitchingRef.current = false;
+      setIsSwitching(false);
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to switch to Customer Mode' });
     }
   }
@@ -289,8 +406,24 @@ export default function VendorMore() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
+      {/* Header */}
+      <PageHeader
+        title="More"
+        rightElement={
+          <Pressable onPress={isSwitching ? undefined : handleSwitchToCustomer} style={styles.customerBtn} disabled={isSwitching}>
+            {isSwitching ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <>
+                <Feather name="shopping-bag" size={14} color={colors.primary} />
+                <Text style={styles.customerBtnText}>Customer Mode</Text>
+              </>
+            )}
+          </Pressable>
+        }
+      />
       {isLoading ? (
         <LoadingState />
       ) : (
@@ -298,11 +431,12 @@ export default function VendorMore() {
           {/* Store Profile Header Card */}
           <View style={styles.profileHeaderCard}>
             <View style={styles.avatarBox}>
-              {(profile?.imageUrl || user?.imageUrl || profile?.image || user?.image) ? (
-                <Image 
-                  source={{ uri: profile?.imageUrl || user?.imageUrl || profile?.image || user?.image }} 
-                  style={{ width: 65, height: 65, borderRadius: 32.5 }} 
-                  contentFit="cover" 
+              {profile?.logoUrl ? (
+                <Image
+                  source={{ uri: profile.logoUrl }}
+                  style={{ width: 65, height: 65, borderRadius: 32.5 }}
+                  contentFit="cover"
+                  cachePolicy={IMAGE_CACHE_POLICY}
                 />
               ) : (
                 <Feather name="home" size={28} color="#16a34a" />
@@ -335,21 +469,7 @@ export default function VendorMore() {
             </View>
           </View>
 
-          {/* Phone Card */}
-          <View style={styles.card}>
-            <View style={styles.cardIconRow}>
-              <View style={styles.iconSquare}>
-                <Feather name="phone" size={20} color="#16a34a" />
-              </View>
-              <View style={styles.rowTextCol}>
-                <Text style={styles.rowTitle}>Phone</Text>
-                <Text style={styles.rowSub}>{profile?.phone ?? user?.phone ?? '+91 —'}</Text>
-              </View>
-              <Pressable onPress={() => setActiveModal('profile')}>
-                <Feather name="chevron-right" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-          </View>
+
 
           {/* Delivery & Operating Settings Card */}
           <View style={styles.card}>
@@ -378,12 +498,7 @@ export default function VendorMore() {
               subtitle="Update shop name, address & contact"
               onPress={() => setActiveModal('profile')}
             />
-            <MenuItem
-              icon="settings"
-              title="Store Settings"
-              subtitle="Manage store status, radius & min order"
-              onPress={() => setActiveModal('settings')}
-            />
+
             <MenuItem
               icon="tag"
               title="Offers & Discounts"
@@ -395,12 +510,6 @@ export default function VendorMore() {
               title="Help & Support"
               subtitle="Contact All Time Market admin team"
               onPress={() => Toast.show({ type: 'error', text1: 'Support', text2: 'Contact admin at support@alltimemarket.com' })}
-            />
-            <MenuItem
-              icon="shopping-bag"
-              title="Switch to Customer Mode"
-              subtitle="Browse products & shop as a customer"
-              onPress={handleSwitchToCustomer}
               last
             />
           </View>
@@ -579,6 +688,21 @@ const styles = StyleSheet.create({
   },
   logoutTitle: { fontSize: 15, fontFamily: fonts.bold, color: '#dc2626' },
   logoutSub: { fontSize: 12, color: '#7f1d1d', marginTop: 2, fontFamily: fonts.medium },
+
+  customerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+  },
+  customerBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.primary,
+  },
 });
 
 const modalStyles = StyleSheet.create({
@@ -595,4 +719,62 @@ const modalStyles = StyleSheet.create({
   toggleBtnActive: { backgroundColor: colors.primary },
   toggleKnob: { width: 20, height: 20, borderRadius: 10, backgroundColor: colors.white },
   toggleKnobActive: { transform: [{ translateX: 20 }] },
+  sectionLabel: { fontSize: 14, fontFamily: fonts.medium, color: colors.text, marginBottom: spacing.sm },
+});
+
+const imgStyles = StyleSheet.create({
+  logoBox: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  logoImg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+  },
+  bannerBox: {
+    flex: 1,
+    height: 80,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  bannerImg: {
+    width: '100%',
+    height: 80,
+    borderRadius: radius.md,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  imgLabel: {
+    position: 'absolute',
+    bottom: -20,
+    fontSize: 11,
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    width: '100%',
+    textAlign: 'center',
+  },
 });

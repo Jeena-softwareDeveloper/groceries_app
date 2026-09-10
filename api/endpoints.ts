@@ -48,6 +48,9 @@ export const ENDPOINTS = {
     REVIEWS: '/customer/reviews',
     DISTRICTS: '/customer/districts',
     AREAS: '/customer/areas',
+    LOCATION: '/customer/location',
+    REVERSE_GEOCODE: '/customer/reverse-geocode',
+    APP_VERSION: '/customer/app/version',
     VENDOR_REQUEST: {
       BASE: '/customer/vendor-request',
       SUBMIT: '/customer/vendor-request/submit',

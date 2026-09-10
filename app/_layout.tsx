@@ -3,7 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Text, TextStyle, View, Linking, TouchableOpacity, Animated } from 'react-native';
+import { Text, TextStyle, View, Linking, TouchableOpacity, Animated } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
 import { Provider } from 'react-redux';
@@ -85,7 +85,13 @@ const defaultFontFamily = 'Roboto_400Regular';
 };
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: {
+      retry: 1,
+      // Each query declares its own staleTime via STALE_TIMES constants.
+      // Default fallback is 0 (always fresh) — safer than a broad global.
+      staleTime: 0,
+      gcTime: 10 * 60 * 1000, // Keep in memory 10 min after unmount
+    },
   },
 });
 
@@ -172,12 +178,13 @@ function RootNavigator() {
   return (
     <NavigationGuard>
       <CartBadgeSync />
-      <StatusBar style="dark" backgroundColor="#dcfce7" translucent={false} />
+      {/* @ts-ignore — backgroundColor is valid at runtime (Android) but missing from expo-status-bar type definitions */}
+      <StatusBar style="dark" backgroundColor={colors.primaryLight} translucent={false} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="index" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
         <Stack.Screen name="(auth)" options={{ presentation: 'transparentModal', animation: 'slide_from_bottom', contentStyle: { backgroundColor: 'transparent' } }} />
-        <Stack.Screen name="(vendor)" />
+        <Stack.Screen name="(vendor)" options={{ animation: 'fade' }} />
         <Stack.Screen name="location" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="shop/[id]" options={{ headerShown: true, title: 'Shop' }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: true, title: 'Product' }} />
@@ -318,11 +325,3 @@ export default function RootLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-});

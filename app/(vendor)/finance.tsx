@@ -4,7 +4,7 @@ import {
   RefreshControl, Pressable
 } from 'react-native';
 import { LoadingState } from '@/components/ui/LoadingState';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack } from 'expo-router';
 import { PageHeader } from '@/components/PageHeader';
 import { useQuery } from '@tanstack/react-query';
@@ -20,6 +20,7 @@ function fmt(n: number | undefined) {
 }
 
 export default function VendorFinance() {
+  const insets = useSafeAreaInsets();
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['vendor-finance'],
     queryFn: vendorApi.getFinance,
@@ -46,8 +47,9 @@ export default function VendorFinance() {
   const { summary, transactions } = data;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
+      <View style={{ paddingTop: insets.top, backgroundColor: '#f8fafc' }} />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} colors={[colors.primary]} />}

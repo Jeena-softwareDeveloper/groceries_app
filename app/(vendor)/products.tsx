@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY, STALE_TIMES } from '@/utils/constants';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Feather } from '@expo/vector-icons';
@@ -95,7 +96,7 @@ function ProductFormModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      quality: 0.8,
+      quality: 0.5, // pre-select at reduced quality to keep initial size low
     });
 
     if (!result.canceled) {
@@ -136,8 +137,8 @@ function ProductFormModal({
           if (Platform.OS !== 'web') {
             const manipResult = await manipulateAsync(
               uri,
-              [{ resize: { width: 1024 } }],
-              { compress: 0.7, format: SaveFormat.JPEG }
+              [{ resize: { width: 800 } }], // max 800px wide — good for product cards
+              { compress: 0.55, format: SaveFormat.JPEG } // targets ~1MB even from 4MB source
             );
             uploadUri = manipResult.uri;
           }
@@ -344,7 +345,7 @@ export default function VendorProducts() {
   const { data: categories } = useQuery({
     queryKey: ['vendor-categories'],
     queryFn: vendorApi.getCategories,
-    staleTime: 300000,
+    staleTime: STALE_TIMES.STATIC,
   });
 
   // Mutations
@@ -396,52 +397,48 @@ export default function VendorProducts() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <Stack.Screen
-        options={{
-          header: () => (
-            <View style={{
-              backgroundColor: '#fff',
-              paddingTop: Math.max(insets.top, 20) + 10,
-              paddingHorizontal: spacing.lg,
-              paddingBottom: spacing.md,
-              borderBottomWidth: 1,
-              borderBottomColor: '#f1f5f9',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.md
-            }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
-                <Feather name="search" size={16} color="#94a3b8" />
-                <TextInput
-                  placeholder="Search products..."
-                  placeholderTextColor="#94a3b8"
-                  style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
-                  onChangeText={(t) => {
-                    setSearch(t);
-                    setPage(1);
-                  }}
-                  value={search}
-                />
-              </View>
-              <Pressable
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  backgroundColor: colors.primary,
-                  paddingHorizontal: 16,
-                  height: 40,
-                  borderRadius: 20,
-                  gap: 6,
-                }}
-                onPress={handleAdd}
-              >
-                <Feather name="plus" size={16} color="#fff" />
-                <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 13 }}>Add</Text>
-              </Pressable>
-            </View>
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.md,
+        paddingTop: Math.max(insets.top, 12),
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+        gap: spacing.md
+      }}>
+        {/* Search Bar */}
+        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 20, paddingHorizontal: 12, height: 40, borderWidth: 1, borderColor: '#e2e8f0' }}>
+          <Feather name="search" size={16} color="#94a3b8" />
+          <TextInput
+            placeholder="Search products..."
+            placeholderTextColor="#94a3b8"
+            style={{ flex: 1, marginLeft: 8, fontFamily: fonts.regular, fontSize: 14, color: colors.text, padding: 0 }}
+            onChangeText={(t) => {
+              setSearch(t);
+              setPage(1);
+            }}
+            value={search}
+          />
+        </View>
+        <Pressable
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.primary,
+            paddingHorizontal: 16,
+            height: 40,
+            borderRadius: 20,
+            gap: 6,
+          }}
+          onPress={handleAdd}
+        >
+          <Feather name="plus" size={16} color="#fff" />
+          <Text style={{ color: '#fff', fontFamily: fonts.semiBold, fontSize: 13 }}>Add</Text>
+        </Pressable>
+      </View>
 
       {/* Status Tabs */}
       <View style={styles.tabsWrapper}>
@@ -507,7 +504,7 @@ export default function VendorProducts() {
                 <View style={cardStyles.topRow}>
                   <View style={{ flexDirection: 'row', flex: 1, alignItems: 'center', gap: spacing.md }}>
                     {item.images?.[0] ? (
-                      <Image source={{ uri: item.images[0].url }} style={{ width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surface }} />
+                      <Image source={{ uri: item.images[0].url }} style={{ width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surface }} cachePolicy={IMAGE_CACHE_POLICY} />
                     ) : (
                       <View style={{ width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
                         <Feather name="image" size={20} color={colors.border} />

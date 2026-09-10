@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/utils/constants';
 import { useRouter } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import {
@@ -84,11 +85,13 @@ export default function LocationScreen({ isModalComponent = false, onClose }: Lo
   const districtsQuery = useQuery({
     queryKey: ['districts'],
     queryFn: customerApi.fetchDistricts,
+    staleTime: STALE_TIMES.STATIC,
   });
   const areasQuery = useQuery({
     queryKey: ['areas', selectedDistrict?.id],
     queryFn: () => customerApi.fetchAreas(selectedDistrict!.id),
     enabled: !!selectedDistrict,
+    staleTime: STALE_TIMES.STATIC,
   });
 
   // Filtered lists

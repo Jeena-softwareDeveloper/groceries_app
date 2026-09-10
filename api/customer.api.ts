@@ -60,7 +60,7 @@ export const customerApi = {
 
   reverseGeocode: (lat: number, lng: number) =>
     unwrap<{ displayName: string; locality: string; district: string }>(
-      api.get('/customer/reverse-geocode', { params: { lat, lng } }),
+      api.get(ENDPOINTS.CUSTOMER.REVERSE_GEOCODE, { params: { lat, lng } }),
     ),
 
   saveLocation: (data: {
@@ -70,9 +70,9 @@ export const customerApi = {
     longitude: number;
     districtId?: string;
     areaId?: string;
-  }) => unwrap(api.post('/customer/location', data)),
+  }) => unwrap(api.post(ENDPOINTS.CUSTOMER.LOCATION, data)),
 
   fetchAppVersion: () =>
-    unwrap<{ minVersion: string; playStoreUrl: string }>(api.get('/customer/app/version')),
+    unwrap<{ minVersion: string; playStoreUrl: string }>(api.get(ENDPOINTS.CUSTOMER.APP_VERSION)),
 };
 

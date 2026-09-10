@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/utils/constants';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
@@ -16,6 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Image } from 'expo-image';
+import { IMAGE_CACHE_POLICY } from '@/utils/constants';
 import { customerApi, productApi } from '@/api';
 import { ProductCard } from '@/components/ProductCard';
 import { colors, radius, spacing , fonts} from '@/constants/theme';
@@ -31,12 +33,14 @@ export default function ShopScreen() {
     queryKey: ['shop', id, latitude, longitude],
     queryFn: () => customerApi.fetchShop(id!, latitude, longitude),
     enabled: !!id,
+    staleTime: STALE_TIMES.CONTENT,
   });
 
   const productsQuery = useQuery({
     queryKey: ['shopProducts', id],
     queryFn: () => productApi.fetchShopProducts(id!),
     enabled: !!id,
+    staleTime: STALE_TIMES.LIST,
   });
 
   if (shopQuery.isLoading) {
@@ -52,13 +56,13 @@ export default function ShopScreen() {
     );
   }
 
-  const displayPhone = shop.phone?.trim() || '9944932484';
+  const displayPhone = shop.phone?.trim() || null;
 
   const renderHeader = () => (
     <View style={{ paddingBottom: spacing.md, borderBottomWidth: 8, borderBottomColor: colors.surface }}>
       <View style={styles.header}>
         {shop.logoUrl ? (
-          <Image source={{ uri: shop.logoUrl }} style={styles.logo} contentFit="cover" />
+          <Image source={{ uri: shop.logoUrl }} style={styles.logo} contentFit="cover" cachePolicy={IMAGE_CACHE_POLICY} />
         ) : null}
         <View style={styles.headerInfo}>
           <Text style={styles.name}>{shop.shopName}</Text>
@@ -70,32 +74,42 @@ export default function ShopScreen() {
             </Text>
           ) : null}
 
-          <Text style={{ fontSize: 13, color: '#16a34a', fontFamily: fonts.bold, marginTop: 4 }}>
-            📞 {displayPhone}
-          </Text>
-          
-          <View style={styles.metaRow}>
-            <TouchableOpacity
-              style={styles.callShopBtn}
-              onPress={() => Linking.openURL(`tel:${displayPhone}`)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="call" size={13} color="#ffffff" />
-              <Text style={styles.callShopBtnText}>Call Store</Text>
-            </TouchableOpacity>
-            {shop.rating != null ? (
-              <Pressable onPress={() => setActiveTab(prev => prev === 'products' ? 'reviews' : 'products')} style={styles.ratingRow}>
-                <Text style={styles.rating}>★ {Number(shop.rating).toFixed(1)}</Text>
-                <Text style={styles.ratingCount}>({shop.ratingCount || 0} Reviews)</Text>
-              </Pressable>
-            ) : null}
-          </View>
+          {displayPhone ? (
+            <Text style={{ fontSize: 13, color: colors.primary, fontFamily: fonts.bold, marginTop: 4 }}>
+              📞 {displayPhone}
+            </Text>
+          ) : null}
         </View>
+
+        {displayPhone ? (
+          <TouchableOpacity
+            style={styles.callShopBtnCircle}
+            onPress={() => Linking.openURL(`tel:${displayPhone}`)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="call" size={20} color="#ffffff" />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      <Text style={styles.section}>
-        {activeTab === 'products' ? 'Products' : 'Reviews'}
-      </Text>
+      <View style={styles.tabContainer}>
+        <Pressable 
+          style={[styles.tabBtn, activeTab === 'products' && styles.tabBtnActive]} 
+          onPress={() => setActiveTab('products')}
+        >
+          <Ionicons name="grid-outline" size={16} color={activeTab === 'products' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'products' && styles.tabTextActive]}>Products</Text>
+        </Pressable>
+        <Pressable 
+          style={[styles.tabBtn, activeTab === 'reviews' && styles.tabBtnActive]} 
+          onPress={() => setActiveTab('reviews')}
+        >
+          <Ionicons name="star-outline" size={16} color={activeTab === 'reviews' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.tabText, activeTab === 'reviews' && styles.tabTextActive]}>
+            Reviews {shop.ratingCount ? `(${shop.ratingCount})` : ''}
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -197,24 +211,54 @@ const styles = StyleSheet.create({
   empty: { padding: spacing.lg, color: colors.textMuted, textAlign: 'center' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: 4 },
   phone: { fontSize: 13, color: colors.text, fontFamily: fonts.medium },
-  callShopBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  callShopBtnCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#16a34a',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     elevation: 2,
-  },
-  callShopBtnText: {
-    fontSize: 12,
-    fontFamily: fonts.bold,
-    color: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ratingCount: { fontSize: 12, color: colors.textMuted },
   
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.md,
+    gap: spacing.md,
+  },
+  tabBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    borderRadius: radius.full,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  tabBtnActive: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
+  },
+  tabText: {
+    fontFamily: fonts.medium,
+    color: colors.textMuted,
+    fontSize: 14,
+  },
+  tabTextActive: {
+    color: colors.primaryDark,
+    fontFamily: fonts.bold,
+  },
+
   reviewCard: { padding: spacing.md, backgroundColor: colors.white, borderRadius: radius.md, marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border },
   reviewHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   reviewerName: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },

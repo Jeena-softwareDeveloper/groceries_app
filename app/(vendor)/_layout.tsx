@@ -2,7 +2,8 @@ import { Tabs } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { colors, fonts } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StyleSheet, Pressable, Text, View } from 'react-native';
+import { StyleSheet, Pressable, Text, View, ActivityIndicator } from 'react-native';
+import { useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { authApi } from '@/api';
@@ -15,27 +16,38 @@ function CustomerPortalButton() {
   const dispatch = useAppDispatch();
   const { refreshToken } = useAppSelector((s) => s.auth);
 
+  const isSwitchingRef = useRef(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+
   async function handleSwitchToCustomer() {
-    dispatch(showLoader());
+    if (isSwitchingRef.current) return;
+    isSwitchingRef.current = true;
+    setIsSwitching(true);
     try {
       const tokens = await authApi.switchToCustomer();
       await persistAuth(tokens.accessToken, tokens.refreshToken);
       dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
       const me = await authApi.getMe();
+      // dispatching setUser changes role to CUSTOMER, triggering NavigationGuard's redirect to /(tabs)
       dispatch(setUser(me));
-      router.replace('/(tabs)');
     } catch (e) {
       // fallback — just navigate
+      isSwitchingRef.current = false;
+      setIsSwitching(false);
       router.replace('/(tabs)');
-    } finally {
-      dispatch(hideLoader());
     }
   }
 
   return (
-    <Pressable onPress={handleSwitchToCustomer} style={styles.customerBtn}>
-      <Feather name="arrow-left" size={16} color={colors.primary} />
-      <Text style={styles.customerBtnText}>Customer</Text>
+    <Pressable onPress={isSwitching ? undefined : handleSwitchToCustomer} style={styles.customerBtn} disabled={isSwitching}>
+      {isSwitching ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : (
+        <>
+          <Feather name="arrow-left" size={16} color={colors.primary} />
+          <Text style={styles.customerBtnText}>Customer</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -80,12 +92,7 @@ export default function VendorTabLayout() {
         name="products"
         options={{
           title: 'Products',
-          headerShown: true,
-          headerTitle: 'Products',
-          headerTitleStyle: styles.headerTitle,
-          headerStyle: styles.headerStyle,
-          headerShadowVisible: false,
-          headerLeft: () => <CustomerPortalButton />,
+          headerShown: false,
           tabBarIcon: ({ color }) => <Feather name="box" size={22} color={color} />,
         }}
       />
@@ -95,12 +102,7 @@ export default function VendorTabLayout() {
         name="orders"
         options={{
           title: 'Orders',
-          headerShown: true,
-          headerTitle: 'Orders',
-          headerTitleStyle: styles.headerTitle,
-          headerStyle: styles.headerStyle,
-          headerShadowVisible: false,
-          headerLeft: () => <CustomerPortalButton />,
+          headerShown: false,
           tabBarIcon: ({ color }) => <Feather name="shopping-bag" size={22} color={color} />,
         }}
       />
@@ -110,12 +112,7 @@ export default function VendorTabLayout() {
         name="finance"
         options={{
           title: 'Finance',
-          headerShown: true,
-          headerTitle: 'Finance',
-          headerTitleStyle: styles.headerTitle,
-          headerStyle: styles.headerStyle,
-          headerShadowVisible: false,
-          headerLeft: () => <CustomerPortalButton />,
+          headerShown: false,
           tabBarIcon: ({ color }) => <Feather name="dollar-sign" size={22} color={color} />,
         }}
       />
@@ -125,12 +122,7 @@ export default function VendorTabLayout() {
         name="more"
         options={{
           title: 'More',
-          headerShown: true,
-          headerTitle: 'More',
-          headerTitleStyle: styles.headerTitle,
-          headerStyle: styles.headerStyle,
-          headerShadowVisible: false,
-          headerLeft: () => <CustomerPortalButton />,
+          headerShown: false,
           tabBarIcon: ({ color }) => <Feather name="menu" size={22} color={color} />,
         }}
       />

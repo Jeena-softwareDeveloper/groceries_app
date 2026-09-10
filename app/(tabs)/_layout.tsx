@@ -170,6 +170,7 @@ export default function TabLayout() {
   const { accessToken, user } = useAppSelector((s) => s.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
+  const isSwitchingRef = useRef(false);
   const [isSwitching, setIsSwitching] = useState(false);
 
   const { data: vendorRequest } = useQuery({
@@ -188,21 +189,23 @@ export default function TabLayout() {
 
   const handleVendorTabPress = async (e: any) => {
     e.preventDefault();
-    if (isSwitching) return; // block double-tap
+    if (isSwitchingRef.current) return; // block double-tap
     if (!accessToken) {
       dispatch(setShowLoginModal(true));
       return;
     }
     if (vendorRequest?.status === 'APPROVED') {
-      setIsSwitching(true);
+      isSwitchingRef.current = true;
+      setIsSwitching(true); // for UI loading state
       try {
         const tokens = await authApi.switchToVendor();
         await persistAuth(tokens.accessToken, tokens.refreshToken);
         dispatch(setTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken }));
         const me = await authApi.getMe();
+        // dispatching setUser changes role to VENDOR, triggering NavigationGuard's redirect to /(vendor)
         dispatch(setUser(me));
-        router.replace('/(vendor)');
       } catch {
+        isSwitchingRef.current = false;
         router.push('/vendor-request');
       } finally {
         setIsSwitching(false);
@@ -214,6 +217,8 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore — expo-router bundles its own react-navigation types; the duplicate namespace causes a false TS error at runtime this works fine
       tabBar={(props) => <CustomTabBar {...props} switchingVendor={isSwitching} />}
       screenOptions={{ headerShown: false }}
     >

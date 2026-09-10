@@ -12,6 +12,8 @@ export interface CustomerProfile {
   phone: string;
   name?: string | null;
   email?: string | null;
+  imageUrl?: string | null;
+  image?: string | null;
   addresses?: Address[];
   createdAt?: string;
   isBlocked?: boolean;
@@ -76,7 +78,7 @@ export interface Product {
   images?: ProductImage[];
   inventory?: { stock: number } | null;
   category?: Category | null;
-  vendor?: { id: string; shopName: string; slug?: string; distance?: number; inDeliveryRadius?: boolean };
+  vendor?: { id: string; shopName: string; slug?: string; phone?: string | null; distance?: number; inDeliveryRadius?: boolean; latitude?: number; longitude?: number };
   reviews?: { rating: number; comment?: string | null }[];
   relatedProducts?: Product[];
 }
@@ -86,6 +88,7 @@ export interface HomeFeed {
     id: string;
     imageUrl: string;
     videoUrl?: string | null;
+    type?: string | null;
     title?: string | null;
     row?: number | null;
     sortOrder?: number | null;
@@ -126,14 +129,14 @@ export interface CartItem {
   vendorId: string;
   quantity: number;
   product: Product;
-  vendor?: { id: string; shopName: string; minOrderValue?: number | null };
+  vendor?: { id: string; shopName: string; minOrderValue?: number | null; latitude?: number | null; longitude?: number | null };
 }
 
 export interface CartResponse {
   items: CartItem[];
   byVendor: {
     vendorId: string;
-    vendor: { id: string; shopName: string; minOrderValue?: number | null };
+    vendor: { id: string; shopName: string; minOrderValue?: number | null; latitude?: number | null; longitude?: number | null };
     items: CartItem[];
   }[];
 }

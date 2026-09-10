@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { STALE_TIMES } from '@/utils/constants';
 import {
   FlatList,
   Pressable,
@@ -33,6 +34,7 @@ export default function OrdersScreen() {
     queryKey: ['orders'],
     queryFn: () => orderApi.fetchOrders(1),
     enabled: !!accessToken,
+    staleTime: STALE_TIMES.PERSONAL,
   });
 
   if (!accessToken) {
