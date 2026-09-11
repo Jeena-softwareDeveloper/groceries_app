@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, View, Animated, ViewStyle, StyleProp } from 'react-native';
 import { Image, ImageSource } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { IMAGE_CACHE_POLICY } from '@/utils/constants';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SmartImageProps {
@@ -29,13 +28,18 @@ export const SmartImage: React.FC<SmartImageProps> = ({
   const [hasError, setHasError] = useState(false);
   const pulseAnim = useRef(new Animated.Value(0.4)).current;
 
-  // Validate source has a non-empty URI
-  const hasValidUri =
-    source != null &&
-    typeof source === 'object' &&
-    'uri' in source &&
-    typeof (source as any).uri === 'string' &&
-    (source as any).uri.length > 0;
+  // Extract URI for logging and validation
+  const uri = source != null && typeof source === 'object' && 'uri' in source
+    ? (source as any).uri as string | undefined
+    : undefined;
+
+  const hasValidUri = typeof uri === 'string' && uri.length > 0;
+
+  // Reset state when source changes (prevents stale error from previous URL)
+  useEffect(() => {
+    setIsLoaded(false);
+    setHasError(false);
+  }, [uri]);
 
   // Shimmer pulse animation while loading (Flipkart / Amazon skeleton style)
   useEffect(() => {
@@ -69,14 +73,16 @@ export const SmartImage: React.FC<SmartImageProps> = ({
           style={StyleSheet.absoluteFill}
           contentFit={contentFit}
           transition={250}
-          // In dev: 'none' = always load fresh. In production: 'memory-disk' for speed.
-          cachePolicy={IMAGE_CACHE_POLICY}
+          // 'disk' avoids in-memory stale cache; still fast on re-renders
+          cachePolicy="disk"
           onLoad={() => {
             setIsLoaded(true);
             onLoad?.();
           }}
-          onError={() => {
-            setHasError(true);
+          onError={(e) => {
+            // Log the failing URL so we can diagnose production image issues
+            console.warn('[SmartImage] Failed to load image:', uri, e?.error ?? '');
+             setHasError(true);
             onError?.();
           }}
         />

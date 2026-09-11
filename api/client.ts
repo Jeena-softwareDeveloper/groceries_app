@@ -49,11 +49,17 @@ function processQueue(token: string | null) {
 // ── Response interceptor: handle 401 → refresh and fix localhost URLs ────────
 api.interceptors.response.use(
   (response) => {
-    // Fix localhost URLs for images/videos when running on physical device during dev
-    if (__DEV__ && response.data && typeof response.data === 'object' && API_BASE) {
+    // Fix localhost URLs for images — happens when IMAGE_BASE_URL was not set on server
+    // during upload, causing DB to store http://localhost:4000/... image URLs.
+    // This rewrite ensures production APKs can still display those legacy images.
+    if (response.data && typeof response.data === 'object' && API_BASE) {
       const str = JSON.stringify(response.data);
-      if (str.includes('http://localhost:4000')) {
-        response.data = JSON.parse(str.replace(/http:\/\/localhost:4000/g, API_BASE));
+      if (str.includes('http://localhost:4000') || str.includes('http://localhost:3000')) {
+        response.data = JSON.parse(
+          str
+            .replace(/http:\/\/localhost:4000/g, API_BASE)
+            .replace(/http:\/\/localhost:3000/g, API_BASE)
+        );
       }
     }
     return response;
