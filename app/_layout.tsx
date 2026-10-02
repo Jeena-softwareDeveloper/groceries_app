@@ -31,17 +31,9 @@ import { AnimatedLoader } from '@/components/AnimatedLoader';
 import { hideLoader } from '@/store/uiSlice';
 
 // ── Version helpers ─────────────────────────────────────────────────────────
-function parseVer(v: string) {
-  return (v || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
-}
-
-function isOutdated(current: string, minVersion: string) {
-  const [cMaj, cMin, cPatch] = parseVer(current);
-  const [mMaj, mMin, mPatch] = parseVer(minVersion);
-  
-  if (cMaj !== mMaj) return cMaj < mMaj;
-  if (cMin !== mMin) return cMin < mMin;
-  return cPatch < mPatch;
+function isOutdated(current: string, expected: string) {
+  // STRICT EXACT MATCH: Both must be identical. If higher OR lower, it forces update.
+  return current.trim() !== expected.trim();
 }
 
 function ForceUpdateScreen({ playStoreUrl, currentVersion }: { playStoreUrl: string; currentVersion: string }) {
