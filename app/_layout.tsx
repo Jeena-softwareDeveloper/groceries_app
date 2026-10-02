@@ -292,8 +292,8 @@ export default function RootLayout() {
     // So we use expoConfig.version for Expo Go, and nativeApplicationVersion for production builds.
     const isExpoGo = Constants.appOwnership === 'expo';
     const currentVersion = isExpoGo 
-      ? (Constants.expoConfig?.version || '0.1.0')
-      : (Application.nativeApplicationVersion || Constants.expoConfig?.version || '0.1.0');
+      ? (Constants.expoConfig?.version || '')
+      : (Application.nativeApplicationVersion || Constants.expoConfig?.version || '');
     
     customerApi.fetchAppVersion().then(({ minVersion, playStoreUrl }) => {
       if (isOutdated(currentVersion, minVersion)) {
