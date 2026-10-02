@@ -34,12 +34,8 @@ import { hideLoader } from '@/store/uiSlice';
 function parseVer(v: string) {
   return (v || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
 }
-function isOutdated(current: string, min: string) {
-  const [cMaj, cMin, cPatch] = parseVer(current);
-  const [mMaj, mMin, mPatch] = parseVer(min);
-  if (cMaj !== mMaj) return cMaj < mMaj;
-  if (cMin !== mMin) return cMin < mMin;
-  return cPatch < mPatch;
+function isOutdated(current: string, expected: string) {
+  return current.trim() !== expected.trim();
 }
 
 function ForceUpdateScreen({ playStoreUrl, currentVersion }: { playStoreUrl: string; currentVersion: string }) {
