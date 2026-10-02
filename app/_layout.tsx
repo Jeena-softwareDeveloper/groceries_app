@@ -288,8 +288,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     // In production builds, Constants.expoConfig might not contain version accurately,
-    // so we use the actual native application version installed on the device.
-    const currentVersion = Application.nativeApplicationVersion || Constants.expoConfig?.version || '0.1.0';
+    // In Expo Go, nativeApplicationVersion returns Expo Go's version (e.g. 57.0.9).
+    // So we use expoConfig.version for Expo Go, and nativeApplicationVersion for production builds.
+    const isExpoGo = Constants.appOwnership === 'expo';
+    const currentVersion = isExpoGo 
+      ? (Constants.expoConfig?.version || '0.1.0')
+      : (Application.nativeApplicationVersion || Constants.expoConfig?.version || '0.1.0');
     
     customerApi.fetchAppVersion().then(({ minVersion, playStoreUrl }) => {
       if (isOutdated(currentVersion, minVersion)) {
