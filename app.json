@@ -2,7 +2,7 @@
   "expo": {
     "name": "All Time Market",
     "slug": "all-time-market",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "scheme": "districtmart",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alltimemarket.app",
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.alltimemarket.app",
-      "versionCode": 3,
+      "versionCode": 4,
       "softwareKeyboardLayoutMode": "resize"
     },
     "web": {

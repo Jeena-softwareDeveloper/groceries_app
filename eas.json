@@ -11,7 +11,7 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://api.alltimemarket.in",
         "EXPO_PUBLIC_IMAGE_BASE_URL": "https://api.alltimemarket.in/uploads",
         "EXPO_PUBLIC_SOCKET_URL": "wss://api.alltimemarket.in",
-        "EXPO_PUBLIC_APP_VERSION": "0.1.4"
+        "EXPO_PUBLIC_APP_VERSION": "0.1.5"
       }
     },
     "preview": {
@@ -23,7 +23,7 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://api.alltimemarket.in",
         "EXPO_PUBLIC_IMAGE_BASE_URL": "https://api.alltimemarket.in/uploads",
         "EXPO_PUBLIC_SOCKET_URL": "wss://api.alltimemarket.in",
-        "EXPO_PUBLIC_APP_VERSION": "0.1.4"
+        "EXPO_PUBLIC_APP_VERSION": "0.1.5"
       }
     },
     "production": {
@@ -32,7 +32,7 @@
         "EXPO_PUBLIC_API_BASE_URL": "https://api.alltimemarket.in",
         "EXPO_PUBLIC_IMAGE_BASE_URL": "https://api.alltimemarket.in/uploads",
         "EXPO_PUBLIC_SOCKET_URL": "wss://api.alltimemarket.in",
-        "EXPO_PUBLIC_APP_VERSION": "0.1.4"
+        "EXPO_PUBLIC_APP_VERSION": "0.1.5"
       }
     }
   },
