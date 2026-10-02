@@ -6,6 +6,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Text, TextStyle, View, Linking, TouchableOpacity, Animated } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
+import * as SecureStore from 'expo-secure-store';
 import { Provider } from 'react-redux';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
@@ -151,6 +152,44 @@ function NavigationGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// ── Deferred Referral Tracker ────────────────────────────────────────────────
+// Reads the Play Store install referrer on very first launch.
+// If the user scanned a QR code days before installing, Google Play passes the
+// utm_source back via the Install Referrer API. We save it and tell the backend.
+function DeferredReferralTracker() {
+  useEffect(() => {
+    (async () => {
+      try {
+        // Only run once – skip if we already tracked
+        const alreadyTracked = await SecureStore.getItemAsync('REFERRAL_TRACKED');
+        if (alreadyTracked) return;
+
+        // expo-application exposes getInstallReferrerAsync on Android
+        const referrerString = await (Application as any).getInstallReferrerAsync?.();
+        if (!referrerString) return;
+
+        // Parse utm_source=STF-003 from the referrer string
+        const params = new URLSearchParams(referrerString);
+        const ref = params.get('utm_source');
+        if (!ref) return;
+
+        // Save the referral code locally for use at signup
+        await SecureStore.setItemAsync('REFERRAL_CODE', ref);
+
+        // Log this install via API
+        const { customerApi } = await import('@/api/customer.api');
+        await customerApi.logReferralInstall(ref);
+
+        // Mark as tracked so we don't double-count on next launch
+        await SecureStore.setItemAsync('REFERRAL_TRACKED', '1');
+      } catch (e) {
+        // Non-critical – silently ignore
+      }
+    })();
+  }, []);
+  return null;
+}
+
 function CartBadgeSync() {  const dispatch = useAppDispatch();
   const { accessToken } = useAppSelector((s) => s.auth);
   const { data } = useQuery({
@@ -172,6 +211,7 @@ function RootNavigator() {
   return (
     <NavigationGuard>
       <CartBadgeSync />
+      <DeferredReferralTracker />
       {/* @ts-ignore — backgroundColor is valid at runtime (Android) but missing from expo-status-bar type definitions */}
       <StatusBar style="dark" backgroundColor={colors.primaryLight} translucent={false} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
@@ -189,6 +229,7 @@ function RootNavigator() {
         <Stack.Screen name="support" options={{ headerShown: false }} />
         <Stack.Screen name="orders/[id]" options={{ headerShown: true, title: 'Order' }} />
         <Stack.Screen name="category/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="refer" options={{ headerShown: false, animation: 'fade' }} />
       </Stack>
     </NavigationGuard>
   );
