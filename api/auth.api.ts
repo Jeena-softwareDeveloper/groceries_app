@@ -11,9 +11,9 @@ export const authApi = {
     );
   },
 
-  verifyOtp: async (phone: string, otp: string) => {
+  verifyOtp: async (phone: string, otp: string, staffReferralCode?: string) => {
     const device = await getDeviceSignature();
-    return unwrap<AuthTokens & { isNewUser?: boolean }>(api.post(ENDPOINTS.AUTH.OTP_VERIFY, { phone, otp, ...device }));
+    return unwrap<AuthTokens & { isNewUser?: boolean }>(api.post(ENDPOINTS.AUTH.OTP_VERIFY, { phone, otp, ...device, ...(staffReferralCode ? { staffReferralCode } : {}) }));
   },
 
   getMe: () =>

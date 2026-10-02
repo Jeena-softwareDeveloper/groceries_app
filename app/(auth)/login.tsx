@@ -20,6 +20,7 @@ import { persistAuth } from '@/hooks/useBootstrap';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setTokens, setUser } from '@/store/authSlice';
 import { Feather } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
 
 import { Typography, Button, Input } from '@/components/ui';
 
@@ -125,7 +126,10 @@ export default function LoginScreen(props: any = {}) {
     }
     setLoading(true);
     try {
-      const tokens = await authApi.verifyOtp(normalized, code);
+      // Read referral code saved from QR scan (may be null if not referred)
+      const staffReferralCode = await SecureStore.getItemAsync('REFERRAL_CODE').catch(() => null);
+
+      const tokens = await authApi.verifyOtp(normalized, code, staffReferralCode ?? undefined);
       
       // FIX: Persist auth to local storage so axios interceptor can use it for getMe()
       await persistAuth(tokens.accessToken, tokens.refreshToken);
