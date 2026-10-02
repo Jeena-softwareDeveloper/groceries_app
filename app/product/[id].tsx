@@ -31,7 +31,8 @@ import Toast from 'react-native-toast-message';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_HEIGHT = SCREEN_WIDTH * 0.92;
-const HALF = (SCREEN_WIDTH - 3) / 2;
+// container has paddingHorizontal: 14 (total 28), and we want a small gap between 2 cards
+const HALF = (SCREEN_WIDTH - 28 - 8) / 2;
 
 // ── Rating labels (Meesho style) ───────────────────────────────────────────
 const RATING_LABELS: Record<number, string> = {
@@ -771,7 +772,7 @@ const s = StyleSheet.create({
   trustDivider: { width: 1, height: 32, backgroundColor: '#e5e7eb' },
 
   // ── People Also Viewed (2-col grid) ──────────────────────────────────────
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   gridCard: { width: HALF, backgroundColor: '#fff', borderWidth: 1, borderColor: '#f0f0f0', position: 'relative' },
   gridHeart: { position: 'absolute', top: 8, right: 8, zIndex: 1, width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   gridImg: { width: '100%', height: HALF, backgroundColor: '#f8f8f8' },
