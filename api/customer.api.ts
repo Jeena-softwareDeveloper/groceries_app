@@ -74,5 +74,8 @@ export const customerApi = {
 
   fetchAppVersion: () =>
     unwrap<{ minVersion: string; playStoreUrl: string }>(api.get(ENDPOINTS.CUSTOMER.APP_VERSION)),
+
+  logReferralInstall: (ref: string) =>
+    unwrap(api.post('/customer/refer-install', { ref })),
 };
 
